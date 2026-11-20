@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { useSGD } from '../contexts/SGDContext';
 import {
-  Shield, LayoutDashboard, ClipboardCheck, Target, Users,
+  LayoutDashboard, ClipboardCheck, Target, Users,
   Settings, Menu, X, Wifi, WifiOff, RefreshCw, AlertCircle,
-  ChevronRight, Package, Stethoscope, Lock, FileText, Bell
+  ChevronRight, Package, Stethoscope, Lock, FileText
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -43,16 +43,20 @@ export default function Layout() {
         'fixed inset-y-0 left-0 z-30 w-64 bg-slate-900 text-white flex flex-col transition-transform duration-300 lg:static lg:translate-x-0',
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       )}>
-        {/* Logo */}
-        <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-700">
-          <div className="p-2 bg-blue-600 rounded-xl flex-shrink-0">
-            <Shield className="h-5 w-5 text-white" />
+        {/* Logo Oficial Duncan en Color */}
+        <div className="flex items-center justify-between px-4 py-4 border-b border-slate-800 bg-slate-950/60">
+          <div className="flex items-center gap-3">
+            <img
+              src="/duncan-logo-color.png"
+              alt="Duncan"
+              className="h-8 w-auto object-contain filter drop-shadow"
+            />
+            <div className="border-l border-slate-700 pl-2.5">
+              <span className="font-extrabold text-[11px] text-yellow-400 tracking-wider block leading-none">SG-SSA</span>
+              <span className="text-[9px] text-slate-400 uppercase tracking-tight block mt-0.5 leading-none">v2.0 PWA</span>
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="font-bold text-sm truncate">SGD Duncan</p>
-            <p className="text-xs text-slate-400">Sistema de Gestión SSA</p>
-          </div>
-          <button onClick={() => setSidebarOpen(false)} className="ml-auto lg:hidden text-slate-400 hover:text-white">
+          <button onClick={() => setSidebarOpen(false)} className="ml-auto lg:hidden text-slate-400 hover:text-white p-1">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -81,7 +85,7 @@ export default function Layout() {
               className={cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5 text-sm font-medium transition-colors duration-150 group',
                 isActive(to, exact)
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-300 hover:bg-slate-800 hover:text-white'
               )}
             >
@@ -93,7 +97,7 @@ export default function Layout() {
         </nav>
 
         {/* Pie del sidebar */}
-        <div className="p-3 border-t border-slate-700 space-y-2">
+        <div className="p-3 border-t border-slate-800 space-y-2">
           {pendingSyncCount > 0 && isOnline && (
             <button
               onClick={syncNow}
@@ -112,7 +116,10 @@ export default function Layout() {
               <span>Configurar Google Sheets</span>
             </Link>
           )}
-          <p className="text-xs text-slate-500 text-center">SGD Duncan v2.0 © 2026</p>
+          <div className="pt-1 text-center">
+            <p className="text-[11px] font-medium text-slate-400">Acumuladores Duncan, C.A.</p>
+            <p className="text-[10px] text-slate-500">SGD 2.0 © 2026</p>
+          </div>
         </div>
       </aside>
 
@@ -124,10 +131,8 @@ export default function Layout() {
             <Menu className="h-5 w-5" />
           </button>
           <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-blue-600 rounded-lg">
-              <Shield className="h-4 w-4 text-white" />
-            </div>
-            <span className="font-bold text-sm text-slate-900">SGD Duncan</span>
+            <img src="/duncan-logo-bw.png" alt="Duncan Logo" className="h-6 w-auto object-contain" />
+            <span className="font-bold text-xs text-slate-700 border-l border-slate-200 pl-2">SG-SSA 2.0</span>
           </div>
           <div className="ml-auto flex items-center gap-2">
             {pendingSyncCount > 0 && (

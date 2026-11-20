@@ -9,6 +9,7 @@ import { FORM_REGISTRY } from '../lib/formDefinitions';
 import { formatDate, getResultadoBadgeClass, getEstadoBadgeClass } from '../lib/utils';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { DUNCAN_LOGO_BW } from '../lib/logos';
 import toast from 'react-hot-toast';
 
 export default function ReportePage() {
@@ -84,16 +85,32 @@ export default function ReportePage() {
     try {
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
       
-      // Header
-      doc.setFillColor(30, 64, 175); // Blue 800
-      doc.rect(0, 0, 216, 24, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(14);
+      // Header Corporativo con Logo Duncan Blanco y Negro
+      try {
+        doc.addImage(DUNCAN_LOGO_BW, 'PNG', 14, 6, 36, 13);
+      } catch (e) {
+        console.warn('Error insertando logo en PDF', e);
+      }
+
+      doc.setTextColor(15, 23, 42); // Slate 900
+      doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
-      doc.text('SGD DUNCAN — SISTEMA DE GESTIÓN SSA', 14, 12);
-      doc.setFontSize(10);
+      doc.text(inspeccion.empresaNombre || 'ACUMULADORES DUNCAN, C.A.', 56, 11);
+
+      doc.setFontSize(8.5);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Informe Oficial de Inspección: ${inspeccion.tipoNombre}`, 14, 18);
+      doc.setTextColor(71, 85, 105); // Slate 600
+      doc.text('Sistema de Gestión de Seguridad, Salud y Ambiente (SG-SSA)', 56, 16);
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 64, 175); // Blue 800
+      doc.text(`INFORME OFICIAL: ${inspeccion.tipoNombre.toUpperCase()}`, 56, 21);
+
+      // Línea divisoria
+      doc.setDrawColor(203, 213, 225);
+      doc.setLineWidth(0.4);
+      doc.line(14, 25, 202, 25);
 
       // Metadatos
       doc.setTextColor(15, 23, 42);
@@ -193,23 +210,27 @@ export default function ReportePage() {
 
       {/* Contenido del Reporte para Pantalla e Impresión */}
       <div ref={reportRef} className="card p-6 sm:p-8 space-y-6 bg-white shadow-sm print:border-none print:shadow-none">
-        {/* Cabecera Membrete */}
+        {/* Cabecera Membrete Oficial con Logo Duncan Blanco y Negro */}
         <div className="flex items-start justify-between pb-6 border-b border-slate-200">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-blue-600 rounded-xl text-white">
-              <Shield className="h-7 w-7" />
-            </div>
-            <div>
-              <p className="font-bold text-lg text-slate-900">ACUMULADORES DUNCAN, C.A.</p>
-              <p className="text-xs text-slate-500">Sistema de Gestión de Seguridad, Salud y Ambiente (SG-SSA)</p>
-              <p className="text-xs font-semibold text-blue-600 mt-0.5">{inspeccion.tipoNombre}</p>
+          <div className="flex items-center gap-4">
+            <img
+              src="/duncan-logo-bw.png"
+              alt="Duncan"
+              className="h-11 w-auto object-contain shrink-0"
+            />
+            <div className="border-l-2 border-slate-300 pl-4">
+              <p className="font-bold text-base sm:text-lg text-slate-900 leading-tight">
+                {inspeccion.empresaNombre || 'ACUMULADORES DUNCAN, C.A.'}
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">Sistema de Gestión de Seguridad, Salud y Ambiente (SG-SSA)</p>
+              <p className="text-xs font-bold text-blue-700 mt-1 uppercase tracking-wide">{inspeccion.tipoNombre}</p>
             </div>
           </div>
           <div className="text-right">
-            <span className="font-mono text-sm font-bold text-slate-800">
+            <span className="font-mono text-sm font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
               N° {String(inspeccion.correlativo || '1001').padStart(4, '0')}
             </span>
-            <p className="text-xs text-slate-400 mt-0.5">{formatDate(inspeccion.fecha)}</p>
+            <p className="text-xs text-slate-400 mt-1.5">{formatDate(inspeccion.fecha)}</p>
           </div>
         </div>
 

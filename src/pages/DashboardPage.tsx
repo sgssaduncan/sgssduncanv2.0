@@ -21,14 +21,14 @@ export default function DashboardPage() {
     <div className="space-y-6 fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-xl">
-              <Shield className="h-6 w-6 text-blue-600" />
-            </div>
-            Panel de Control
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">SGD Duncan 2.0 — Sistema de Gestión SSA</p>
+        <div className="flex items-center gap-3">
+          <img src="/duncan-logo-bw.png" alt="Duncan Logo" className="h-10 w-auto object-contain hidden sm:block" />
+          <div className="sm:border-l sm:border-slate-300 sm:pl-3">
+            <h1 className="text-2xl font-bold text-slate-900">
+              Panel de Control
+            </h1>
+            <p className="text-sm text-slate-500 mt-0.5">Sistema de Gestión de Seguridad, Salud y Ambiente — SG-SSA</p>
+          </div>
         </div>
         <Link to="/inspecciones/nueva" className="btn-primary flex items-center gap-2 w-fit">
           <Plus className="h-4 w-4" /> Nueva Inspección
