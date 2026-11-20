@@ -396,6 +396,38 @@ function getOrCreateSheet(ss, name) {
   if (!sheet) {
     sheet = ss.insertSheet(name);
   }
+  // Auto-inicializar encabezados si está vacía
+  if (sheet.getLastRow() === 0) {
+    if (name === SHEETS.INSPECCIONES) {
+      sheet.appendRow([
+        '_id', 'correlativo', 'empresaId', 'empresaNombre',
+        'localidadId', 'localidadNombre', 'establecimientoId', 'establecimientoNombre',
+        'tipoInspeccionId', 'tipoNombre', 'tipoCodigo', 'fecha',
+        'inspector', 'estado', 'resultado', 'puntuacion',
+        'observaciones', 'formResponses', 'formObservations',
+        'formAdditional', 'formSignatures', 'actualizadoEn'
+      ]);
+      formatHeaderRow(sheet);
+    } else if (name === SHEETS.PLAN_ACCION) {
+      sheet.appendRow([
+        '_id', 'inspeccionId', 'empresaNombre', 'establecimientoNombre',
+        'tipoInspeccionCodigo', 'tipoInspeccionNombre', 'item', 'seccion',
+        'hallazgo', 'descripcion', 'responsable', 'departamento',
+        'fechaDeteccion', 'fechaLimite', 'prioridad', 'estado', 'notas', 'creadoEn'
+      ]);
+      formatHeaderRow(sheet);
+    } else if (name === SHEETS.AUDIT_LOG) {
+      sheet.appendRow(['_id', 'usuario', 'accion', 'entidad', 'entidadId', 'detalles', 'timestamp']);
+      formatHeaderRow(sheet);
+    } else if (name === SHEETS.EMPLEADOS) {
+      sheet.appendRow(['_id', 'codigo', 'cedula', 'nombre', 'cargo', 'departamento', 'empresaNombre']);
+      formatHeaderRow(sheet);
+    } else if (name === SHEETS.USUARIOS) {
+      sheet.appendRow(['_id', 'email', 'nombre', 'rol', 'activo']);
+      sheet.appendRow(['usr_admin', 'admin@duncan.com.ve', 'Administrador General', 'Super Admin', true]);
+      formatHeaderRow(sheet);
+    }
+  }
   return sheet;
 }
 
