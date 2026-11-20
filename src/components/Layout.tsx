@@ -1,0 +1,151 @@
+import React, { useState } from 'react';
+import { Link, useLocation, Outlet } from 'react-router-dom';
+import { useSGD } from '../contexts/SGDContext';
+import {
+  Shield, LayoutDashboard, ClipboardCheck, Target, Users,
+  Settings, Menu, X, Wifi, WifiOff, RefreshCw, AlertCircle,
+  ChevronRight, Package, Stethoscope, Lock, FileText, Bell
+} from 'lucide-react';
+import { cn } from '../lib/utils';
+
+const NAV_ITEMS = [
+  { to: '/',             icon: LayoutDashboard, label: 'Dashboard',       exact: true },
+  { to: '/inspecciones', icon: ClipboardCheck,  label: 'Inspecciones' },
+  { to: '/plan-accion',  icon: Target,          label: 'Plan de Acción' },
+  { to: '/dotacion',     icon: Package,         label: 'Dotación EPP' },
+  { to: '/loto',         icon: Lock,            label: 'LOTO' },
+  { to: '/medico',       icon: Stethoscope,     label: 'Evaluaciones Médicas' },
+  { to: '/reportes',     icon: FileText,        label: 'Reportes' },
+  { to: '/usuarios',     icon: Users,           label: 'Usuarios' },
+  { to: '/ajustes',      icon: Settings,        label: 'Ajustes' },
+];
+
+export default function Layout() {
+  const location = useLocation();
+  const { isOnline, pendingSyncCount, isSyncing, syncNow, sheetsUrl } = useSGD();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const isActive = (to: string, exact?: boolean) =>
+    exact ? location.pathname === to : location.pathname.startsWith(to) && to !== '/';
+
+  return (
+    <div className="flex h-screen bg-slate-50 overflow-hidden">
+      {/* Overlay móvil */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-20 bg-black/50 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside className={cn(
+        'fixed inset-y-0 left-0 z-30 w-64 bg-slate-900 text-white flex flex-col transition-transform duration-300 lg:static lg:translate-x-0',
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      )}>
+        {/* Logo */}
+        <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-700">
+          <div className="p-2 bg-blue-600 rounded-xl flex-shrink-0">
+            <Shield className="h-5 w-5 text-white" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-bold text-sm truncate">SGD Duncan</p>
+            <p className="text-xs text-slate-400">Sistema de Gestión SSA</p>
+          </div>
+          <button onClick={() => setSidebarOpen(false)} className="ml-auto lg:hidden text-slate-400 hover:text-white">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Estado de conexión */}
+        <div className={cn(
+          'mx-3 mt-3 px-3 py-2 rounded-lg text-xs flex items-center gap-2',
+          isOnline ? 'bg-emerald-900/50 text-emerald-300' : 'bg-amber-900/50 text-amber-300'
+        )}>
+          {isOnline ? <Wifi className="h-3 w-3 flex-shrink-0" /> : <WifiOff className="h-3 w-3 flex-shrink-0" />}
+          <span className="truncate">{isOnline ? (sheetsUrl ? 'Conectado a Sheets' : 'En línea (Local)') : 'Modo Offline'}</span>
+          {pendingSyncCount > 0 && (
+            <span className="ml-auto bg-amber-500 text-white text-xs rounded-full px-1.5 py-0.5 font-bold flex-shrink-0">
+              {pendingSyncCount}
+            </span>
+          )}
+        </div>
+
+        {/* Navegación */}
+        <nav className="flex-1 overflow-y-auto py-3 px-2">
+          {NAV_ITEMS.map(({ to, icon: Icon, label, exact }) => (
+            <Link
+              key={to}
+              to={to}
+              onClick={() => setSidebarOpen(false)}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5 text-sm font-medium transition-colors duration-150 group',
+                isActive(to, exact)
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+              )}
+            >
+              <Icon className="h-4 w-4 flex-shrink-0" />
+              <span className="truncate">{label}</span>
+              {isActive(to, exact) && <ChevronRight className="h-3 w-3 ml-auto flex-shrink-0" />}
+            </Link>
+          ))}
+        </nav>
+
+        {/* Pie del sidebar */}
+        <div className="p-3 border-t border-slate-700 space-y-2">
+          {pendingSyncCount > 0 && isOnline && (
+            <button
+              onClick={syncNow}
+              disabled={isSyncing}
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-amber-300 bg-amber-900/40 rounded-lg hover:bg-amber-900/60 transition-colors"
+            >
+              <RefreshCw className={cn('h-3.5 w-3.5', isSyncing && 'animate-spin')} />
+              <span>{isSyncing ? 'Sincronizando...' : `Sincronizar (${pendingSyncCount} pendientes)`}</span>
+            </button>
+          )}
+          {!sheetsUrl && (
+            <Link to="/ajustes" onClick={() => setSidebarOpen(false)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-orange-300 bg-orange-900/30 rounded-lg hover:bg-orange-900/50 transition-colors"
+            >
+              <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+              <span>Configurar Google Sheets</span>
+            </Link>
+          )}
+          <p className="text-xs text-slate-500 text-center">SGD Duncan v2.0 © 2026</p>
+        </div>
+      </aside>
+
+      {/* Contenido principal */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Header móvil */}
+        <header className="lg:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-200 shadow-sm">
+          <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-2 text-slate-500 hover:text-slate-700 rounded-lg hover:bg-slate-100">
+            <Menu className="h-5 w-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-blue-600 rounded-lg">
+              <Shield className="h-4 w-4 text-white" />
+            </div>
+            <span className="font-bold text-sm text-slate-900">SGD Duncan</span>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            {pendingSyncCount > 0 && (
+              <span className="bg-amber-500 text-white text-xs rounded-full px-2 py-0.5 font-bold">
+                {pendingSyncCount}
+              </span>
+            )}
+            {!isOnline && <WifiOff className="h-4 w-4 text-amber-500" />}
+          </div>
+        </header>
+
+        {/* Área de scroll */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+            <Outlet />
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}

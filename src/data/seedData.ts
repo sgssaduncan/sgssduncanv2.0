@@ -1,0 +1,108 @@
+// ============================================================
+// SGD DUNCAN 2.0 — DATOS MAESTROS (SEED DATA)
+// 3 Empresas | 11 Localidades | 63 Establecimientos | 16 Tipos de Inspección
+// ============================================================
+
+import type { Empresa, Localidad, Establecimiento, TipoInspeccion, Empleado, Usuario } from '../types';
+
+export const INITIAL_EMPRESAS: Empresa[] = [
+  { _id: 'emp_adca', codigo: 'ADCA', nombre: 'Acumuladores Duncan, C.A.', rif: 'J-00000350-5', direccion: 'Av. Milán, Edificio Nageben Piso 1, Los Ruices Sur, Caracas 1071' },
+  { _id: 'emp_ddca', codigo: 'DDCA', nombre: 'Distribuidora Duncan, C.A.', rif: 'J-00100047-0', direccion: 'Av. Milán, Edificio Nageben, Los Ruices Sur, Caracas' },
+  { _id: 'emp_inv', codigo: 'INV1286', nombre: 'Inversiones 1286, C.A.', rif: 'J-00239353-0', direccion: 'Caracas, Distrito Capital' },
+];
+
+export const INITIAL_LOCALIDADES: Localidad[] = [
+  { _id: 'loc_caracas', empresaId: 'emp_ddca', nombre: 'Caracas', region: 'Gran Caracas', estado: 'Distrito Capital' },
+  { _id: 'loc_valencia', empresaId: 'emp_ddca', nombre: 'Valencia', region: 'Central', estado: 'Carabobo' },
+  { _id: 'loc_maracaibo', empresaId: 'emp_ddca', nombre: 'Maracaibo', region: 'Occidente', estado: 'Zulia' },
+  { _id: 'loc_barquisimeto', empresaId: 'emp_ddca', nombre: 'Barquisimeto', region: 'Centro-Occidente', estado: 'Lara' },
+  { _id: 'loc_barcelona', empresaId: 'emp_ddca', nombre: 'Barcelona', region: 'Oriente', estado: 'Anzoátegui' },
+  { _id: 'loc_pto_ordaz', empresaId: 'emp_ddca', nombre: 'Puerto Ordaz', region: 'Guayana', estado: 'Bolívar' },
+  { _id: 'loc_punto_fijo', empresaId: 'emp_ddca', nombre: 'Punto Fijo', region: 'Falcón', estado: 'Falcón' },
+  { _id: 'loc_san_cristobal', empresaId: 'emp_ddca', nombre: 'San Cristóbal', region: 'Los Andes', estado: 'Táchira' },
+  { _id: 'loc_porlamar', empresaId: 'emp_ddca', nombre: 'Porlamar', region: 'Insular', estado: 'Nueva Esparta' },
+  { _id: 'loc_maracay', empresaId: 'emp_ddca', nombre: 'Maracay', region: 'Central', estado: 'Aragua' },
+  { _id: 'loc_el_vigia', empresaId: 'emp_ddca', nombre: 'El Vigía', region: 'Los Andes', estado: 'Mérida' },
+];
+
+export const INITIAL_ESTABLECIMIENTOS: Establecimiento[] = [
+  // DISTRIBUIDORAS
+  { _id: 'est_dist_barca', nombre: 'Distribuidora Duncan Barcelona', localidadId: 'loc_barcelona', localidadNombre: 'Barcelona', tipo: 'Distribuidora', empresaId: 'emp_ddca', empresaNombre: 'Distribuidora Duncan, C.A.' },
+  { _id: 'est_dist_bqto', nombre: 'Distribuidora Duncan Barquisimeto', localidadId: 'loc_barquisimeto', localidadNombre: 'Barquisimeto', tipo: 'Distribuidora', empresaId: 'emp_ddca', empresaNombre: 'Distribuidora Duncan, C.A.' },
+  { _id: 'est_dist_ccs', nombre: 'Distribuidora Duncan Caracas', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Distribuidora', empresaId: 'emp_ddca', empresaNombre: 'Distribuidora Duncan, C.A.' },
+  { _id: 'est_dist_mbo', nombre: 'Distribuidora Duncan Maracaibo', localidadId: 'loc_maracaibo', localidadNombre: 'Maracaibo', tipo: 'Distribuidora', empresaId: 'emp_ddca', empresaNombre: 'Distribuidora Duncan, C.A.' },
+  { _id: 'est_dist_mcy', nombre: 'Distribuidora Duncan Maracay', localidadId: 'loc_maracay', localidadNombre: 'Maracay', tipo: 'Distribuidora', empresaId: 'emp_ddca', empresaNombre: 'Distribuidora Duncan, C.A.' },
+  { _id: 'est_dist_pmar', nombre: 'Distribuidora Duncan Porlamar', localidadId: 'loc_porlamar', localidadNombre: 'Porlamar', tipo: 'Distribuidora', empresaId: 'emp_ddca', empresaNombre: 'Distribuidora Duncan, C.A.' },
+  { _id: 'est_dist_pord', nombre: 'Distribuidora Duncan Puerto Ordaz', localidadId: 'loc_pto_ordaz', localidadNombre: 'Puerto Ordaz', tipo: 'Distribuidora', empresaId: 'emp_ddca', empresaNombre: 'Distribuidora Duncan, C.A.' },
+  { _id: 'est_dist_pfijo', nombre: 'Distribuidora Duncan Punto Fijo', localidadId: 'loc_punto_fijo', localidadNombre: 'Punto Fijo', tipo: 'Distribuidora', empresaId: 'emp_ddca', empresaNombre: 'Distribuidora Duncan, C.A.' },
+  { _id: 'est_dist_sancris', nombre: 'Distribuidora Duncan San Cristóbal', localidadId: 'loc_san_cristobal', localidadNombre: 'San Cristóbal', tipo: 'Distribuidora', empresaId: 'emp_ddca', empresaNombre: 'Distribuidora Duncan, C.A.' },
+  { _id: 'est_dist_val', nombre: 'Distribuidora Duncan Valencia', localidadId: 'loc_valencia', localidadNombre: 'Valencia', tipo: 'Distribuidora', empresaId: 'emp_ddca', empresaNombre: 'Distribuidora Duncan, C.A.' },
+  { _id: 'est_dist_vigia', nombre: 'Distribuidora Duncan El Vigía', localidadId: 'loc_el_vigia', localidadNombre: 'El Vigía', tipo: 'Distribuidora', empresaId: 'emp_ddca', empresaNombre: 'Distribuidora Duncan, C.A.' },
+  // SERVICENTROS CARACAS
+  { _id: 'est_sc_altamira', nombre: 'Servicentro Altamira', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_boleita', nombre: 'Servicentro Boleíta', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_caricuao', nombre: 'Servicentro Caricuao', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_catia', nombre: 'Servicentro Catia', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_ccs_centro', nombre: 'Servicentro Caracas Centro', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_ccs_sur', nombre: 'Servicentro Caracas Sur', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_chacao', nombre: 'Servicentro Chacao', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_coche', nombre: 'Servicentro Coche', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_el_llanito', nombre: 'Servicentro El Llanito', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_el_marques', nombre: 'Servicentro El Marqués', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_la_california', nombre: 'Servicentro La California', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_la_candelaria', nombre: 'Servicentro La Candelaria', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_la_florida', nombre: 'Servicentro La Florida', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_la_trinidad', nombre: 'Servicentro La Trinidad', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_las_mercedes', nombre: 'Servicentro Las Mercedes', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_los_ruices', nombre: 'Servicentro Los Ruices', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_macaracuay', nombre: 'Servicentro Macaracuay', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_mariperez', nombre: 'Servicentro Mariperez', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_prados_este', nombre: 'Servicentro Prados del Este', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_san_martin', nombre: 'Servicentro San Martín', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_sarria', nombre: 'Servicentro Sarría', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_sebucán', nombre: 'Servicentro Sebucán', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_valle', nombre: 'Servicentro El Valle', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  // SERVICENTROS INTERIOR
+  { _id: 'est_sc_val_01', nombre: 'Servicentro Valencia Norte', localidadId: 'loc_valencia', localidadNombre: 'Valencia', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_val_02', nombre: 'Servicentro Valencia Sur', localidadId: 'loc_valencia', localidadNombre: 'Valencia', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_val_03', nombre: 'Servicentro Valencia Centro', localidadId: 'loc_valencia', localidadNombre: 'Valencia', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_mbo_01', nombre: 'Servicentro Maracaibo Norte', localidadId: 'loc_maracaibo', localidadNombre: 'Maracaibo', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_mbo_02', nombre: 'Servicentro Maracaibo Sur', localidadId: 'loc_maracaibo', localidadNombre: 'Maracaibo', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_bqto_01', nombre: 'Servicentro Barquisimeto Este', localidadId: 'loc_barquisimeto', localidadNombre: 'Barquisimeto', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_bqto_02', nombre: 'Servicentro Barquisimeto Oeste', localidadId: 'loc_barquisimeto', localidadNombre: 'Barquisimeto', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_barca_01', nombre: 'Servicentro Barcelona Principal', localidadId: 'loc_barcelona', localidadNombre: 'Barcelona', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_pord_01', nombre: 'Servicentro Puerto Ordaz', localidadId: 'loc_pto_ordaz', localidadNombre: 'Puerto Ordaz', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_pfijo_01', nombre: 'Servicentro Punto Fijo', localidadId: 'loc_punto_fijo', localidadNombre: 'Punto Fijo', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_sancris_01', nombre: 'Servicentro San Cristóbal', localidadId: 'loc_san_cristobal', localidadNombre: 'San Cristóbal', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_pmar_01', nombre: 'Servicentro Porlamar', localidadId: 'loc_porlamar', localidadNombre: 'Porlamar', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_mcy_01', nombre: 'Servicentro Maracay Norte', localidadId: 'loc_maracay', localidadNombre: 'Maracay', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_mcy_02', nombre: 'Servicentro Maracay Sur', localidadId: 'loc_maracay', localidadNombre: 'Maracay', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  { _id: 'est_sc_vigia_01', nombre: 'Servicentro El Vigía', localidadId: 'loc_el_vigia', localidadNombre: 'El Vigía', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+];
+
+export const INITIAL_TIPOS_INSPECCION: TipoInspeccion[] = [
+  { _id: 'ti_ext', codigo: 'EXT', nombre: 'Extintores', descripcion: 'Inspección de extintores portátiles', frecuencia: 'Mensual', categoria: 'Seguridad', icono: '🔥' },
+  { _id: 'ti_di', codigo: 'DI', nombre: 'Detección de Incendios', descripcion: 'Sistema de detección y alarma de incendios', frecuencia: 'Mensual', categoria: 'Seguridad', icono: '🚨' },
+  { _id: 'ti_flp', codigo: 'FLP', nombre: 'Fuente Lavaojos Portátil', descripcion: 'Inspección de fuente lavaojos portátil', frecuencia: 'Mensual', categoria: 'Salud', icono: '🚿' },
+  { _id: 'ti_fd', codigo: 'FD', nombre: 'Fuente y Ducha de Emergencia', descripcion: 'Inspección de fuente y ducha de emergencia', frecuencia: 'Mensual', categoria: 'Salud', icono: '🚿' },
+  { _id: 'ti_ol', codigo: 'OL', nombre: 'Orden y Limpieza', descripcion: 'Inspección de orden y limpieza general', frecuencia: 'Mensual', categoria: 'Ambiente', icono: '🏭' },
+  { _id: 'ti_kd', codigo: 'KD', nombre: 'Kit para Derrames', descripcion: 'Inspección de kit para control de derrames', frecuencia: 'Mensual', categoria: 'Ambiente', icono: '⚠️' },
+  { _id: 'ti_mc', codigo: 'MC', nombre: 'Montacargas', descripcion: 'Inspección de montacargas', frecuencia: 'Diaria', categoria: 'Seguridad', icono: '🏗️' },
+  { _id: 'ti_le', codigo: 'LE', nombre: 'Lámparas de Emergencia', descripcion: 'Inspección de lámparas de emergencia', frecuencia: 'Mensual', categoria: 'Seguridad', icono: '💡' },
+  { _id: 'ti_idv', codigo: 'IDV', nombre: 'Inspección Diaria Vehículo', descripcion: 'Inspección diaria de vehículos de transporte', frecuencia: 'Diaria', categoria: 'Seguridad', icono: '🚛' },
+  { _id: 'ti_he', codigo: 'HE', nombre: 'Herramientas y Equipos', descripcion: 'Inspección de herramientas y equipos', frecuencia: 'Mensual', categoria: 'Seguridad', icono: '🧰' },
+  { _id: 'ti_dd', codigo: 'DD', nombre: 'SSA Distribuidoras', descripcion: 'Inspección SSA para Distribuidoras', frecuencia: 'Mensual', categoria: 'SSA General', icono: '📋' },
+  { _id: 'ti_sc', codigo: 'SC', nombre: 'SSA Servicentros', descripcion: 'Inspección SSA para Servicentros', frecuencia: 'Mensual', categoria: 'SSA General', icono: '🏪' },
+  { _id: 'ti_etc', codigo: 'ETC', nombre: 'Evaluación Transporte de Carga', descripcion: 'Evaluación de transporte de carga', frecuencia: 'Mensual', categoria: 'Seguridad', icono: '🚗' },
+  { _id: 'ti_mc_ssa', codigo: 'MCSSA', nombre: 'Montacargas SSA', descripcion: 'Inspección SSA de montacargas', frecuencia: 'Mensual', categoria: 'Seguridad', icono: '🏗️' },
+  { _id: 'ti_pb', codigo: 'PB', nombre: 'Permisos de Bomberos', descripcion: 'Control de permisos de bomberos vigentes', frecuencia: 'Anual', categoria: 'Legal', icono: '📄' },
+  { _id: 'ti_gen', codigo: 'GEN', nombre: 'Inspección General', descripcion: 'Inspección general de instalaciones', frecuencia: 'Mensual', categoria: 'SSA General', icono: '📊' },
+];
+
+export const INITIAL_USUARIOS: Usuario[] = [
+  { _id: 'usr_admin', email: 'admin@duncan.com.ve', nombre: 'Administrador SGD', rol: 'Super Admin', activo: true },
+];
+
+export const INITIAL_INSPECCIONES: any[] = [];
+export const INITIAL_PLAN_ACCION: any[] = [];
+export const INITIAL_EMPLEADOS: Empleado[] = [];

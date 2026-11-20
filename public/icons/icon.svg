@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="40" fill="#1e40af"/>
+  <path d="M96 24 L156 50 L156 100 C156 136 130 160 96 172 C62 160 36 136 36 100 L36 50 Z" fill="#3b82f6"/>
+  <path d="M96 44 L144 66 L144 104 C144 132 124 152 96 162 C68 152 48 132 48 104 L48 66 Z" fill="#1e3a8a"/>
+  <text x="96" y="118" text-anchor="middle" font-family="Arial,sans-serif" font-weight="bold" font-size="38" fill="white">SGD</text>
+</svg>
