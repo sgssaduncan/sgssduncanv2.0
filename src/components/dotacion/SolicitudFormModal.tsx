@@ -14,7 +14,8 @@ import {
   User,
   Sparkles,
   Shirt,
-  Info
+  Info,
+  Crown
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { Empleado, InventarioItem, FirmaActor } from '../../types';
@@ -39,7 +40,7 @@ export default function SolicitudFormModal({
   onClose,
   onSave
 }: SolicitudFormModalProps) {
-  const { user } = useAuth();
+  const { user, canAccessAll } = useAuth();
   const [empleadoId, setEmpleadoId] = useState('');
   const [motivo, setMotivo] = useState('Dotación');
   const [items, setItems] = useState<{ itemId: string; cantidad: number; talla: string; esCustom?: boolean }[]>([
@@ -829,11 +830,28 @@ export default function SolicitudFormModal({
                     <PenTool size={14} className="text-duncan-blue" />
                     Firma Digital Manuscrita del Supervisor
                   </label>
-                  {firmaSolicitanteUrl && (
-                    <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
-                      <CheckCircle size={12} /> Rúbrica Capturada
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {canAccessAll && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const firmaTest = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="60"><path d="M 10 40 Q 60 10 110 35 T 190 20" fill="none" stroke="%230f172a" stroke-width="2.5"/></svg>';
+                          setFirmaSolicitanteUrl(firmaTest);
+                          if (!solicitanteCedula) setSolicitanteCedula('V-12033632');
+                          toast.success('Rúbrica de prueba cargada (Modo Desarrollador / Propietario)');
+                        }}
+                        className="text-[10px] text-yellow-800 bg-yellow-100 hover:bg-yellow-200 border border-yellow-300 font-bold px-2 py-0.5 rounded flex items-center gap-1 transition-colors"
+                      >
+                        <Crown size={12} className="text-yellow-600" />
+                        Rúbrica Rápida Dev
+                      </button>
+                    )}
+                    {firmaSolicitanteUrl && (
+                      <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
+                        <CheckCircle size={12} /> Rúbrica Capturada
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="border border-slate-300 rounded-xl overflow-hidden bg-white shadow-inner">

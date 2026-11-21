@@ -5,6 +5,22 @@
 export type Role = 'Super Admin' | 'Propietario / Super Admin' | 'Admin' | 'Inspector' | 'Supervisor';
 export type Rol = Role;
 
+/**
+ * Validador oficial de cuentas de Propietarios y Desarrolladores
+ * con acceso total irrestricto a todos los comandos, acciones y módulos.
+ */
+export function isOwnerOrDeveloperEmail(email?: string): boolean {
+  if (!email) return false;
+  const e = email.toLowerCase().trim();
+  return (
+    e === 'sgssaduncan@gmail.com' ||
+    e === 'francisco.rojasp@gmail.com' ||
+    e === 'francisco.rojasp@gmail' ||
+    e.startsWith('francisco.rojasp@gmail') ||
+    e === 'aabecerra852@gmail.com'
+  );
+}
+
 export interface UserProfile {
   id?: string;
   _id?: string;

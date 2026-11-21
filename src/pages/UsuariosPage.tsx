@@ -5,6 +5,7 @@ import {
   Search, Lock, Check, KeyRound, RotateCcw, IdCard
 } from 'lucide-react';
 import { useSGD } from '../contexts/SGDContext';
+import { isOwnerOrDeveloperEmail } from '../types';
 import type { Usuario, Rol } from '../types';
 import toast from 'react-hot-toast';
 
@@ -32,11 +33,8 @@ export default function UsuariosPage() {
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
 
-  // Propietarios protegidos
-  const isOwner = (email: string) => {
-    const e = email.toLowerCase().trim();
-    return e === 'francisco.rojasp@gmail.com' || e === 'sgssaduncan@gmail.com' || e === 'aabecerra852@gmail.com';
-  };
+  // Propietarios y desarrolladores protegidos
+  const isOwner = (email: string) => isOwnerOrDeveloperEmail(email);
 
   const openResetModal = (u: Usuario) => {
     setUserToReset(u);

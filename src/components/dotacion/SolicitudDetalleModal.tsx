@@ -17,7 +17,9 @@ import {
   FileCheck,
   Clock,
   User,
-  ShieldAlert
+  ShieldAlert,
+  Crown,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { SolicitudEPP, EntregaEPP, Empleado, InventarioItem, FirmaActor, EstadoSolicitudEPP } from '../../types';
@@ -49,7 +51,7 @@ export default function SolicitudDetalleModal({
   onClose,
   onUpdate
 }: SolicitudDetalleModalProps) {
-  const { user } = useAuth();
+  const { user, canAccessAll, isOwner, isDeveloper } = useAuth();
   const [saving, setSaving] = useState(false);
   const [modalFirma, setModalFirma] = useState<ModalFirmaState | null>(null);
 
@@ -67,6 +69,95 @@ export default function SolicitudDetalleModal({
 
   const emp = empleados.find(e => e.id === solicitud.empleadoId);
   const entrega = entregas.find(e => e.solicitudId === solicitud.id);
+
+  // Propietarios y Desarrolladores: Aprobación Integral Rápida de las 4 etapas para pruebas completas
+  const handleAprobacionIntegralRapida = async () => {
+    if (!window.confirm('¿Desea aprobar y firmar digitalmente todas las etapas de esta solicitud para pruebas operativas?')) {
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const fechaNow = new Date().toISOString();
+      const firmaGenerica = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="60"><path d="M 10 40 Q 60 10 110 35 T 190 20" fill="none" stroke="%230f172a" stroke-width="2.5"/></svg>';
+
+      const fSupervisor: FirmaActor = solicitud.firmaSupervisor || {
+        nombre: 'Ing. Supervisor de Área',
+        cedula: 'V-12033632',
+        cargo: 'Supervisor de Planta y Operaciones',
+        fecha: fechaNow,
+        firmaUrl: firmaGenerica
+      };
+
+      const fSST: FirmaActor = solicitud.firmaSST || {
+        nombre: 'Esp. Seguridad Industrial SSA',
+        cedula: 'V-15894123',
+        cargo: 'Coordinador de Seguridad y Salud en el Trabajo',
+        registroProfesional: 'INPSASEL-SSA-DUNCAN',
+        fecha: fechaNow,
+        firmaUrl: firmaGenerica
+      };
+
+      const fDespacho: FirmaActor = solicitud.firmaDespacho || {
+        nombre: 'Control de Almacén Central',
+        cedula: 'V-18765432',
+        cargo: 'Jefe de Almacén y Suministros',
+        registroProfesional: 'ALM-DUNCAN-01',
+        fecha: fechaNow,
+        firmaUrl: firmaGenerica
+      };
+
+      const fReceptor: FirmaActor = solicitud.firmaReceptor || {
+        nombre: emp?.nombre || 'Trabajador Beneficiario',
+        cedula: emp?.cedula || 'V-00000000',
+        cargo: emp?.cargo || 'Receptor',
+        fecha: fechaNow,
+        firmaUrl: firmaGenerica
+      };
+
+      const updatePayload: Partial<SolicitudEPP> = {
+        firmaSupervisor: fSupervisor,
+        firmaSST: fSST,
+        firmaDespacho: fDespacho,
+        firmaReceptor: fReceptor,
+        estado: 'Recibida'
+      };
+
+      await dbService.updateSolicitudEPP(solicitud.id, updatePayload);
+      await dbService.addEntregaEPP({
+        solicitudId: solicitud.id,
+        empleadoId: solicitud.empleadoId,
+        entregadoPor: user?.uid || 'PROPIETARIO_DEV',
+        fechaEntrega: fechaNow,
+        items: solicitud.items,
+        firmaUrl: firmaGenerica,
+        comentarios: 'Aprobación y entrega completada en modo Operatividad Total por Desarrollador / Propietario',
+        inducidoTeoricoPractico: true,
+        constanciaSujetoRiesgos: true,
+        firmaSolicitante: solicitud.firmaSolicitante,
+        firmaSupervisor: fSupervisor,
+        firmaSST: fSST,
+        firmaDespacho: fDespacho,
+        firmaReceptor: fReceptor
+      }, solicitud.items);
+
+      await auditService.log({
+        accion: 'APROBAR',
+        modulo: 'DOTACION_EPP',
+        entidadTipo: 'SolicitudEPP',
+        entidadId: solicitud.id,
+        descripcion: `Aprobación y firma integral de 4 etapas completada por Propietario / Desarrollador (${user?.email})`,
+        detalles: { solicitudId: solicitud.id }
+      });
+
+      toast.success('¡Operatividad Total: Solicitud completada y firmada en sus 4 etapas! Puede descargar el Acta PDF oficial.');
+      onUpdate();
+    } catch (err: any) {
+      toast.error(err.message || 'Error en la aprobación integral');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // Open signing submodal pre-filled with reasonable defaults
   const handleOpenFirmaModal = (actor: TipoActorFirma) => {
@@ -453,6 +544,33 @@ export default function SolicitudDetalleModal({
 
           {/* Digital Signatures Matrix of 4 Actors */}
           <div>
+            {/* Banner de Operatividad Total para Propietarios y Desarrolladores */}
+            {canAccessAll && (
+              <div className="bg-gradient-to-r from-amber-500/10 via-yellow-500/15 to-amber-500/10 border border-yellow-500/40 rounded-xl p-3.5 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-sm">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-yellow-400 text-slate-950 rounded-lg shrink-0">
+                    <Crown size={16} />
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-900 block">Modo Propietario / Desarrollador — Acceso Total Activo</span>
+                    <span className="text-slate-600 block text-[11px] mt-0.5">
+                      Autorización irrestricta para firmar como cualquier actor, avanzar etapas y simular operatividad completa.
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={handleAprobacionIntegralRapida}
+                  className="px-3.5 py-2 bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold rounded-lg text-xs transition-all shadow-sm flex items-center justify-center gap-1.5 shrink-0"
+                  title="Simular aprobación completa de las 4 etapas para pruebas rápidas"
+                >
+                  <Sparkles size={14} />
+                  <span>Aprobar y Firmar las 4 Etapas</span>
+                </button>
+              </div>
+            )}
+
             <div className="flex items-center justify-between mb-3">
               <div>
                 <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
@@ -473,7 +591,7 @@ export default function SolicitudDetalleModal({
                 subtitulo="Aprobación de Requerimiento Operativo"
                 firma={solicitud.firmaSupervisor || solicitud.firmaSolicitante}
                 estadoSolicitud={solicitud.estado}
-                puedeFirmar={solicitud.estado === 'Solicitada' || !solicitud.firmaSupervisor}
+                puedeFirmar={canAccessAll || solicitud.estado === 'Solicitada' || !solicitud.firmaSupervisor}
                 botonTexto="Firmar como Supervisor"
                 onFirmar={() => handleOpenFirmaModal('supervisor')}
               />
@@ -486,6 +604,7 @@ export default function SolicitudDetalleModal({
                 firma={solicitud.firmaSST}
                 estadoSolicitud={solicitud.estado}
                 puedeFirmar={
+                  canAccessAll ||
                   solicitud.estado === 'Aprobada por Supervisor' ||
                   (solicitud.estado !== 'Rechazada' && !solicitud.firmaSST)
                 }
@@ -501,6 +620,7 @@ export default function SolicitudDetalleModal({
                 firma={solicitud.firmaDespacho}
                 estadoSolicitud={solicitud.estado}
                 puedeFirmar={
+                  canAccessAll ||
                   solicitud.estado === 'Aprobada por SSA' ||
                   (solicitud.estado !== 'Rechazada' && !solicitud.firmaDespacho)
                 }
@@ -522,6 +642,7 @@ export default function SolicitudDetalleModal({
                 } : undefined)}
                 estadoSolicitud={solicitud.estado}
                 puedeFirmar={
+                  canAccessAll ||
                   solicitud.estado === 'Despachada' ||
                   (solicitud.estado !== 'Rechazada' && !solicitud.firmaReceptor)
                 }

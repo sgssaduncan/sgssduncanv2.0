@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { gsApi } from '../lib/googleSheetsClient';
+import { isOwnerOrDeveloperEmail } from '../types';
 import type { UserProfile, Role, Usuario } from '../types';
 
 export interface AuthContextType {
@@ -10,6 +11,9 @@ export interface AuthContextType {
   logout: () => Promise<void>;
   isAdmin: boolean;
   isSuperAdmin: boolean;
+  isOwner: boolean;
+  isDeveloper: boolean;
+  canAccessAll: boolean;
 }
 
 export function useAuth(): AuthContextType {
@@ -88,12 +92,14 @@ export function useAuth(): AuthContextType {
 
   const emailLow = (profile?.email || '').toLowerCase().trim();
   const role = profile?.role || profile?.rol || '';
-  const isSpecialAdmin =
-    emailLow === 'aabecerra852@gmail.com' ||
-    emailLow === 'francisco.rojasp@gmail.com' ||
-    emailLow === 'sgssaduncan@gmail.com';
-  const isAdmin = role.includes('Admin') || role.includes('Propietario') || isSpecialAdmin;
-  const isSuperAdmin = role.includes('Super Admin') || role.includes('Propietario') || isSpecialAdmin;
+  
+  // Acceso total irrestricto para cuentas maestras de Propietarios y Desarrolladores
+  const isSpecialDeveloperOwner = isOwnerOrDeveloperEmail(emailLow);
+  const isOwner = isSpecialDeveloperOwner || role.includes('Propietario');
+  const isDeveloper = isSpecialDeveloperOwner || emailLow === 'sgssaduncan@gmail.com' || emailLow.includes('francisco.rojasp');
+  const isAdmin = isSpecialDeveloperOwner || role.includes('Admin') || role.includes('Propietario');
+  const isSuperAdmin = isSpecialDeveloperOwner || role.includes('Super Admin') || role.includes('Propietario');
+  const canAccessAll = isSpecialDeveloperOwner || isOwner || isDeveloper || isSuperAdmin;
 
   return {
     user,
@@ -103,5 +109,8 @@ export function useAuth(): AuthContextType {
     logout,
     isAdmin,
     isSuperAdmin,
+    isOwner,
+    isDeveloper,
+    canAccessAll,
   };
 }

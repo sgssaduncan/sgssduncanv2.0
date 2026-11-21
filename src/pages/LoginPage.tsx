@@ -23,6 +23,7 @@ import {
   HelpCircle,
   Copy,
   Check,
+  Crown,
   RotateCcw,
   Send,
   ShieldAlert,
@@ -96,11 +97,21 @@ export default function LoginPage() {
   const [showRecPassword, setShowRecPassword] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
 
-  // Pre-cargar cuenta de administrador solicitado
-  const loadAdminAccount = () => {
-    setLoginEmail('aabecerra852@gmail.com');
-    setLoginPassword('Panelas369*');
-    toast.success('Credenciales del Administrador del Sistema precargadas');
+  // Pre-cargar cuentas maestras autorizadas (Propietarios y Desarrolladores)
+  const loadMasterAccount = (type: 'becerra' | 'francisco' | 'sgssa') => {
+    if (type === 'becerra') {
+      setLoginEmail('aabecerra852@gmail.com');
+      setLoginPassword('Panelas369*');
+      toast.success('Credenciales de A. Becerra (Super Admin) cargadas');
+    } else if (type === 'francisco') {
+      setLoginEmail('francisco.rojasp@gmail.com');
+      setLoginPassword('Leo150873#*$');
+      toast.success('Credenciales de Francisco Rojas (Propietario/Desarrollador) cargadas');
+    } else if (type === 'sgssa') {
+      setLoginEmail('sgssaduncan@gmail.com');
+      setLoginPassword('Leo150873#*$');
+      toast.success('Credenciales de SST / SSA Duncan (Propietario/Desarrollador) cargadas');
+    }
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -536,36 +547,81 @@ export default function LoginPage() {
                   {isLoggingIn ? 'Iniciando Sesión...' : 'Entrar al Sistema SGD'}
                 </button>
 
-                {/* Acceso Rápido Administrador Maestro Solicitado */}
+                {/* Acceso Rápido Cuentas de Propietarios y Desarrolladores */}
                 <div className="pt-4 border-t border-slate-800/80 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
                       <KeyRound size={13} className="text-yellow-400" />
-                      Cuenta Administradora Autorizada:
+                      Cuentas Maestras (Acceso Total y Operatividad):
                     </span>
                     <span className="text-[10px] text-yellow-400 font-semibold bg-yellow-400/10 px-2 py-0.5 rounded border border-yellow-400/20">
-                      Super Admin
+                      Propietarios & Dev
                     </span>
                   </div>
 
-                  <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                    <div>
-                      <p className="text-xs font-bold text-white flex items-center gap-1.5">
-                        <ShieldCheck size={14} className="text-yellow-400" />
-                        aabecerra852@gmail.com
-                      </p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        Contraseña configurada: <code className="bg-slate-900 px-1 rounded text-yellow-300 font-mono text-[10px]">Panelas369*</code>
-                      </p>
+                  <div className="space-y-2">
+                    {/* Cuenta 1: A. Becerra */}
+                    <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-2.5 flex items-center justify-between gap-2 hover:border-yellow-400/40 transition-colors">
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-white flex items-center gap-1.5 truncate">
+                          <ShieldCheck size={13} className="text-yellow-400 shrink-0" />
+                          aabecerra852@gmail.com
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          Admin Duncan • Clave: <code className="bg-slate-900 px-1 rounded text-yellow-300 font-mono">Panelas369*</code>
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => loadMasterAccount('becerra')}
+                        className="bg-slate-800 hover:bg-slate-700 text-yellow-400 border border-yellow-400/30 text-[10.5px] font-bold px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1 shrink-0"
+                      >
+                        <span>Cargar</span>
+                        <ChevronRight size={12} />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={loadAdminAccount}
-                      className="bg-slate-800 hover:bg-slate-700 text-yellow-400 border border-yellow-400/30 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center justify-center gap-1 self-start sm:self-auto"
-                    >
-                      <span>Usar Credenciales</span>
-                      <ChevronRight size={13} />
-                    </button>
+
+                    {/* Cuenta 2: Francisco Rojas */}
+                    <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-2.5 flex items-center justify-between gap-2 hover:border-yellow-400/40 transition-colors">
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-white flex items-center gap-1.5 truncate">
+                          <Crown size={13} className="text-amber-400 shrink-0" />
+                          francisco.rojasp@gmail.com
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          Propietario / Desarrollador • Clave: <code className="bg-slate-900 px-1 rounded text-amber-300 font-mono">Leo150873#*$</code>
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => loadMasterAccount('francisco')}
+                        className="bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-400/30 text-[10.5px] font-bold px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1 shrink-0"
+                      >
+                        <span>Cargar</span>
+                        <ChevronRight size={12} />
+                      </button>
+                    </div>
+
+                    {/* Cuenta 3: SST / SSA Duncan */}
+                    <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-2.5 flex items-center justify-between gap-2 hover:border-yellow-400/40 transition-colors">
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-white flex items-center gap-1.5 truncate">
+                          <Crown size={13} className="text-amber-400 shrink-0" />
+                          sgssaduncan@gmail.com
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          Propietario SST / Desarrollador • Clave: <code className="bg-slate-900 px-1 rounded text-amber-300 font-mono">Leo150873#*$</code>
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => loadMasterAccount('sgssa')}
+                        className="bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-400/30 text-[10.5px] font-bold px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1 shrink-0"
+                      >
+                        <span>Cargar</span>
+                        <ChevronRight size={12} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </form>
