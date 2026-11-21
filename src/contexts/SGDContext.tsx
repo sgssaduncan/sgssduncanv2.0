@@ -53,6 +53,7 @@ interface SGDContextType {
   saveUsuario: (u: Partial<Usuario>) => Promise<{ success: boolean; id?: string; message?: string }>;
   deleteUsuario: (id: string) => Promise<{ success: boolean; message?: string }>;
   // Recuperación Costo Cero
+  findUserAccount: (query: string) => { found: boolean; user?: Usuario; empleado?: Empleado; message?: string };
   findUserByCedula: (cedula: string) => { found: boolean; user?: Usuario; empleado?: Empleado; message?: string };
   findUserByEmail: (email: string) => Usuario | null;
   resetPasswordWithIdentity: (params: { email: string; cedula?: string; newPassword: string }) => Promise<{ success: boolean; user?: Usuario; message: string }>;
@@ -281,7 +282,8 @@ export function SGDProvider({ children }: { children: React.ReactNode }) {
     return res;
   };
 
-  const findUserByCedula = (cedula: string) => gsApi.findUserByCedula(cedula);
+  const findUserAccount = (query: string) => gsApi.findUserAccount(query);
+  const findUserByCedula = (cedula: string) => gsApi.findUserAccount(cedula);
   const findUserByEmail = (email: string) => gsApi.findUserByEmail(email);
   const resetPasswordWithIdentity = async (params: { email: string; cedula?: string; newPassword: string }) => {
     const res = await gsApi.resetPasswordWithIdentity(params);
@@ -309,7 +311,7 @@ export function SGDProvider({ children }: { children: React.ReactNode }) {
       createInspeccion, saveFormData, completeInspeccion,
       deleteInspeccion, updatePlanAccion, logAudit, getInspeccionById,
       login, register, logout, switchUser, saveUsuario, deleteUsuario,
-      findUserByCedula, findUserByEmail, resetPasswordWithIdentity, requestRecoveryCode, verifyRecoveryCode,
+      findUserAccount, findUserByCedula, findUserByEmail, resetPasswordWithIdentity, requestRecoveryCode, verifyRecoveryCode,
     }}>
       {children}
     </SGDContext.Provider>

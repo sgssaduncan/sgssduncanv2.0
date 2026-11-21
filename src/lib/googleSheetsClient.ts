@@ -729,80 +729,118 @@ export const gsApi = {
 
   // ── RECUPERACIÓN DE USUARIO Y CONTRASEÑA (METODOLOGÍA COSTO CERO) ──
 
-  findUserByCedula(cedulaQuery: string): {
+  findUserAccount(query: string): {
     found: boolean;
     user?: Usuario;
     empleado?: Empleado;
     message?: string;
   } {
-    const raw = (cedulaQuery || '').trim();
+    const raw = (query || '').trim();
     if (!raw) {
-      return { found: false, message: 'Por favor, ingrese un número de cédula de identidad.' };
+      return { found: false, message: 'Por favor, ingrese un correo Gmail, nombre o número de cédula.' };
     }
 
+    const rawLower = raw.toLowerCase();
     const cleanNumbers = raw.replace(/[^0-9]/g, '');
-    if (!cleanNumbers) {
-      return { found: false, message: 'Formato de cédula inválido. Ingrese solo dígitos numéricos.' };
-    }
-
     const usuarios = getLocal<Usuario>(SK.USUARIOS);
     const empleados = getLocal<Empleado>(SK.EMPLEADOS);
 
-    // 1. Buscar en usuarios registrados por campo cedula
-    let user = usuarios.find(u => {
-      if (u.cedula) {
-        return u.cedula.replace(/[^0-9]/g, '') === cleanNumbers;
-      }
-      return false;
-    });
-
-    // 2. Buscar en base de datos de trabajadores activos
-    const empleado = empleados.find(e => {
-      if (e.cedula) {
-        return e.cedula.replace(/[^0-9]/g, '') === cleanNumbers;
-      }
-      return false;
-    });
-
-    // Si no se encontró usuario directo con cédula, pero sí en empleados, buscar usuario por nombre
-    if (!user && empleado) {
-      const empNombreWords = empleado.nombre.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-      user = usuarios.find(u => {
-        const uNom = u.nombre.toLowerCase();
-        return empNombreWords.some(w => uNom.includes(w));
-      });
-      // Si se vinculó, actualizar la cédula del usuario en local
-      if (user && !user.cedula) {
-        user.cedula = empleado.cedula;
-        const idx = usuarios.findIndex(x => x._id === user?._id);
-        if (idx !== -1) {
-          usuarios[idx] = user;
-          setLocal(SK.USUARIOS, usuarios);
-        }
+    // 1. Si es formato de correo o contiene @
+    if (rawLower.includes('@')) {
+      const u = usuarios.find(x => x.email.toLowerCase() === rawLower || x.email.toLowerCase().includes(rawLower));
+      if (u) {
+        return {
+          found: true,
+          user: u,
+          message: `Cuenta de usuario localizada para ${u.nombre} (${u.email}).`
+        };
       }
     }
 
-    if (user) {
+    // 2. Buscar por coincidencia de nombre en Usuarios
+    const userByName = usuarios.find(u => {
+      const nom = (u.nombre || '').toLowerCase();
+      return nom.includes(rawLower) || rawLower.includes(nom);
+    });
+    if (userByName) {
       return {
         found: true,
-        user,
-        empleado,
-        message: `Cuenta de usuario localizada para ${user.nombre}.`
+        user: userByName,
+        message: `Cuenta de usuario localizada para ${userByName.nombre} (${userByName.email}).`
       };
     }
 
-    if (empleado) {
+    // 3. Si tiene números de cédula (al menos 4 dígitos)
+    if (cleanNumbers.length >= 4) {
+      // Buscar en usuarios por cédula si existe
+      const userByCed = usuarios.find(u => (u.cedula || '').replace(/[^0-9]/g, '') === cleanNumbers);
+      if (userByCed) {
+        return {
+          found: true,
+          user: userByCed,
+          message: `Cuenta de usuario localizada para ${userByCed.nombre} (${userByCed.email}).`
+        };
+      }
+
+      // Buscar en nómina de empleados activos
+      const emp = empleados.find(e => (e.cedula || '').replace(/[^0-9]/g, '') === cleanNumbers);
+      if (emp) {
+        // ¿Hay usuario con nombre coincidente?
+        const empWords = emp.nombre.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+        const matchUser = usuarios.find(u => {
+          const uNom = (u.nombre || '').toLowerCase();
+          return empWords.some(w => uNom.includes(w));
+        });
+        if (matchUser) {
+          return {
+            found: true,
+            user: matchUser,
+            empleado: emp,
+            message: `Cuenta de usuario localizada para ${matchUser.nombre} (${matchUser.email}).`
+          };
+        }
+        return {
+          found: false,
+          empleado: emp,
+          message: `El trabajador ${emp.nombre} (C.I. ${emp.cedula}) está en nómina activa de Duncan pero aún no ha registrado su cuenta de acceso.`
+        };
+      }
+    }
+
+    // 4. Buscar por nombre en empleados de nómina activa
+    const empByName = empleados.find(e => {
+      const nom = (e.nombre || '').toLowerCase();
+      return nom.includes(rawLower) || rawLower.includes(nom);
+    });
+    if (empByName) {
+      const empWords = empByName.nombre.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+      const matchUser = usuarios.find(u => {
+        const uNom = (u.nombre || '').toLowerCase();
+        return empWords.some(w => uNom.includes(w));
+      });
+      if (matchUser) {
+        return {
+          found: true,
+          user: matchUser,
+          empleado: empByName,
+          message: `Cuenta de usuario localizada para ${matchUser.nombre} (${matchUser.email}).`
+        };
+      }
       return {
         found: false,
-        empleado,
-        message: `El trabajador ${empleado.nombre} (C.I. ${empleado.cedula}) está en nómina activa de Duncan pero aún no ha registrado su cuenta de acceso.`
+        empleado: empByName,
+        message: `El trabajador ${empByName.nombre} (C.I. ${empByName.cedula}) está en nómina activa de Duncan pero aún no ha registrado su cuenta de acceso.`
       };
     }
 
     return {
       found: false,
-      message: 'No se localizó ningún registro de usuario o trabajador con la cédula ingresada.'
+      message: 'No se localizó ninguna cuenta de usuario ni trabajador con los datos ingresados.'
     };
+  },
+
+  findUserByCedula(cedulaQuery: string) {
+    return this.findUserAccount(cedulaQuery);
   },
 
   findUserByEmail(emailQuery: string): Usuario | null {
