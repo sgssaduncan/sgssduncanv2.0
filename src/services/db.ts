@@ -50,7 +50,9 @@ import type {
   ControlPresionArterial,
   CertificadoAptitudPsicofisica,
   EvaluacionGoniometria,
-  MorbilidadReporteItem
+  MorbilidadReporteItem,
+  RegistroReposoMedico,
+  RegistroReferenciaMedica
 } from '../types';
 
 // Storage keys
@@ -87,7 +89,9 @@ const SK = {
   EXTINTORES: 'sgd_extintores',
   PERMISOS_BOMBEROS: 'sgd_permisos_bomberos',
   AUDIT_LOGS: 'sgd_audit_log',
-  REPORTES_PDF: 'sgd_reportes_pdf'
+  REPORTES_PDF: 'sgd_reportes_pdf',
+  REPOSOS_MEDICOS: 'sgd_reposos_medicos',
+  REFERENCIAS_MEDICAS: 'sgd_referencias_medicas'
 };
 
 function getLocal<T>(key: string, defaultVal: T[] = []): T[] {
@@ -1286,6 +1290,166 @@ export const dbService = {
     list.unshift(item);
     setLocal(SK.GONIOMETRIAS, list);
     await this.logAction('CREATE', 'goniometria', id, `Evaluación goniométrica registrada para ${data.nombreApellido}`);
+    return id;
+  },
+
+  // ============================================================
+  // V-EXPRESS: CONTROL DE REPOSOS MÉDICOS (REG_REPOSO)
+  // ============================================================
+  async getRepososMedicos(): Promise<RegistroReposoMedico[]> {
+    let list = getLocal<RegistroReposoMedico>(SK.REPOSOS_MEDICOS);
+    if (!list || list.length === 0) {
+      list = [
+        {
+          id: 'rep_01',
+          fechaRegistro: '2026-10-05',
+          cedula: '15892341',
+          nombreApellido: 'MENDOZA CARLOS EDUARDO',
+          genero: 'MASCULINO',
+          edad: 38,
+          sucursal: 'LOS RUICES',
+          departamento: 'PRODUCCION Y CARGA',
+          cargo: 'TECNICO DE CARGA Y FORMACION',
+          empresaNombre: 'ACUMULADORES DUNCAN, C.A.',
+          tipoContingencia: 'Enfermedad Ocupacional',
+          diagnosticoCIE10: 'M54.5 - Lumbago no especificado / Lumbalgia mecánica',
+          sistemaAfectado: 'Músculo-esquelético',
+          fechaInicioReposo: '2026-10-05',
+          fechaFinReposo: '2026-10-08',
+          diasReposo: 3,
+          centroEmisor: 'SSST Duncan',
+          medicoTratante: 'Dra. Carmen Ismelda Ramos Martínez',
+          ciMedico: '6211215',
+          numeroColegioMedico: '17585',
+          estatusValidacion: 'VALIDADO_APTO',
+          observacionesValidacion: 'Reposo cumplido a cabalidad. Reincorporación autorizada con indicación de faja lumbar y restricción temporal de carga > 20kg.',
+          fechaReincorporacion: '2026-10-09'
+        },
+        {
+          id: 'rep_02',
+          fechaRegistro: '2026-10-16',
+          cedula: '22649478',
+          nombreApellido: 'DEL ZINGARO DELGADO GIUSSEPPE ALBERTO',
+          genero: 'MASCULINO',
+          edad: 34,
+          sucursal: 'LOS RUICES',
+          departamento: 'ALMACEN / EMBALAJE',
+          cargo: 'AUXILIAR DE ALMACEN',
+          empresaNombre: 'DISTRIBUIDORA DUNCAN, C.A.',
+          tipoContingencia: 'Accidente de Trabajo',
+          diagnosticoCIE10: 'T26.1 - Quemadura de córnea y saco conjuntival por químico (ácido de batería)',
+          sistemaAfectado: 'Órganos de los Sentidos (Ojos)',
+          fechaInicioReposo: '2026-10-16',
+          fechaFinReposo: '2026-10-21',
+          diasReposo: 5,
+          centroEmisor: 'Clínica Privada (Oftalmológica)',
+          medicoTratante: 'Dr. Roberto Mendoza (Oftalmólogo)',
+          ciMedico: '11450891',
+          numeroColegioMedico: '24110',
+          estatusValidacion: 'REINCORPORADO_CON_RESTRICCIONES',
+          observacionesValidacion: 'Reincorporación sujeta a uso obligatorio y permanente de lentes de seguridad herméticos anti-salpicaduras químicas.',
+          fechaReincorporacion: '2026-10-22'
+        }
+      ];
+      setLocal(SK.REPOSOS_MEDICOS, list);
+    }
+    return list;
+  },
+
+  async saveReposoMedico(data: any): Promise<string> {
+    const list = await this.getRepososMedicos();
+    const id = data.id || genId('rep');
+    const item = {
+      ...data,
+      id,
+      createdAt: new Date().toISOString()
+    };
+    list.unshift(item);
+    setLocal(SK.REPOSOS_MEDICOS, list);
+    await this.logAction('CREATE', 'repososMedicos', id, `Reposo médico registrado (${data.diasReposo} días) para ${data.nombreApellido}`);
+    return id;
+  },
+
+  async updateReposoMedico(id: string, updates: any): Promise<void> {
+    const list = await this.getRepososMedicos();
+    const idx = list.findIndex(r => r.id === id);
+    if (idx !== -1) {
+      list[idx] = { ...list[idx], ...updates, updatedAt: new Date().toISOString() };
+      setLocal(SK.REPOSOS_MEDICOS, list);
+      await this.logAction('UPDATE', 'repososMedicos', id, `Reposo actualizado para ${list[idx].nombreApellido}`);
+    }
+  },
+
+  // ============================================================
+  // V-EXPRESS: REFERENCIAS MÉDICAS A ESPECIALISTAS (REG_REFERENCIA)
+  // ============================================================
+  async getReferenciasMedicas(): Promise<RegistroReferenciaMedica[]> {
+    let list = getLocal<RegistroReferenciaMedica>(SK.REFERENCIAS_MEDICAS);
+    if (!list || list.length === 0) {
+      list = [
+        {
+          id: 'ref_01',
+          fecha: '2026-10-05',
+          hora: '10:30',
+          cedula: '15892341',
+          nombreApellido: 'MENDOZA CARLOS EDUARDO',
+          genero: 'MASCULINO',
+          edad: 38,
+          sucursal: 'LOS RUICES',
+          departamento: 'PRODUCCION Y CARGA',
+          cargo: 'TECNICO DE CARGA Y FORMACION',
+          empresaNombre: 'ACUMULADORES DUNCAN, C.A.',
+          especialidad: 'Traumatología',
+          centroSaludSugerido: 'Centro Médico Docente Los Altos / IVSS',
+          motivoReferencia: 'Evaluación especializada de columna lumbosacra por lumbalgia persistente y limitación en goniometría.',
+          resumenClinico: 'Paciente masculino de 38 años, técnico de carga con 4 años de antigüedad. Presenta dolor lumbosacro EVA 6/10 tras esfuerzo físico. Signo de Lasègue negativo. Reflejos conservados.',
+          diagnosticoPresuntivo: 'Lumbago con ciática en estudio / Descarte de discopatía L4-L5',
+          examenesParaclinicosAnexos: 'Rx Columna Lumbosacra AP y Lateral. Se solicita valorar Resonancia Magnética.',
+          medicoRemitente: 'Dra. Carmen Ismelda Ramos Martínez',
+          ciMedico: '6211215',
+          numeroMSDS: '43739',
+          numeroCMV: '17585'
+        },
+        {
+          id: 'ref_02',
+          fecha: '2026-11-12',
+          hora: '09:15',
+          cedula: '12450891',
+          nombreApellido: 'HERNANDEZ JOSE RAMON',
+          genero: 'MASCULINO',
+          edad: 48,
+          sucursal: 'CARACAS',
+          departamento: 'TRANSPORTE Y RUTAS',
+          cargo: 'CHOFER DE RUTA NACIONAL',
+          empresaNombre: 'DISTRIBUIDORA DUNCAN, C.A.',
+          especialidad: 'Cardiología',
+          centroSaludSugerido: 'Policlínica Caracas / Ambulatorio Especializado',
+          motivoReferencia: 'Evaluación cardiovascular integral y descarte de HTA Grado 1 previo a asignación de rutas largas.',
+          resumenClinico: 'Paciente que en chequeo pre-operacional y control de PA presenta cifras de 145/95 mmHg en tomas sucesivas. Asintomático cardiovascular.',
+          diagnosticoPresuntivo: 'Hipertensión Arterial Primaria Grado 1 en estudio',
+          examenesParaclinicosAnexos: 'Electrocardiograma basal. Se solicita MAPA de 24 horas y ecocardiograma.',
+          medicoRemitente: 'Dra. Carmen Ismelda Ramos Martínez',
+          ciMedico: '6211215',
+          numeroMSDS: '43739',
+          numeroCMV: '17585'
+        }
+      ];
+      setLocal(SK.REFERENCIAS_MEDICAS, list);
+    }
+    return list;
+  },
+
+  async saveReferenciaMedica(data: any): Promise<string> {
+    const list = await this.getReferenciasMedicas();
+    const id = data.id || genId('refm');
+    const item = {
+      ...data,
+      id,
+      createdAt: new Date().toISOString()
+    };
+    list.unshift(item);
+    setLocal(SK.REFERENCIAS_MEDICAS, list);
+    await this.logAction('CREATE', 'referenciasMedicas', id, `Referencia médica a ${data.especialidad} para ${data.nombreApellido}`);
     return id;
   },
 

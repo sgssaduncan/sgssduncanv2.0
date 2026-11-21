@@ -31,6 +31,7 @@ import type {
 } from '../types/accidents';
 import { exportCurrentViewData } from '../lib/exportUtils';
 import { cn } from '../lib/utils';
+import { generarInformeAccidentePDF } from '../lib/pdfGenerator';
 import toast from 'react-hot-toast';
 
 export default function AccidentesPage() {
@@ -715,10 +716,26 @@ export default function AccidentesPage() {
               )}
             </div>
 
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+              <button
+                onClick={() => {
+                  try {
+                    const { doc, fileName } = generarInformeAccidentePDF(selectedAccidente);
+                    doc.save(fileName);
+                    toast.success('Informe Técnico-Legal F-465 descargado');
+                  } catch (e) {
+                    console.error(e);
+                    toast.error('Error generando informe técnico');
+                  }
+                }}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-colors"
+              >
+                <Download size={15} />
+                Descargar Informe Técnico-Legal (PDF)
+              </button>
               <button
                 onClick={() => setSelectedAccidente(null)}
-                className="px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold"
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold"
               >
                 Cerrar
               </button>

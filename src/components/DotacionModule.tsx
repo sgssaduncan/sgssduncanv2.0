@@ -2064,9 +2064,9 @@ function ReportesDotacionTab() {
                 const stockTotal = inv.stock.reduce((a, c) => a + c.cantidad, 0);
                 const tallasDetalle = inv.stock.map(s => `${s.talla}: ${s.cantidad}`).join(' | ');
                 return [
-                    inv.codigo,
-                    inv.nombre.toUpperCase(),
-                    inv.categoria.toUpperCase(),
+                    inv.codigo || '—',
+                    String(inv.nombre || '').toUpperCase(),
+                    String(inv.categoria || '').toUpperCase(),
                     tallasDetalle || 'N/A',
                     String(stockTotal)
                 ];

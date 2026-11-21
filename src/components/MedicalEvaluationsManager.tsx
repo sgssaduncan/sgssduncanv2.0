@@ -16,7 +16,8 @@ import {
   Printer,
   ShieldAlert,
   ShieldCheck,
-  Heart
+  Heart,
+  Palmtree
 } from 'lucide-react';
 import type { EvaluacionMedica } from '../types/medical';
 import { useAuth } from '../hooks/useAuth';
@@ -31,8 +32,11 @@ import VexpressPressureManager from './VexpressPressureManager';
 import VexpressAptitudManager from './VexpressAptitudManager';
 import VexpressGoniometriaManager from './VexpressGoniometriaManager';
 import VexpressMorbilidadReport from './VexpressMorbilidadReport';
+import VexpressRepososManager from './VexpressRepososManager';
+import VexpressReferenciasManager from './VexpressReferenciasManager';
+import VexpressVacacionesManager from './VexpressVacacionesManager';
 
-type MedicalTab = 'solicitudes' | 'consultas-diarias' | 'control-pa' | 'aptitud-apf' | 'goniometria' | 'morbilidad';
+type MedicalTab = 'solicitudes' | 'consultas-diarias' | 'control-pa' | 'aptitud-apf' | 'goniometria' | 'reposos' | 'referencias' | 'vacaciones' | 'morbilidad';
 
 export default function MedicalEvaluationsManager() {
   const { profile, isSuperAdmin } = useAuth();
@@ -242,6 +246,45 @@ export default function MedicalEvaluationsManager() {
         </button>
 
         <button
+          onClick={() => setActiveTab('reposos')}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all shadow-sm",
+            activeTab === 'reposos'
+              ? "bg-slate-900 text-yellow-400 border border-slate-800"
+              : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
+          )}
+        >
+          <Clock size={16} className="text-amber-500" />
+          Reposos Médicos (REG_REPOSO)
+        </button>
+
+        <button
+          onClick={() => setActiveTab('referencias')}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all shadow-sm",
+            activeTab === 'referencias'
+              ? "bg-slate-900 text-yellow-400 border border-slate-800"
+              : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
+          )}
+        >
+          <BriefcaseMedical size={16} className="text-cyan-500" />
+          Referencias Especialistas
+        </button>
+
+        <button
+          onClick={() => setActiveTab('vacaciones')}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all shadow-sm",
+            activeTab === 'vacaciones'
+              ? "bg-slate-900 text-yellow-400 border border-slate-800"
+              : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
+          )}
+        >
+          <Palmtree size={16} className="text-emerald-500" />
+          Control Vacacional & Fatiga
+        </button>
+
+        <button
           onClick={() => setActiveTab('morbilidad')}
           className={cn(
             "flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all shadow-sm",
@@ -380,6 +423,15 @@ export default function MedicalEvaluationsManager() {
       {activeTab === 'control-pa' && <VexpressPressureManager />}
       {activeTab === 'aptitud-apf' && <VexpressAptitudManager />}
       {activeTab === 'goniometria' && <VexpressGoniometriaManager />}
+      {activeTab === 'reposos' && <VexpressRepososManager />}
+      {activeTab === 'referencias' && <VexpressReferenciasManager />}
+      {activeTab === 'vacaciones' && (
+        <VexpressVacacionesManager 
+          onSolicitarPreVacacional={(_emp) => {
+            setIsFormOpen(true);
+          }} 
+        />
+      )}
       {activeTab === 'morbilidad' && <VexpressMorbilidadReport />}
 
       {/* Formulario Modal */}

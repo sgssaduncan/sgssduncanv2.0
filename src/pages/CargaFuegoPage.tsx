@@ -30,6 +30,7 @@ import type {
 } from '../types/fire';
 import { exportCurrentViewData } from '../lib/exportUtils';
 import { cn } from '../lib/utils';
+import { generarCertificadoCargaFuegoPDF } from '../lib/pdfGenerator';
 import toast from 'react-hot-toast';
 
 export default function CargaFuegoPage() {
@@ -360,6 +361,24 @@ export default function CargaFuegoPage() {
                   <span>Distancia Máxima:</span>
                   <span className="font-bold">{c.distanciaMaximaRecorridoMetros} metros</span>
                 </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 flex justify-end">
+                <button
+                  onClick={() => {
+                    try {
+                      const { doc, fileName } = generarCertificadoCargaFuegoPDF(c);
+                      doc.save(fileName);
+                      toast.success('Certificado Técnico de Carga de Fuego descargado');
+                    } catch (err) {
+                      console.error(err);
+                      toast.error('Error generando certificado PDF');
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
+                >
+                  <Download size={13} /> Certificado COVENIN / NFPA (PDF)
+                </button>
               </div>
             </div>
           ))}

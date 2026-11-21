@@ -273,3 +273,62 @@ export interface MorbilidadReporteItem {
   diasReposoAcumulados: number;
   porcentaje: number;
 }
+
+
+export interface RegistroReposoMedico {
+  id: string;
+  fechaRegistro: string;
+  cedula: string;
+  nombreApellido: string;
+  genero: string;
+  edad: number;
+  sucursal: string;
+  departamento: string;
+  cargo: string;
+  empresaNombre: string;
+  
+  tipoContingencia: 'Enfermedad Común' | 'Accidente de Trabajo' | 'Accidente Común' | 'Enfermedad Ocupacional' | 'Maternidad' | string;
+  diagnosticoCIE10: string;
+  sistemaAfectado: string;
+  
+  fechaInicioReposo: string;
+  fechaFinReposo: string;
+  diasReposo: number;
+  
+  centroEmisor: 'IVSS' | 'Clínica Privada' | 'SSST Duncan' | 'Ambulatorio / Barrio Adentro' | string;
+  medicoTratante: string;
+  ciMedico?: string;
+  numeroColegioMedico?: string;
+  
+  estatusValidacion: 'VALIDADO_APTO' | 'PENDIENTE_VALIDACION' | 'RECHAZADO' | 'REINCORPORADO_CON_RESTRICCIONES';
+  observacionesValidacion?: string;
+  fechaReincorporacion?: string;
+  createdAt?: string;
+}
+
+export interface RegistroReferenciaMedica {
+  id: string;
+  fecha: string;
+  hora: string;
+  cedula: string;
+  nombreApellido: string;
+  genero: string;
+  edad: number;
+  sucursal: string;
+  departamento: string;
+  cargo: string;
+  empresaNombre: string;
+  
+  especialidad: 'Traumatología' | 'Oftalmología' | 'Cardiología' | 'Neumonología' | 'Otorrinolaringología' | 'Medicina Interna' | 'Neurología' | 'Dermatología' | 'Psicología / Psiquiatría' | 'Toxicología (Plomo)' | string;
+  centroSaludSugerido?: string;
+  motivoReferencia: string;
+  resumenClinico: string;
+  diagnosticoPresuntivo: string;
+  examenesParaclinicosAnexos?: string;
+  
+  medicoRemitente: string;
+  ciMedico?: string;
+  numeroMSDS?: string;
+  numeroCMV?: string;
+  createdAt?: string;
+}

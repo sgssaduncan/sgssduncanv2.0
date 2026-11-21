@@ -121,11 +121,66 @@ export const INITIAL_USUARIOS: Usuario[] = [
 export const INITIAL_INSPECCIONES: any[] = [];
 export const INITIAL_PLAN_ACCION: any[] = [];
 export const INITIAL_EMPLEADOS: Empleado[] = [
-  { _id: 'emp_01', cedula: 'V-15894123', nombre: 'Carlos Eduardo Mendoza', cargo: 'Operador de Formación y Carga', departamento: 'Producción', empresaNombre: 'Acumuladores Duncan, C.A.', activo: true },
-  { _id: 'emp_02', cedula: 'V-18765432', nombre: 'José Manuel Rivas', cargo: 'Técnico de Mantenimiento Eléctrico', departamento: 'Mantenimiento', empresaNombre: 'Acumuladores Duncan, C.A.', activo: true },
-  { _id: 'emp_03', cedula: 'V-20112345', nombre: 'María Alejandra Delgado', cargo: 'Supervisora de Distribución', departamento: 'Logística', empresaNombre: 'Distribuidora Duncan, C.A.', activo: true },
-  { _id: 'emp_04', cedula: 'V-14567890', nombre: 'Roberto Antonio Gómez', cargo: 'Mecánico / Operador de Montacargas', departamento: 'Almacén', empresaNombre: 'Distribuidora Duncan, C.A.', activo: true },
-  { _id: 'emp_05', cedula: 'V-19345678', nombre: 'Luis Fernando Castillo', cargo: 'Técnico de Servicentro', departamento: 'Servicio al Cliente', empresaNombre: 'Inversiones 1286, C.A.', activo: true },
+  { 
+    _id: 'emp_01', 
+    cedula: 'V-15894123', 
+    nombre: 'Carlos Eduardo Mendoza', 
+    cargo: 'Operador de Formación y Carga', 
+    departamento: 'Producción', 
+    empresaNombre: 'Acumuladores Duncan, C.A.', 
+    activo: true,
+    fechaIngreso: '2021-03-15',
+    ultimoDisfruteVacacional: '2025-02-10',
+    diasVacacionesPendientes: 15
+  },
+  { 
+    _id: 'emp_02', 
+    cedula: 'V-18765432', 
+    nombre: 'José Manuel Rivas', 
+    cargo: 'Técnico de Mantenimiento Eléctrico', 
+    departamento: 'Mantenimiento', 
+    empresaNombre: 'Acumuladores Duncan, C.A.', 
+    activo: true,
+    fechaIngreso: '2019-07-01',
+    ultimoDisfruteVacacional: '2024-05-20', // Vencido (+18 meses)
+    diasVacacionesPendientes: 32
+  },
+  { 
+    _id: 'emp_03', 
+    cedula: 'V-20112345', 
+    nombre: 'María Alejandra Delgado', 
+    cargo: 'Supervisora de Distribución', 
+    departamento: 'Logística', 
+    empresaNombre: 'Distribuidora Duncan, C.A.', 
+    activo: true,
+    fechaIngreso: '2022-11-10',
+    ultimoDisfruteVacacional: '2026-01-15',
+    diasVacacionesPendientes: 0
+  },
+  { 
+    _id: 'emp_04', 
+    cedula: 'V-14567890', 
+    nombre: 'Roberto Antonio Gómez', 
+    cargo: 'Mecánico / Operador de Montacargas', 
+    departamento: 'Almacén', 
+    empresaNombre: 'Distribuidora Duncan, C.A.', 
+    activo: true,
+    fechaIngreso: '2018-02-01',
+    ultimoDisfruteVacacional: '2024-08-14', // Vencido (+15 meses)
+    diasVacacionesPendientes: 28
+  },
+  { 
+    _id: 'emp_05', 
+    cedula: 'V-19345678', 
+    nombre: 'Luis Fernando Castillo', 
+    cargo: 'Técnico de Servicentro', 
+    departamento: 'Servicio al Cliente', 
+    empresaNombre: 'Inversiones 1286, C.A.', 
+    activo: true,
+    fechaIngreso: '2023-04-18',
+    ultimoDisfruteVacacional: '2025-10-05',
+    diasVacacionesPendientes: 15
+  },
 ];
 
 export const INITIAL_EPP_INVENTARIO: any[] = [

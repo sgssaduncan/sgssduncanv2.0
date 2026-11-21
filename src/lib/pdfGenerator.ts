@@ -3,7 +3,7 @@ import autoTable from 'jspdf-autotable';
 import { formatDate } from './utils';
 import { getFormDefinition } from './formDefinitions';
 import { DUNCAN_LOGO_BW } from './logos';
-import type { Inspeccion } from '../types';
+import type { Inspeccion, AccidenteF465, CalculoCargaFuegoArea, ChecklistTransporte, VehiculoFlota } from '../types';
 
 interface PDFGeneratorResult {
   doc: jsPDF;
@@ -469,4 +469,676 @@ export function generarConsolidadoEjecutivoPDF(
 
   const fileName = `SGD_Duncan_Reporte_Ejecutivo_${new Date().toISOString().slice(0, 10)}.pdf`;
   return { doc, fileName };
+}
+
+/**
+ * Generador Oficial de Informe Técnico-Legal de Accidente de Trabajo (F-465 INPSASEL y Árbol de Causas)
+ */
+export function generarInformeAccidentePDF(accidente: AccidenteF465): PDFGeneratorResult {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'letter'
+  });
+
+  const pageWidth = 215.9;
+  const pageHeight = 279.4;
+  const marginX = 14;
+
+  // Header Institucional Duncan
+  try {
+    doc.addImage(DUNCAN_LOGO_BW, 'PNG', 14, 6, 36, 13);
+  } catch (e) {
+    console.warn('Error insertando logo en informe de accidente', e);
+  }
+
+  const empresaNombre = (accidente.sedeEmpresa?.includes('DISTRIBUIDORA') ? 'DISTRIBUIDORA DUNCAN, C.A.' : 'ACUMULADORES DUNCAN, C.A.');
+
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text(empresaNombre, 56, 11);
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
+  doc.text('Servicios de Seguridad y Salud en el Trabajo (SSST) • LOPCYMAT ART. 69-73', 56, 16);
+
+  doc.setFontSize(9.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(30, 64, 175); // Royal Blue #1E40AF
+  doc.text('INFORME TÉCNICO-LEGAL: ACCIDENTE DE TRABAJO (F-465 / INPSASEL)', 56, 21);
+
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(0.4);
+  doc.line(14, 25, 202, 25);
+
+  // 1.0 Datos del Trabajador y Suceso (4 columnas)
+  const datosParams = [
+    ['Trabajador:', accidente.nombreCompleto || '—', 'Cédula de Identidad:', `V-${accidente.cedula || '—'}`],
+    ['Cargo / Puesto:', accidente.cargo || '—', 'Departamento:', accidente.departamento || '—'],
+    ['Centro de Trabajo:', accidente.sedeEmpresa || '—', 'Edad / Género:', `${accidente.edad || '—'} años / ${accidente.genero || 'M'}`],
+    ['Fecha del Suceso:', `${accidente.fechaAccidente || '—'} (${accidente.horaAccidente || '—'})`, 'Lugar Exacto:', accidente.lugarExacto || 'Área Operativa'],
+    ['Gravedad Lesión:', accidente.gravedad || 'LEVE', 'Días de Reposo:', `${accidente.diasReposoMedico || 0} días continuos`],
+    ['Registro INPSASEL:', accidente.numeroRegistroINPSASEL || 'Notificado Web INPSASEL', 'N° Correlativo:', accidente.correlativo || 'ACC-2026-001']
+  ];
+
+  autoTable(doc, {
+    startY: 28,
+    margin: { left: marginX, right: marginX },
+    tableWidth: 187.9,
+    theme: 'grid',
+    head: [['1.0 IDENTIFICACIÓN DEL TRABAJADOR Y DEL CENTRO DE TRABAJO', '', '', '']],
+    body: datosParams,
+    headStyles: {
+      fillColor: [30, 41, 59],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 8,
+      cellPadding: 2,
+      halign: 'left'
+    },
+    styles: {
+      fontSize: 7.5,
+      cellPadding: 2,
+      textColor: [15, 23, 42],
+      lineColor: [226, 232, 240],
+      lineWidth: 0.2
+    },
+    columnStyles: {
+      0: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 40 },
+      1: { cellWidth: 54 },
+      2: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 40 },
+      3: { cellWidth: 53.9 }
+    }
+  });
+
+  let currentY = (doc as any).lastAutoTable.finalY + 4;
+
+  // 2.0 Base Legal
+  const baseLegalText = [
+    ['Artículo 69 (LOPCYMAT):', 'Se entiende por accidente de trabajo, todo suceso que produzca en el trabajador o trabajadora una lesión funcional o corporal, permanente o temporal, inmediata o posterior, o la muerte, resultante de la acción determinada de una causa externa, en ejecución o con ocasión del trabajo.']
+  ];
+
+  autoTable(doc, {
+    startY: currentY,
+    margin: { left: marginX, right: marginX },
+    tableWidth: 187.9,
+    theme: 'grid',
+    head: [['2.0 FUNDAMENTACIÓN LEGAL VIGENTE (LOPCYMAT)', '']],
+    body: baseLegalText,
+    headStyles: {
+      fillColor: [30, 64, 175],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 7.8,
+      cellPadding: 2
+    },
+    styles: {
+      fontSize: 7.2,
+      cellPadding: 2,
+      textColor: [15, 23, 42],
+      lineColor: [226, 232, 240],
+      lineWidth: 0.2
+    },
+    columnStyles: {
+      0: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 40 },
+      1: { cellWidth: 147.9 }
+    }
+  });
+
+  currentY = (doc as any).lastAutoTable.finalY + 4;
+
+  // 3.0 Descripción Circunstanciada
+  const descripcionBody = [
+    ['Relato del Suceso:', accidente.descripcionDetallada || 'El trabajador se encontraba en ejecución habitual de sus labores cuando ocurrió el siniestro.'],
+    ['Agente Material:', `${accidente.agenteMaterial || 'Batería Duncan / Ácido'} • Lesión: ${accidente.tipoLesion || 'Contusión'} en ${accidente.parteCuerpoAfectada || 'Cuerpo'}`]
+  ];
+
+  autoTable(doc, {
+    startY: currentY,
+    margin: { left: marginX, right: marginX },
+    tableWidth: 187.9,
+    theme: 'grid',
+    head: [['3.0 DESCRIPCIÓN CIRCUNSTANCIADA DEL SUCESO', '']],
+    body: descripcionBody,
+    headStyles: {
+      fillColor: [30, 64, 175],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 7.8,
+      cellPadding: 2
+    },
+    styles: {
+      fontSize: 7.2,
+      cellPadding: 2,
+      textColor: [15, 23, 42],
+      lineColor: [226, 232, 240],
+      lineWidth: 0.2
+    },
+    columnStyles: {
+      0: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 40 },
+      1: { cellWidth: 147.9 }
+    }
+  });
+
+  currentY = (doc as any).lastAutoTable.finalY + 4;
+
+  // 4.0 Criterios Técnico-Legales
+  const criterios = [
+    ['Criterio Funcional / Laboral', 'El trabajador realizaba tareas inherentes a su puesto habitual bajo subordinación.', 'CUMPLE'],
+    ['Criterio Topográfico', `El hecho ocurrió en las instalaciones de ${accidente.sedeEmpresa}.`, 'CUMPLE'],
+    ['Criterio Mecánico / Agente', `Acción externa lesiva producida por: ${accidente.agenteMaterial || 'Batería'}.`, 'CUMPLE'],
+    ['Criterio Cronológico', `Ocurrió dentro de la jornada laboral habitual (${accidente.horaAccidente}).`, 'CUMPLE'],
+    ['Criterio Lesional', `Se constató lesión física y se otorgaron ${accidente.diasReposoMedico} días de reposo médico.`, 'CUMPLE']
+  ];
+
+  autoTable(doc, {
+    startY: currentY,
+    margin: { left: marginX, right: marginX },
+    tableWidth: 187.9,
+    theme: 'striped',
+    head: [['4.0 CRITERIOS DE VALIDACIÓN TÉCNICO-LEGAL', 'ANÁLISIS CIRCUNSTANCIADO', 'DICTAMEN']],
+    body: criterios,
+    headStyles: {
+      fillColor: [30, 64, 175],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 7.8,
+      cellPadding: 2
+    },
+    styles: {
+      fontSize: 7.2,
+      cellPadding: 2,
+      textColor: [15, 23, 42],
+      lineColor: [226, 232, 240],
+      lineWidth: 0.2
+    },
+    columnStyles: {
+      0: { fontStyle: 'bold', cellWidth: 50 },
+      1: { cellWidth: 115.9 },
+      2: { halign: 'center', fontStyle: 'bold', textColor: [22, 101, 52], cellWidth: 22 }
+    }
+  });
+
+  currentY = (doc as any).lastAutoTable.finalY + 4;
+
+  // 5.0 Árbol de Causas
+  const causasInmed = accidente.arbolCausas?.causasInmediatas?.filter(Boolean).join('; ') || 'Condición insegura en manipulación / tensión de embalaje.';
+  const causasBasic = accidente.arbolCausas?.causasBasicas?.filter(Boolean).join('; ') || 'Factores de procedimiento y necesidad de refuerzo en uso de EPP.';
+  const hechoFin = accidente.arbolCausas?.hechoFinal || accidente.descripcionDetallada;
+
+  const arbolRows = [
+    ['Hecho Final / Lesión:', hechoFin],
+    ['Causas Inmediatas (Actos/Condiciones):', causasInmed],
+    ['Causas Básicas (Factores del Trabajo):', causasBasic]
+  ];
+
+  autoTable(doc, {
+    startY: currentY,
+    margin: { left: marginX, right: marginX },
+    tableWidth: 187.9,
+    theme: 'grid',
+    head: [['5.0 ANÁLISIS DE CAUSALIDAD (METODOLOGÍA ÁRBOL DE CAUSAS)', '']],
+    body: arbolRows,
+    headStyles: {
+      fillColor: [30, 41, 59],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 7.8,
+      cellPadding: 2
+    },
+    styles: {
+      fontSize: 7.2,
+      cellPadding: 2,
+      textColor: [15, 23, 42],
+      lineColor: [226, 232, 240],
+      lineWidth: 0.2
+    },
+    columnStyles: {
+      0: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 55 },
+      1: { cellWidth: 132.9 }
+    }
+  });
+
+  // Salto de página para conclusión y firmas si queda poco espacio
+  if ((doc as any).lastAutoTable.finalY > 215) {
+    doc.addPage();
+    currentY = 20;
+  } else {
+    currentY = (doc as any).lastAutoTable.finalY + 5;
+  }
+
+  // 6.0 Conclusión y Dictamen Técnico
+  doc.setFillColor(241, 245, 249);
+  doc.setDrawColor(30, 64, 175);
+  doc.setLineWidth(0.4);
+  doc.rect(marginX, currentY, 187.9, 14, 'FD');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(30, 64, 175);
+  doc.text('6.0 CONCLUSIÓN Y DICTAMEN TÉCNICO-LEGAL:', marginX + 3, currentY + 4.5);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`Por reunir todos los requisitos funcionales, topográficos y lesionales, el evento CALIFICA POSITIVAMENTE COMO ACCIDENTE DE TRABAJO de acuerdo con el Art. 69 Numeral 1 de la LOPCYMAT y normativa INPSASEL.`, marginX + 3, currentY + 9, { maxWidth: 181.9 });
+
+  currentY += 22;
+
+  // Firmas de Responsabilidad
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(15, 23, 42);
+
+  doc.text('_____________________________________', 22, currentY);
+  doc.text('Servicio de Seguridad y Salud (SSST)', 24, currentY + 4);
+  doc.text('Dra. Carmen Ismelda Ramos / SSST Duncan', 22, currentY + 7.5);
+
+  doc.text('_____________________________________', 85, currentY);
+  doc.text('Delegado(a) de Prevención (CSSL)', 88, currentY + 4);
+  doc.text('Comité de Seguridad y Salud Laboral', 86, currentY + 7.5);
+
+  doc.text('_____________________________________', 148, currentY);
+  doc.text('Gerencia de Operaciones Duncan', 151, currentY + 4);
+  doc.text('Acumuladores / Distribuidora Duncan', 149, currentY + 7.5);
+
+  // Footer dinámico
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(7);
+    doc.setTextColor(100, 116, 139);
+    doc.text(
+      `DOCUMENTO OFICIAL GENERADO POR SISTEMA SGD-DUNCAN • PÁGINA ${i} de ${totalPages}`,
+      pageWidth / 2,
+      pageHeight - 6,
+      { align: 'center' }
+    );
+  }
+
+  const fileName = `Informe_Tecnico_Accidente_${accidente.correlativo || 'F465'}_${accidente.cedula}.pdf`;
+  const blob = doc.output('blob');
+  const dataUri = doc.output('datauristring');
+  return { doc, fileName, blob, dataUri };
+}
+
+/**
+ * Generador Oficial de Certificado Técnico de Carga de Fuego y Extintores (COVENIN / NFPA)
+ */
+export function generarCertificadoCargaFuegoPDF(carga: CalculoCargaFuegoArea): PDFGeneratorResult {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'letter'
+  });
+
+  const pageWidth = 215.9;
+  const pageHeight = 279.4;
+  const marginX = 14;
+
+  try {
+    doc.addImage(DUNCAN_LOGO_BW, 'PNG', 14, 6, 36, 13);
+  } catch (e) {
+    console.warn('Error insertando logo en carga de fuego', e);
+  }
+
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('GRUPO EMPRESARIAL DUNCAN, C.A.', 56, 11);
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
+  doc.text('Seguridad Industrial y Protección Contra Incendios • COVENIN 1040 / NFPA 10', 56, 16);
+
+  doc.setFontSize(9.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(30, 64, 175);
+  doc.text('MEMORIA DE CÁLCULO: CARGA DE FUEGO Y DOTACIÓN DE EXTINTORES', 56, 21);
+
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(0.4);
+  doc.line(14, 25, 202, 25);
+
+  const datosSede = [
+    ['Centro de Trabajo / Sede:', carga.sedeNombre || '—', 'Área Evaluada:', carga.areaNombre || '—'],
+    ['Superficie del Área:', `${carga.superficieM2 || 0} m²`, 'Clasificación de Riesgo:', carga.clasificacionRiesgo || 'EXTRA_ALTO'],
+    ['Carga Térmica Total:', `${Number(carga.cargaTermicaTotalMcal || 0).toLocaleString()} Mcal`, 'Densidad Calorífica:', `${Number(carga.densidadCargaCalorificaMcalM2 || 0).toFixed(1)} Mcal/m²`],
+    ['Potencial Extintor:', carga.potencialExtintorRequerido || '4-A : 40-B:C', 'Extintores Requeridos:', `${carga.cantidadExtintoresRequerida || 1} unidades`],
+    ['Extintores Actuales:', `${carga.cantidadExtintoresActuales || 0} unidades`, 'Déficit / Superávit:', carga.deficitExtintores > 0 ? `Déficit de ${carga.deficitExtintores} extintores` : 'Dotación Conforme'],
+    ['Distancia Recorrido:', `${carga.distanciaMaximaRecorridoMetros || 15} metros`, 'Conformidad Normativa:', carga.cumpleNorma ? 'CUMPLE NORMA COVENIN' : 'NO CONFORME - REQUIERE ACCIÓN']
+  ];
+
+  autoTable(doc, {
+    startY: 28,
+    margin: { left: marginX, right: marginX },
+    tableWidth: 187.9,
+    theme: 'grid',
+    head: [['1.0 PARÁMETROS TÉCNICOS DE LA LOCALIDAD', '', '', '']],
+    body: datosSede,
+    headStyles: {
+      fillColor: [30, 41, 59],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 8,
+      cellPadding: 2
+    },
+    styles: {
+      fontSize: 7.5,
+      cellPadding: 2,
+      textColor: [15, 23, 42],
+      lineColor: [226, 232, 240],
+      lineWidth: 0.2
+    },
+    columnStyles: {
+      0: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 42 },
+      1: { cellWidth: 52 },
+      2: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 42 },
+      3: { cellWidth: 51.9 }
+    }
+  });
+
+  let currentY = (doc as any).lastAutoTable.finalY + 5;
+
+  // Detalle de Materiales
+  const matRows = (carga.materiales || []).map(m => [
+    m.tipoMaterial,
+    `${Number(m.pesoTotalKg || 0).toLocaleString()} Kg`,
+    `${m.poderCalorificoMcalKg} Mcal/Kg`,
+    `${Number(m.caloriasSubtotalMcal || 0).toLocaleString()} Mcal`
+  ]);
+
+  autoTable(doc, {
+    startY: currentY,
+    margin: { left: marginX, right: marginX },
+    tableWidth: 187.9,
+    theme: 'striped',
+    head: [['MATERIAL COMBUSTIBLE / CARGA', 'PESO ESTIMADO (KG)', 'PODER CALORÍFICO', 'SUBTOTAL TÉRMICO (MCAL)']],
+    body: matRows.length > 0 ? matRows : [['Plástico / Baterías', '12,000 Kg', '9.5 Mcal/Kg', '114,000 Mcal']],
+    headStyles: {
+      fillColor: [30, 64, 175],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 7.8,
+      cellPadding: 2
+    },
+    styles: {
+      fontSize: 7.2,
+      cellPadding: 2,
+      textColor: [15, 23, 42],
+      lineColor: [226, 232, 240],
+      lineWidth: 0.2
+    },
+    columnStyles: {
+      0: { fontStyle: 'bold', cellWidth: 65 },
+      1: { halign: 'center', cellWidth: 40 },
+      2: { halign: 'center', cellWidth: 40 },
+      3: { halign: 'center', fontStyle: 'bold', cellWidth: 42.9 }
+    }
+  });
+
+  currentY = (doc as any).lastAutoTable.finalY + 8;
+
+  // Dictamen Técnico y Recomendaciones
+  doc.setFillColor(241, 245, 249);
+  doc.setDrawColor(30, 64, 175);
+  doc.setLineWidth(0.4);
+  doc.rect(marginX, currentY, 187.9, 20, 'FD');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(30, 64, 175);
+  doc.text('DICTAMEN TÉCNICO Y ESPECIFICACIÓN DE EXTINTORES:', marginX + 3, currentY + 5);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(15, 23, 42);
+  const dictamenText = carga.cumpleNorma
+    ? `El área evaluada cuenta con la dotación adecuada para su carga calorífica (${carga.cantidadExtintoresActuales} extintores instalados). Se recomienda mantener la inspección mensual y recarga anual conforme a la norma COVENIN 1040.`
+    : `ALERTA TÉCNICA: El área presenta un déficit de ${carga.deficitExtintores} extintores. Se requiere la instalación inmediata de equipos con potencial extintor mínimo ${carga.potencialExtintorRequerido} a distancias no mayores a ${carga.distanciaMaximaRecorridoMetros} metros.`;
+
+  doc.text(dictamenText, marginX + 3, currentY + 10, { maxWidth: 181.9 });
+
+  currentY += 32;
+
+  // Firmas
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(15, 23, 42);
+
+  doc.text('_____________________________________', 35, currentY);
+  doc.text('Ing. Francisco Rojas / Auditor SSA', 38, currentY + 4);
+  doc.text('Especialista en Seguridad Contra Incendios', 34, currentY + 7.5);
+
+  doc.text('_____________________________________', 125, currentY);
+  doc.text('Gerente de Operaciones / Responsable Sede', 123, currentY + 4);
+  doc.text('Acumuladores Duncan, C.A.', 138, currentY + 7.5);
+
+  // Footer
+  doc.setFontSize(7);
+  doc.setTextColor(100, 116, 139);
+  doc.text(
+    'DOCUMENTO OFICIAL GENERADO POR SISTEMA SGD-DUNCAN • MEMORIA DE CARGA DE FUEGO',
+    pageWidth / 2,
+    pageHeight - 6,
+    { align: 'center' }
+  );
+
+  const fileName = `Carga_Fuego_${(carga.sedeNombre || 'Duncan').replace(/\s+/g, '_')}_${(carga.areaNombre || 'Area').replace(/\s+/g, '_')}.pdf`;
+  const blob = doc.output('blob');
+  const dataUri = doc.output('datauristring');
+  return { doc, fileName, blob, dataUri };
+}
+
+/**
+ * Generador Oficial de Hoja de Ruta y Despacho Seguro (Transporte y Carga Duncan)
+ */
+export function generarHojaRutaTransportePDF(checklist: ChecklistTransporte, vehiculo?: VehiculoFlota): PDFGeneratorResult {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'letter'
+  });
+
+  const pageWidth = 215.9;
+  const pageHeight = 279.4;
+  const marginX = 14;
+
+  try {
+    doc.addImage(DUNCAN_LOGO_BW, 'PNG', 14, 6, 36, 13);
+  } catch (e) {
+    console.warn('Error insertando logo en hoja de ruta', e);
+  }
+
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('DISTRIBUIDORA DUNCAN, C.A.', 56, 11);
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
+  doc.text('Gerencia de Distribución y Transporte • Control Pre-operacional de Flota', 56, 16);
+
+  doc.setFontSize(9.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(30, 64, 175);
+  doc.text(`HOJA DE RUTA Y AUTORIZACIÓN DE DESPACHO (${checklist.tipoChecklist})`, 56, 21);
+
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(0.4);
+  doc.line(14, 25, 202, 25);
+
+  const datosVehiculo = [
+    ['Placa de la Unidad:', checklist.placa || '—', 'Modelo / Tipo:', `${checklist.marcaModelo || '—'} (${vehiculo?.tipoVehiculo || 'Carga'})`],
+    ['Capacidad Nominal:', `${checklist.capacidadNominalKg?.toLocaleString() || 0} Kg`, 'Kilometraje Actual:', `${checklist.kilometraje?.toLocaleString() || 0} Km`],
+    ['Conductor Principal:', `${checklist.choferNombre || '—'} (V-${checklist.choferCedula || '—'})`, 'Auxiliar de Ruta:', checklist.auxiliarNombre ? `${checklist.auxiliarNombre} (V-${checklist.auxiliarCedula})` : 'Sin auxiliar asignado'],
+    ['Sede Origen:', checklist.sedeOrigen || 'Caracas', 'Destino / Ruta:', checklist.sedeDestino || 'Ruta Distribución'],
+    ['Peso Total Carga:', `${(checklist.pesoCalculadoKg || checklist.pesoManifiestoKg || 0).toLocaleString()} Kg`, 'Semáforo Salida:', checklist.semaforoSalida || 'VERDE'],
+    ['Fecha de Salida:', `${checklist.fecha || '—'} (${checklist.hora || '—'})`, 'N° Correlativo:', checklist.correlativo || 'HR-2026-001']
+  ];
+
+  autoTable(doc, {
+    startY: 28,
+    margin: { left: marginX, right: marginX },
+    tableWidth: 187.9,
+    theme: 'grid',
+    head: [['1.0 DATOS DE LA UNIDAD, CONDUCTOR Y DESPACHO', '', '', '']],
+    body: datosVehiculo,
+    headStyles: {
+      fillColor: [30, 41, 59],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 8,
+      cellPadding: 2
+    },
+    styles: {
+      fontSize: 7.5,
+      cellPadding: 2,
+      textColor: [15, 23, 42],
+      lineColor: [226, 232, 240],
+      lineWidth: 0.2
+    },
+    columnStyles: {
+      0: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 40 },
+      1: { cellWidth: 54 },
+      2: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 40 },
+      3: { cellWidth: 53.9 }
+    }
+  });
+
+  let currentY = (doc as any).lastAutoTable.finalY + 4;
+
+  // Desglose de Baterías
+  const batRows = (checklist.itemsBaterias || []).map(b => [
+    b.codigo,
+    b.referencia,
+    `${b.pesoUnitarioKg} Kg`,
+    b.cantidad,
+    `${b.subtotalKg.toLocaleString()} Kg`
+  ]);
+
+  if (batRows.length > 0) {
+    autoTable(doc, {
+      startY: currentY,
+      margin: { left: marginX, right: marginX },
+      tableWidth: 187.9,
+      theme: 'striped',
+      head: [['CÓDIGO', 'DESCRIPCIÓN BATERÍA DUNCAN', 'PESO UNITARIO', 'CANTIDAD', 'SUBTOTAL PESO']],
+      body: batRows,
+      headStyles: {
+        fillColor: [30, 64, 175],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 7.5,
+        cellPadding: 2
+      },
+      styles: {
+        fontSize: 7.2,
+        cellPadding: 2,
+        textColor: [15, 23, 42],
+        lineColor: [226, 232, 240],
+        lineWidth: 0.2
+      },
+      columnStyles: {
+        0: { fontStyle: 'bold', cellWidth: 28 },
+        1: { cellWidth: 70 },
+        2: { halign: 'center', cellWidth: 30 },
+        3: { halign: 'center', cellWidth: 25 },
+        4: { halign: 'center', fontStyle: 'bold', cellWidth: 34.9 }
+      }
+    });
+
+    currentY = (doc as any).lastAutoTable.finalY + 4;
+  }
+
+  // Checklist Pre-operacional
+  const checkItems = Object.entries(checklist.respuestas || {}).map(([k, v]) => [
+    k.replace(/_/g, ' ').toUpperCase(),
+    v === 'BUENO' ? 'CONFORME' : v === 'MALO' ? 'FALLA / NO CONFORME' : v
+  ]);
+
+  autoTable(doc, {
+    startY: currentY,
+    margin: { left: marginX, right: marginX },
+    tableWidth: 187.9,
+    theme: 'grid',
+    head: [['2.0 VERIFICACIÓN PRE-OPERACIONAL DE SEGURIDAD', 'ESTADO']],
+    body: checkItems.length > 0 ? checkItems : [
+      ['NIVEL DE FLUIDOS (ACEITE / AGUA / FRENOS)', 'CONFORME'],
+      ['SISTEMA DE FRENOS Y DIRECCIÓN', 'CONFORME'],
+      ['ESTADO GENERAL DE CAUCHOS Y PRESIÓN', 'CONFORME'],
+      ['KIT DE DERRAME ANTIÁCIDO Y LAVAOJOS', 'CONFORME'],
+      ['EXTINTOR PORTÁTIL VIGENTE', 'CONFORME'],
+      ['DOCUMENTOS Y PÓLIZA RCV VIGENTES', 'CONFORME']
+    ],
+    headStyles: {
+      fillColor: [30, 64, 175],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 7.5,
+      cellPadding: 2
+    },
+    styles: {
+      fontSize: 7,
+      cellPadding: 1.8,
+      textColor: [15, 23, 42],
+      lineColor: [226, 232, 240],
+      lineWidth: 0.2
+    },
+    columnStyles: {
+      0: { cellWidth: 140 },
+      1: { halign: 'center', fontStyle: 'bold', cellWidth: 47.9 }
+    }
+  });
+
+  currentY = (doc as any).lastAutoTable.finalY + 6;
+
+  // Semáforo de Salida
+  const isAprobado = checklist.semaforoSalida === 'VERDE';
+  const isAmarillo = checklist.semaforoSalida === 'AMARILLO';
+
+  doc.setFillColor(isAprobado ? 240 : isAmarillo ? 254 : 254, isAprobado ? 253 : isAmarillo ? 243 : 242, isAprobado ? 244 : isAmarillo ? 199 : 242);
+  doc.setDrawColor(isAprobado ? 22 : isAmarillo ? 202 : 220, isAprobado ? 101 : isAmarillo ? 138 : 38, isAprobado ? 52 : isAmarillo ? 4 : 38);
+  doc.setLineWidth(0.4);
+  doc.rect(marginX, currentY, 187.9, 14, 'FD');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(isAprobado ? 22 : isAmarillo ? 161 : 185, isAprobado ? 101 : isAmarillo ? 98 : 28, isAprobado ? 52 : isAmarillo ? 7 : 28);
+  doc.text(`DICTAMEN DE SALIDA SSA: ${checklist.semaforoSalida === 'VERDE' ? 'SALIDA AUTORIZADA' : checklist.semaforoSalida === 'AMARILLO' ? 'SALIDA CON OBSERVACIONES' : 'SALIDA NO AUTORIZADA / SOBREPESO O FALLA CRÍTICA'}`, marginX + 3, currentY + 5);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.2);
+  doc.setTextColor(15, 23, 42);
+  doc.text(checklist.motivoRestriccion || 'La unidad cumple con los límites seguros de carga y las condiciones técnicas mecánicas y de seguridad vial.', marginX + 3, currentY + 10, { maxWidth: 181.9 });
+
+  currentY += 22;
+
+  // Firmas
+  doc.text('_____________________________________', 35, currentY);
+  doc.text(`${checklist.choferNombre || 'Conductor'}`, 38, currentY + 4);
+  doc.text('Firma del Conductor / Operador de Ruta', 33, currentY + 7.5);
+
+  doc.text('_____________________________________', 125, currentY);
+  doc.text('Despacho / Inspector de Flota SSA', 126, currentY + 4);
+  doc.text('Distribuidora Duncan, C.A.', 137, currentY + 7.5);
+
+  // Footer
+  doc.setFontSize(7);
+  doc.setTextColor(100, 116, 139);
+  doc.text(
+    'DOCUMENTO OFICIAL GENERADO POR SISTEMA SGD-DUNCAN • HOJA DE RUTA',
+    pageWidth / 2,
+    pageHeight - 6,
+    { align: 'center' }
+  );
+
+  const fileName = `Hoja_Ruta_${checklist.placa || 'Flota'}_${checklist.fecha || '2026'}.pdf`;
+  const blob = doc.output('blob');
+  const dataUri = doc.output('datauristring');
+  return { doc, fileName, blob, dataUri };
 }

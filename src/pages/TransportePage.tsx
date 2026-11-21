@@ -22,10 +22,12 @@ import {
   Save,
   X,
   FileCheck,
-  Clock
+  Clock,
+  Download
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { dbService } from '../services/db';
+import { generarHojaRutaTransportePDF } from '../lib/pdfGenerator';
 import type { 
   ChecklistTransporte, 
   VehiculoFlota, 
@@ -811,10 +813,26 @@ export default function TransportePage() {
               )}
             </div>
 
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+              <button
+                onClick={() => {
+                  try {
+                    const vehiculoRelacionado = vehiculos.find(v => v.id === selectedItem.vehiculoId);
+                    const { doc, fileName } = generarHojaRutaTransportePDF(selectedItem, vehiculoRelacionado);
+                    doc.save(fileName);
+                    toast.success('Hoja de Ruta y Despacho Seguro descargada');
+                  } catch (e) {
+                    console.error(e);
+                    toast.error('Error generando Hoja de Ruta PDF');
+                  }
+                }}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors"
+              >
+                <Download size={14} /> Descargar Hoja de Ruta Oficial (PDF)
+              </button>
               <button
                 onClick={() => setSelectedItem(null)}
-                className="px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold"
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold"
               >
                 Cerrar
               </button>

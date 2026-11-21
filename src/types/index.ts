@@ -189,6 +189,9 @@ export interface Empleado {
   empresaNombre?: string;
   establecimientoId?: string;
   activo?: boolean;
+  fechaIngreso?: string;
+  ultimoDisfruteVacacional?: string;
+  diasVacacionesPendientes?: number;
 }
 
 export interface AuditLog {
