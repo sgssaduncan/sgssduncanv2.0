@@ -49,7 +49,7 @@ const NAV_GROUPS: NavGroup[] = [
     category: 'VISTA GENERAL',
     items: [
       { to: '/', icon: LayoutDashboard, label: 'Dashboard Principal', exact: true },
-      { to: '/consolidador', icon: BarChart2, label: 'Consolidador 70 Sedes' }
+      { to: '/consolidador', icon: BarChart2, label: 'Reportes Consolidados' }
     ]
   },
   {

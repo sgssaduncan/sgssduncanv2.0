@@ -16,7 +16,7 @@ const ROUTE_NAMES: Record<string, string> = {
   '/accidentes': 'Accidentes Laborales F-465 & Árbol de Causas',
   '/formacion': 'Formación de Conductores & RACDA',
   '/comites': 'Comités CSSL & Delegados de Prevención',
-  '/consolidador': 'Consolidador Ejecutivo de Conformidad',
+  '/consolidador': 'Reportes Consolidados',
   '/reportes': 'Informes Ejecutivos & Reportes Gerenciales',
   '/usuarios': 'Gestión de Usuarios y Accesos',
   '/ajustes': 'Ajustes del Sistema & Google Sheets',
