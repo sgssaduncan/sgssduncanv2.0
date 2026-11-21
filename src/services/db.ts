@@ -663,9 +663,16 @@ export const dbService = {
     }
     setLocal(SK.INVENTARIO_EPP, inventario);
 
-    // Si provenía de una solicitud, marcarla como Entregada
+    // Si provenía de una solicitud, marcarla como Recibida / Entregada y archivar firmas
     if (data.solicitudId) {
-      await this.updateSolicitudEPP(data.solicitudId, { estado: 'Entregada' });
+      await this.updateSolicitudEPP(data.solicitudId, { 
+        estado: data.estado || 'Recibida',
+        ...(data.firmaReceptor ? { firmaReceptor: data.firmaReceptor } : {}),
+        ...(data.firmaDespacho ? { firmaDespacho: data.firmaDespacho } : {}),
+        ...(data.firmaSST ? { firmaSST: data.firmaSST } : {}),
+        ...(data.firmaSupervisor ? { firmaSupervisor: data.firmaSupervisor } : {}),
+        ...(data.firmaSolicitante ? { firmaSolicitante: data.firmaSolicitante } : {})
+      });
     }
 
     const nuevaEntrega = {

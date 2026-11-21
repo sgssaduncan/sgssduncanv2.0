@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import SignaturePad from './SignaturePad';
 import { useAuth } from '../hooks/useAuth';
 import { dbService } from '../services/db';
+import { auditService } from '../services/auditService';
 import { 
     Package, 
     Truck, 
@@ -17,7 +18,15 @@ import {
     Share2,
     MessageCircle,
     Download,
-    Mail
+    Mail,
+    Shield,
+    ShieldCheck,
+    PenTool,
+    FileCheck,
+    CheckSquare,
+    Layers,
+    ChevronRight,
+    Award
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { 
@@ -27,12 +36,15 @@ import type {
     Empleado,
     Localidad,
     Establecimiento,
-    Empresa
+    Empresa,
+    FirmaActor
 } from '../types';
 import toast from 'react-hot-toast';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { DUNCAN_LOGO_BW } from '../lib/logos';
+import SolicitudDetalleModal from './dotacion/SolicitudDetalleModal';
+import SolicitudFormModal from './dotacion/SolicitudFormModal';
 
 export const formatDateString = (dateObj: any) => {
     if (!dateObj) return 'N/A';
@@ -194,10 +206,69 @@ function SolicitudesTab() {
 
     return (
         <div className="p-6">
+            {/* Quick Action & Workflow Banner */}
+            <div className="bg-gradient-to-r from-slate-900 via-duncan-blue to-slate-900 text-white rounded-2xl p-5 mb-6 shadow-md border border-slate-700">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                            <span className="bg-yellow-400 text-slate-950 text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full">
+                                SG-SST DUNCAN 2.0
+                            </span>
+                            <span className="text-xs text-slate-300">Flujo Normado LOPCYMAT Art. 53, 54, 59-62</span>
+                        </div>
+                        <h2 className="text-lg md:text-xl font-bold tracking-tight text-white">
+                            Gestión de Requerimientos de Dotación, E.P.P. y Uniformes
+                        </h2>
+                        <p className="text-xs text-slate-300 max-w-2xl">
+                            Flujo digital de 4 aprobaciones con firma electrónica trazable: Solicitud Supervisor → Validación Técnica SSA → Despacho Almacén → Recepción Conforme y Acta Oficial PDF.
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => setIsFormOpen(true)}
+                        className="bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold px-5 py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-2.5 text-sm shrink-0 hover:scale-[1.02] active:scale-[0.98]"
+                    >
+                        <Plus size={18} className="stroke-[2.5]" />
+                        <span>Nueva Solicitud de Dotación</span>
+                    </button>
+                </div>
+
+                {/* Workflow Stepper Preview */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mt-4 pt-4 border-t border-white/10 text-xs">
+                    <div className="flex items-center gap-2 bg-white/5 rounded-lg p-2">
+                        <div className="w-6 h-6 rounded-full bg-blue-500/30 text-blue-300 flex items-center justify-center font-bold text-[11px] shrink-0">1</div>
+                        <div>
+                            <p className="font-bold text-white text-[11px]">Solicitud y Supervisor</p>
+                            <p className="text-[9.5px] text-slate-300">Requerimiento y firma inicial</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2 bg-white/5 rounded-lg p-2">
+                        <div className="w-6 h-6 rounded-full bg-purple-500/30 text-purple-300 flex items-center justify-center font-bold text-[11px] shrink-0">2</div>
+                        <div>
+                            <p className="font-bold text-white text-[11px]">Validación Técnica SSA</p>
+                            <p className="text-[9.5px] text-slate-300">Matriz de riesgos y COVENIN</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2 bg-white/5 rounded-lg p-2">
+                        <div className="w-6 h-6 rounded-full bg-amber-500/30 text-amber-300 flex items-center justify-center font-bold text-[11px] shrink-0">3</div>
+                        <div>
+                            <p className="font-bold text-white text-[11px]">Despacho de Almacén</p>
+                            <p className="text-[9.5px] text-slate-300">Preparación de insumos físicos</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2 bg-white/5 rounded-lg p-2">
+                        <div className="w-6 h-6 rounded-full bg-emerald-500/30 text-emerald-300 flex items-center justify-center font-bold text-[11px] shrink-0">4</div>
+                        <div>
+                            <p className="font-bold text-white text-[11px]">Recepción & Acta PDF</p>
+                            <p className="text-[9.5px] text-slate-300">Inducción y 4 firmas digitales</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                 <div>
                     <h2 className="text-lg font-bold text-slate-800">Solicitudes y Entregas</h2>
-                    <p className="text-sm text-slate-500">Historial general de dotación</p>
+                    <p className="text-sm text-slate-500">Historial general y trazabilidad de dotación</p>
                 </div>
                 <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
                     <div className="relative w-full md:w-auto">
@@ -344,1010 +415,6 @@ function SolicitudesTab() {
                     }}
                 />
             )}
-        </div>
-    );
-}
-
-function SolicitudDetalleModal({ solicitud, empleados, inventario, entregas, onClose, onUpdate }: { solicitud: SolicitudEPP, empleados: Empleado[], inventario: InventarioItem[], entregas: EntregaEPP[], onClose: () => void, onUpdate: () => void }) {
-    const { user, isAdmin } = useAuth();
-    const [saving, setSaving] = useState(false);
-    const [showConfirm, setShowConfirm] = useState(false);
-    const [signature, setSignature] = useState('');
-    const [comentarios, setComentarios] = useState('');
-    const [inducidoTeoricoPractico, setInducidoTeoricoPractico] = useState(false);
-    const [constanciaSujetoRiesgos, setConstanciaSujetoRiesgos] = useState(false);
-    const emp = empleados.find(e => e.id === solicitud.empleadoId);
-    const entrega = entregas.find(e => e.solicitudId === solicitud.id);
-
-    const handleMarcarEntregado = async () => {
-        if (!signature && showConfirm) {
-            toast.error("Debe proporcionar una firma para confirmar la recepción.");
-            return;
-        }
-
-        // Mandatory Training checklist gate under Articles 53 & 54 of LOPCYMAT
-        if (!inducidoTeoricoPractico || !constanciaSujetoRiesgos) {
-            toast.error("ERROR LOPCYMAT ART. 53-54: Todo EPP debe ir acompañado de una inducción teórica/práctica de uso y notificación escrita de los riesgos específicos. Ambas casillas de constancia deben estar tildadas.");
-            return;
-        }
-
-        setSaving(true);
-        try {
-            await dbService.addEntregaEPP({
-                solicitudId: solicitud.id,
-                empleadoId: solicitud.empleadoId,
-                entregadoPor: user?.uid || '',
-                fechaEntrega: new Date().toISOString(),
-                items: solicitud.items,
-                firmaUrl: signature,
-                comentarios: comentarios,
-                inducidoTeoricoPractico: inducidoTeoricoPractico,
-                constanciaSujetoRiesgos: constanciaSujetoRiesgos
-            }, solicitud.items);
-            toast.success("Solicitud entregada y constancia de capacitación registrada");
-            onUpdate();
-        } catch (error) {
-            toast.error("Error al procesar entrega");
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const handleEstado = async (estado: import('../types').EstadoSolicitudEPP) => {
-        let updateData: Partial<SolicitudEPP> = { estado };
-        if (estado === 'Rechazada') {
-            const motivoRechazo = window.prompt("Por favor indique el motivo del rechazo:");
-            if (motivoRechazo === null) return; // canceló
-            updateData.motivoRechazo = motivoRechazo;
-        }
-
-        setSaving(true);
-        try {
-            await dbService.updateSolicitudEPP(solicitud.id, updateData);
-            toast.success(`Estado actualizado a ${estado}`);
-            onUpdate();
-        } catch (error) {
-            toast.error("Error al actualizar estado");
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const dataURIToFile = (dataURI: string, fileName: string) => {
-        const splitDataURI = dataURI.split(',');
-        const byteString = splitDataURI[0].indexOf('base64') >= 0 ? atob(splitDataURI[1]) : decodeURI(splitDataURI[1]);
-        const mimeString = splitDataURI[0].split(':')[1].split(';')[0];
-        const ia = new Uint8Array(byteString.length);
-        for (let i = 0; i < byteString.length; i++) {
-            ia[i] = byteString.charCodeAt(i);
-        }
-        return new File([ia], fileName, { type: mimeString });
-    };
-
-    const generarActaDotacionPDF = (): { doc: jsPDF; fileName: string } => {
-        const doc = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: 'letter'
-        });
-
-        const pageWidth = 215.9;
-        const pageHeight = 279.4;
-        const marginX = 14;
-        const contentWidth = pageWidth - marginX * 2;
-        let currentY = 14;
-
-        // 1. HEADER CORPORATIVO (SAP / ISO INDUSTRIAL FORMAT)
-        doc.setDrawColor(0, 0, 0);
-        doc.setLineWidth(0.5);
-        doc.rect(marginX, currentY, contentWidth, 24);
-
-        // Columna 1: Logo / Marca Corporativa (22%)
-        const col1W = contentWidth * 0.22;
-        const col2W = contentWidth * 0.50;
-        const col3W = contentWidth * 0.28;
-
-        doc.line(marginX + col1W, currentY, marginX + col1W, currentY + 24);
-        doc.line(marginX + col1W + col2W, currentY, marginX + col1W + col2W, currentY + 24);
-
-        // Logo Oficial Duncan B&W
-        try {
-          const logoW = 34;
-          const logoH = 12;
-          doc.addImage(DUNCAN_LOGO_BW, 'PNG', marginX + (col1W - logoW) / 2, currentY + 2.5, logoW, logoH);
-        } catch (e) {
-          console.warn('Error insertando logo en Dotacion', e);
-        }
-
-        doc.setTextColor(51, 65, 85);
-        doc.setFontSize(6.5);
-        doc.text('GESTIÓN INTEGRAL', marginX + col1W / 2, currentY + 18, { align: 'center' });
-        doc.text('SEGURIDAD Y SALUD (SSA)', marginX + col1W / 2, currentY + 21.5, { align: 'center' });
-
-        // Columna 2: Título Central
-        const centerColX = marginX + col1W + col2W / 2;
-        doc.setTextColor(0, 0, 0);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8.5);
-        doc.text('PROGRAMA DE SEGURIDAD Y SALUD EN EL TRABAJO', centerColX, currentY + 8, { align: 'center' });
-
-        doc.setTextColor(0, 40, 85);
-        doc.setFontSize(11);
-        doc.text('ACTA DE ENTREGA DE DOTACIÓN Y E.P.P.', centerColX, currentY + 14.5, { align: 'center' });
-
-        doc.setTextColor(71, 85, 105);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7);
-        doc.text('CUMPLIMIENTO LOPCYMAT ART. 53, 54, 59-62 / NT-03-2016', centerColX, currentY + 20, { align: 'center' });
-
-        // Columna 3: Metadatos de Control Documental
-        const col3X = marginX + col1W + col2W;
-        doc.setLineWidth(0.25);
-        doc.line(col3X, currentY + 6, col3X + col3W, currentY + 6);
-        doc.line(col3X, currentY + 12, col3X + col3W, currentY + 12);
-        doc.line(col3X, currentY + 18, col3X + col3W, currentY + 18);
-
-        doc.setTextColor(0, 0, 0);
-        doc.setFontSize(6.5);
-        doc.setFont('helvetica', 'bold');
-        doc.text('CÓDIGO DOC:', col3X + 2, currentY + 4.2);
-        doc.text('ID TRANS:', col3X + 2, currentY + 10.2);
-        doc.text('EMISIÓN:', col3X + 2, currentY + 16.2);
-        doc.text('ESTATUS:', col3X + 2, currentY + 22.2);
-
-        doc.setFont('helvetica', 'normal');
-        doc.text('SST-F-DOT-ACTA', col3X + 20, currentY + 4.2);
-        doc.text((solicitud.id || (solicitud as any)._id || 'DOT-001').substring(0, 10).toUpperCase(), col3X + 20, currentY + 10.2);
-        doc.text(formatDateString(solicitud.createdAt), col3X + 20, currentY + 16.2);
-        doc.setFont('helvetica', 'bold');
-        doc.text((solicitud.estado || 'REGISTRADA').toUpperCase(), col3X + 20, currentY + 22.2);
-
-        currentY += 29;
-
-        // 2. SECCIÓN 1.0: DATOS DE IDENTIFICACIÓN DEL COLABORADOR
-        doc.setFillColor(0, 75, 147);
-        doc.rect(marginX, currentY, contentWidth, 6, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8.5);
-        doc.text('1.0 DATOS DE IDENTIFICACIÓN DEL TRABAJADOR / COLABORADOR', marginX + 3, currentY + 4.2);
-        currentY += 6;
-
-        autoTable(doc, {
-            startY: currentY,
-            margin: { left: marginX, right: marginX },
-            tableWidth: contentWidth,
-            theme: 'grid',
-            styles: {
-                font: 'helvetica',
-                fontSize: 8,
-                cellPadding: 2.2,
-                textColor: [15, 23, 42],
-                lineColor: [0, 0, 0],
-                lineWidth: 0.25
-            },
-            body: [
-                [
-                    { content: 'NOMBRE COMPLETO:', styles: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 34 } },
-                    { content: (emp?.nombre || 'N/A').toUpperCase(), styles: { cellWidth: 68 } },
-                    { content: 'CÉDULA / ID:', styles: { fontStyle: 'bold', fillColor: [241, 245, 249], cellWidth: 28 } },
-                    { content: emp?.cedula || 'N/A', styles: { cellWidth: contentWidth - 130 } }
-                ],
-                [
-                    { content: 'CARGO ACTUAL:', styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } },
-                    { content: (emp?.cargo || 'N/A').toUpperCase() },
-                    { content: 'DEPARTAMENTO:', styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } },
-                    { content: (emp?.departamento || 'OPERACIONES / SST').toUpperCase() }
-                ],
-                [
-                    { content: 'MOTIVO DOTACIÓN:', styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } },
-                    { content: (solicitud.motivo || 'DOTACIÓN ORDINARIA').toUpperCase() },
-                    { content: 'FECHA ENTREGA:', styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } },
-                    { content: entrega?.fechaEntrega ? formatDateString(entrega.fechaEntrega) : formatDateString(solicitud.createdAt) }
-                ]
-            ]
-        });
-
-        currentY = (doc as any).lastAutoTable.finalY + 6;
-
-        // 3. SECCIÓN 2.0: DETALLE DE IMPLEMENTOS Y EQUIPOS SUMINISTRADOS
-        doc.setFillColor(0, 75, 147);
-        doc.rect(marginX, currentY, contentWidth, 6, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8.5);
-        doc.text('2.0 DETALLE DE IMPLEMENTOS, PROTECCIONES PERSONALES (E.P.P.) Y UNIFORMES', marginX + 3, currentY + 4.2);
-        currentY += 6;
-
-        const itemsRows = (solicitud.items || []).map((it, idx) => {
-            const inv = (inventario || []).find(i => i.id === it.itemId);
-            return [
-                `0${idx + 1}`,
-                inv?.codigo || 'S/C',
-                (inv?.nombre || `ARTÍCULO (${it.itemId})`).toUpperCase(),
-                (inv?.categoria || 'EPP').toUpperCase(),
-                (inv?.documentoEficacia || 'ESTÁNDAR SST').toUpperCase(),
-                it.talla || 'ÚNICA',
-                String(it.cantidad || 1)
-            ];
-        });
-
-        autoTable(doc, {
-            startY: currentY,
-            margin: { left: marginX, right: marginX },
-            tableWidth: contentWidth,
-            theme: 'grid',
-            headStyles: {
-                fillColor: [226, 232, 240],
-                textColor: [0, 0, 0],
-                fontStyle: 'bold',
-                fontSize: 7.5,
-                lineColor: [0, 0, 0],
-                lineWidth: 0.25,
-                halign: 'center'
-            },
-            styles: {
-                font: 'helvetica',
-                fontSize: 8,
-                cellPadding: 2.5,
-                textColor: [0, 0, 0],
-                lineColor: [0, 0, 0],
-                lineWidth: 0.25,
-                valign: 'middle'
-            },
-            columnStyles: {
-                0: { cellWidth: 10, halign: 'center', fontStyle: 'bold' },
-                1: { cellWidth: 25, fontStyle: 'bold' },
-                2: { halign: 'left' },
-                3: { cellWidth: 24, halign: 'center' },
-                4: { cellWidth: 38, halign: 'left', fontSize: 7 },
-                5: { cellWidth: 15, halign: 'center' },
-                6: { cellWidth: 14, halign: 'center', fontStyle: 'bold' }
-            },
-            head: [['POS', 'CÓDIGO', 'DESCRIPCIÓN DEL MATERIAL / E.P.P.', 'TIPO', 'NORMA / CERT.', 'TALLA', 'CANT']],
-            body: itemsRows.length > 0 ? itemsRows : [['01', 'N/A', 'SIN ARTÍCULOS REGISTRADOS', '-', '-', '-', '0']]
-        });
-
-        currentY = (doc as any).lastAutoTable.finalY + 6;
-
-        // 4. SECCIÓN 3.0: CONSTANCIA DE CAPACITACIÓN E INDUCCIÓN (ART. 53 Y 54 LOPCYMAT)
-        doc.setFillColor(0, 75, 147);
-        doc.rect(marginX, currentY, contentWidth, 6, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8.5);
-        doc.text('3.0 CONSTANCIA DE CAPACITACIÓN E INDUCCIÓN DE USO (ART. 53 Y 54 LOPCYMAT)', marginX + 3, currentY + 4.2);
-        currentY += 6;
-
-        const checkCapacitacion = (entrega?.inducidoTeoricoPractico ?? true) ? 'SÍ (VERIFICADO)' : 'PENDIENTE';
-        const checkRiesgos = (entrega?.constanciaSujetoRiesgos ?? true) ? 'SÍ (VERIFICADO)' : 'PENDIENTE';
-
-        autoTable(doc, {
-            startY: currentY,
-            margin: { left: marginX, right: marginX },
-            tableWidth: contentWidth,
-            theme: 'grid',
-            styles: {
-                font: 'helvetica',
-                fontSize: 7.5,
-                cellPadding: 2.2,
-                textColor: [15, 23, 42],
-                lineColor: [0, 0, 0],
-                lineWidth: 0.25
-            },
-            body: [
-                [
-                    { content: 'INDUCCIÓN TEÓRICA Y PRÁCTICA DE USO Y MANTENIMIENTO DE E.P.P.:', styles: { fontStyle: 'bold' as const, fillColor: [248, 250, 252] as [number, number, number], cellWidth: 135 } },
-                    { content: checkCapacitacion, styles: { fontStyle: 'bold' as const, halign: 'center' as const, textColor: [22, 101, 52] as [number, number, number], cellWidth: contentWidth - 135 } }
-                ],
-                [
-                    { content: 'NOTIFICACIÓN DE PROCESOS PELIGROSOS Y RIESGOS QUE PREVIENE EL E.P.P.:', styles: { fontStyle: 'bold' as const, fillColor: [248, 250, 252] as [number, number, number] } },
-                    { content: checkRiesgos, styles: { fontStyle: 'bold' as const, halign: 'center' as const, textColor: [22, 101, 52] as [number, number, number] } }
-                ],
-                ...(solicitud.prescripcionMedicaValidada
-                    ? [[
-                        { content: `EXCEPCIÓN MÉDICA VALIDADA (${solicitud.medicoValidador || 'SSST'} - REG: ${solicitud.registroPrescripcion || 'N/A'}):`, styles: { fontStyle: 'bold' as const, fillColor: [254, 242, 242] as [number, number, number] } },
-                        { content: `${solicitud.duracionTratamientoDias || 30} DÍAS`, styles: { fontStyle: 'bold' as const, halign: 'center' as const, textColor: [185, 28, 28] as [number, number, number] } }
-                    ]]
-                    : [])
-            ]
-        });
-
-        currentY = (doc as any).lastAutoTable.finalY + 5;
-
-        // 5. SECCIÓN 4.0: DECLARACIÓN DE RECIBO Y RESPONSABILIDAD
-        doc.setFillColor(249, 250, 251);
-        doc.setDrawColor(0, 0, 0);
-        doc.setLineWidth(0.3);
-        doc.rect(marginX, currentY, contentWidth, 21, 'FD');
-
-        doc.setTextColor(0, 0, 0);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(7.5);
-        doc.text('DECLARACIÓN DE RECIBO Y RESPONSABILIDAD:', marginX + 3, currentY + 4.5);
-
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.2);
-        const declaracionText =
-            'Declaro haber recibido gratuitamente por parte de la empresa los equipos de protección personal (E.P.P.) y/o dotación descritos en el presente documento en perfecto estado. Me comprometo a: 1) Utilizarlos obligatoriamente durante mi jornada laboral en las áreas requeridas; 2) Velar por su conservación, higiene y buen uso conforme a las instrucciones recibidas; 3) Solicitar su reposición inmediata ante deterioro, pérdida o vencimiento ante la unidad de Seguridad y Salud en el Trabajo (SST).';
-        const splitDecl = doc.splitTextToSize(declaracionText, contentWidth - 6);
-        doc.text(splitDecl, marginX + 3, currentY + 8.8);
-
-        currentY += 26;
-
-        // 6. SECCIÓN 5.0: PROTOCOLO DE VALIDACIÓN Y FIRMAS
-        if (currentY + 55 > pageHeight - 18) {
-            doc.addPage();
-            currentY = 18;
-        }
-
-        doc.setFillColor(229, 231, 235);
-        doc.setDrawColor(0, 0, 0);
-        doc.setLineWidth(0.35);
-        doc.rect(marginX, currentY, contentWidth, 6, 'FD');
-        doc.setTextColor(0, 0, 0);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8.5);
-        doc.text('4.0 PROTOCOLO DE VALIDACIÓN Y RECEPCIÓN CONFORME', marginX + contentWidth / 2, currentY + 4.2, { align: 'center' });
-        currentY += 6;
-
-        const signBoxHeight = 38;
-        const halfW = contentWidth / 2;
-        doc.rect(marginX, currentY, contentWidth, signBoxHeight);
-        doc.line(marginX + halfW, currentY, marginX + halfW, currentY + signBoxHeight);
-
-        // Caja Izquierda: Almacén / SST
-        doc.setLineWidth(0.3);
-        doc.line(marginX + 16, currentY + 25, marginX + halfW - 16, currentY + 25);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8);
-        doc.text('FIRMA AUTORIZADA: ALMACÉN / UNIDAD SST', marginX + halfW / 2, currentY + 30, { align: 'center' });
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(6.8);
-        doc.setTextColor(71, 85, 105);
-        doc.text('CONTROL DE DESPACHO Y VERIFICACIÓN TÉCNICA', marginX + halfW / 2, currentY + 34, { align: 'center' });
-
-        // Caja Derecha: Trabajador Receptor + Firma Digital
-        const activeSignature = entrega?.firmaUrl || signature;
-        if (activeSignature && activeSignature.startsWith('data:image')) {
-            try {
-                doc.addImage(activeSignature, 'PNG', marginX + halfW + (halfW - 44) / 2, currentY + 3, 44, 20);
-            } catch (imgErr) {
-                console.warn('No se pudo incrustar imagen de firma en PDF:', imgErr);
-            }
-        }
-
-        doc.setTextColor(0, 0, 0);
-        doc.line(marginX + halfW + 16, currentY + 25, marginX + contentWidth - 16, currentY + 25);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8);
-        doc.text((emp?.nombre || 'TRABAJADOR RECEPTOR').toUpperCase(), marginX + halfW + halfW / 2, currentY + 30, { align: 'center' });
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(6.8);
-        doc.setTextColor(71, 85, 105);
-        doc.text(`C.I: ${emp?.cedula || 'N/A'} | FIRMA DE RECEPCIÓN CONFORME`, marginX + halfW + halfW / 2, currentY + 34, { align: 'center' });
-
-        currentY += signBoxHeight + 4;
-
-        // Observaciones si existen
-        const obsTexto = entrega?.comentarios || comentarios;
-        if (obsTexto) {
-            doc.setDrawColor(0, 0, 0);
-            doc.setLineWidth(0.25);
-            doc.rect(marginX, currentY, contentWidth, 12);
-            doc.setTextColor(0, 0, 0);
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(7.5);
-            doc.text('OBSERVACIONES / NOVEDADES EN RECEPCIÓN:', marginX + 3, currentY + 4.5);
-            doc.setFont('helvetica', 'normal');
-            doc.text(String(obsTexto).substring(0, 130), marginX + 3, currentY + 9);
-        }
-
-        // 7. FOOTER CORPORATIVO
-        const footerY = pageHeight - 10;
-        doc.setDrawColor(0, 0, 0);
-        doc.setLineWidth(0.3);
-        doc.line(marginX, footerY - 3.5, pageWidth - marginX, footerY - 3.5);
-        doc.setTextColor(0, 0, 0);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(6.5);
-        doc.text('ERP REG: SST-DOT-MOD-094', marginX, footerY);
-        doc.text('DOCUMENTO GENERADO POR SISTEMA SGD-DUNCAN - PÁGINA 1 / 1', pageWidth / 2, footerY, { align: 'center' });
-        doc.text('GRUPO EMPRESARIAL DUNCAN', pageWidth - marginX, footerY, { align: 'right' });
-
-        const itemsList = solicitud.items || [];
-        const equipoNombre = itemsList.length > 0 ? ((inventario || []).find(i => i.id === itemsList[0]?.itemId)?.nombre || 'Equipo') : 'Equipo';
-        const extraEquipos = itemsList.length > 1 ? ' y otros' : '';
-        const fileName = `Acta_EPP_${equipoNombre}${extraEquipos}_${emp?.nombre || 'Colaborador'}_${formatDateString(solicitud.createdAt).replace(/\//g, '-')}.pdf`
-            .replace(/[/\\?%*:|"<>]/g, '-')
-            .replace(/\s+/g, '_');
-
-        return { doc, fileName };
-    };
-
-    const handleShare = async (method: 'download' | 'whatsapp' | 'email') => {
-        setSaving(true);
-        try {
-            const { doc, fileName } = generarActaDotacionPDF();
-            const pdfData = doc.output('datauristring');
-
-            // Descargar el PDF directamente de forma vectorial nativa
-            doc.save(fileName);
-
-            if (user) {
-                try {
-                    await dbService.saveReportePDF({
-                        tipo: 'Acta_Dotacion',
-                        fecha: new Date().toISOString(),
-                        nombre: fileName,
-                        referencia: solicitud.id,
-                        pdfData,
-                        userId: user.uid
-                    });
-                } catch (e) {
-                    console.warn("No se pudo guardar en histórico", e);
-                }
-            }
-
-            if (method === 'download') {
-                toast.success("Acta PDF descargada y guardada en historial");
-            } else if (method === 'whatsapp') {
-                const text = encodeURIComponent(`Hola, te comparto el Acta de Entrega de Dotación y E.P.P.: ${fileName}.\n(Nota: El archivo PDF ya se ha descargado en tu dispositivo, por favor adjúntalo a este chat).`);
-                window.open(`https://wa.me/?text=${text}`, '_blank');
-                toast.success("Acta PDF descargada. Abriendo WhatsApp...");
-            } else if (method === 'email') {
-                const subject = encodeURIComponent(`Acta de Entrega de Dotación y EPP - ${emp?.nombre || 'Personal'}`);
-                const body = encodeURIComponent(`Estimado(a),\n\nAdjunto el Acta de Entrega de Dotación y Equipos de Protección Personal (EPP) correspondiente:\n\n📄 Archivo: ${fileName}\n\n(Nota: El archivo PDF se ha descargado automáticamente en su carpeta de Descargas. Por favor adjúntelo antes de enviar).\n\nSaludos cordiales,\nUnidad de Seguridad y Salud en el Trabajo (SST).`);
-                window.location.href = `mailto:?subject=${subject}&body=${body}`;
-                toast.success("Acta PDF descargada. Abriendo gestor de correo...");
-            }
-        } catch (error) {
-            console.error("Error al generar el Acta PDF:", error);
-            toast.error("Error al exportar el Acta PDF");
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    return (
-        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl p-6 relative">
-
-                <div className="flex justify-between items-start mb-6">
-                    <div>
-                        <h2 className="text-xl font-bold tracking-tight text-slate-800">Detalles de Solicitud</h2>
-                        <p className="text-sm text-slate-500 mt-1">{formatDateString(solicitud.createdAt)}</p>
-                    </div>
-                    <button type="button" onClick={onClose} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full">
-                        <XCircle size={24} />
-                    </button>
-                </div>
-
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
-                    <div className="mb-4">
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Empleado</p>
-                        <p className="text-sm font-bold text-slate-800">{emp?.nombre || 'Desconocido'}</p>
-                        <p className="text-xs text-slate-600">{emp?.cargo} | C.I: {emp?.cedula}</p>
-                    </div>
-                    <div>
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Motivo</p>
-                        <p className="text-sm text-slate-700">{solicitud.motivo || 'N/A'}</p>
-                    </div>
-                </div>
-
-                <div className="mb-8">
-                    {solicitud.estado === 'Rechazada' ? (
-                        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
-                            <p className="font-bold text-red-600 uppercase tracking-widest text-sm mb-1">Solicitud Rechazada</p>
-                            <p className="text-xs text-red-500 mb-2">Este flujo de dotación ha sido cancelado.</p>
-                            {solicitud.motivoRechazo && (
-                                <p className="text-sm font-semibold text-red-700 bg-red-100 p-2 rounded inline-block">Motivo: {solicitud.motivoRechazo}</p>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="flex items-start justify-between relative before:absolute before:inset-0 before:top-[12px] before:-translate-y-1/2 before:h-0.5 before:bg-slate-200 before:z-0">
-                            {[
-                                { key: 'Solicitada', label: 'Solicitada' },
-                                { key: 'Aprobada por Supervisor', label: 'Aprobada Sup.' },
-                                { key: 'Aprobada por SSA', label: 'Validada SSA' },
-                                { key: 'Despachada', label: 'Despachada' },
-                                { key: 'Recibida', label: 'Recibida' }
-                            ].map((step, idx) => {
-                                const WORKFLOW_STEPS = ['Solicitada', 'Aprobada por Supervisor', 'Aprobada por SSA', 'Despachada', 'Recibida'];
-                                const currentIndex = WORKFLOW_STEPS.indexOf(solicitud.estado);
-                                const isActive = idx <= currentIndex;
-                                
-                                return (
-                                    <div key={idx} className="relative z-10 flex flex-col items-center gap-1.5 w-[60px]">
-                                        <div className={cn(
-                                            "w-6 h-6 rounded-full flex items-center justify-center border-2 text-[10px] font-bold transition-colors bg-white",
-                                            isActive ? "border-duncan-blue text-white bg-duncan-blue ring-4 ring-white" : "border-slate-300 text-slate-400"
-                                        )}>
-                                            {isActive ? <CheckCircle size={14} /> : (idx + 1)}
-                                        </div>
-                                        <span className={cn(
-                                            "text-[8px] font-bold uppercase tracking-widest text-center leading-tight",
-                                            isActive ? "text-slate-800" : "text-slate-400"
-                                        )}>
-                                            {step.label}
-                                        </span>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
-
-                <h3 className="text-sm font-bold text-slate-800 mb-3">Artículos:</h3>
-                <ul className="space-y-3 mb-6">
-                    {(solicitud.items || []).map((it, idx) => {
-                        const inv = (inventario || []).find(i => i.id === it.itemId);
-                        return (
-                            <li key={idx} className="flex justify-between items-center border-b border-slate-100 pb-2">
-                                <div>
-                                    <p className="text-sm font-bold text-slate-700">{inv?.nombre || `Artículo Desconocido (${it.itemId})`}</p>
-                                    <p className="text-xs text-slate-500">Categoría: {inv?.categoria || 'EPP'} | Talla/Ref: {it.talla || 'Única'}</p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-sm font-bold text-slate-800">{it.cantidad} und</p>
-                                </div>
-                            </li>
-                        );
-                    })}
-                </ul>
-
-                <div className="border-t border-slate-200 pt-6 flex flex-col gap-3">
-                    {solicitud.estado === 'Solicitada' && (
-                        <div className="grid grid-cols-1 gap-3 mb-3">
-                            <button disabled={saving} onClick={() => handleEstado('Aprobada por Supervisor')} className="w-full bg-blue-600 text-white hover:bg-blue-700 font-bold py-2 rounded-lg text-sm transition-colors">
-                                Aprobar (Supervisor)
-                            </button>
-                            <button disabled={saving} onClick={() => handleEstado('Rechazada')} className="w-full border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 font-bold py-2 rounded-lg text-sm transition-colors mt-2">
-                                Rechazar
-                            </button>
-                        </div>
-                    )}
-                    
-                    {solicitud.estado === 'Aprobada por Supervisor' && (
-                        <div className="grid grid-cols-1 gap-3 mb-3">
-                            <button disabled={saving} onClick={() => handleEstado('Aprobada por SSA')} className="w-full bg-purple-600 text-white hover:bg-purple-700 font-bold py-2 rounded-lg text-sm transition-colors">
-                                Validar (Personal SSA)
-                            </button>
-                            <button disabled={saving} onClick={() => handleEstado('Rechazada')} className="w-full border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 font-bold py-2 rounded-lg text-sm transition-colors mt-2">
-                                Rechazar
-                            </button>
-                        </div>
-                    )}
-
-                    {solicitud.estado === 'Aprobada por SSA' && (
-                        <div className="grid grid-cols-1 gap-3 mb-3">
-                            <button disabled={saving} onClick={() => handleEstado('Despachada')} className="w-full bg-orange-500 text-white hover:bg-orange-600 font-bold py-3 rounded-lg flex justify-center items-center gap-2 transition-colors">
-                                {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Truck size={18} />}
-                                Despachar a Trabajador (Almacén)
-                            </button>
-                        </div>
-                    )}
-
-                    {solicitud.estado === 'Despachada' && (
-                        <div className="flex flex-col gap-3 mb-3">
-                            {!showConfirm ? (
-                                <button disabled={saving} onClick={() => setShowConfirm(true)} className="w-full bg-duncan-blue text-white hover:bg-blue-700 font-bold py-3 rounded-lg flex justify-center items-center gap-2 transition-colors">
-                                    <CheckCircle size={18} /> Confirmar Recepción (Trabajador)
-                                </button>
-                            ) : (
-                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                                    <h4 className="text-sm font-bold text-slate-800 mb-3 uppercase tracking-widest text-center">Firma de Recepción</h4>
-                                    
-                                    <div className="mb-4">
-                                        <label className="block text-xs font-bold text-slate-700 mb-1">Comentarios o Novedades (Opcional)</label>
-                                        <textarea
-                                            value={comentarios}
-                                            onChange={(e) => setComentarios(e.target.value)}
-                                            rows={2}
-                                            className="w-full border border-slate-300 rounded-lg p-2 text-sm outline-none focus:border-duncan-blue resize-none bg-white"
-                                            placeholder="Detalles sobre los artículos recibidos..."
-                                        />
-                                    </div>
-
-                                    {/* CONSTANCIA DE CAPACITACIÓN E INDUCCIÓN (ART. 53 Y 54 LOPCYMAT) */}
-                                    <div className="mb-4 bg-purple-50/75 border border-purple-200 rounded-xl p-3 text-xs text-purple-900 space-y-3">
-                                        <p className="font-bold flex items-center gap-1">🛡️ Constancia de Capacitación e Inducción (Art. 53-54 LOPCYMAT)</p>
-                                        <p className="text-[10px] text-purple-850 leading-normal">Por mandato legal del INPSASEL, el despacho de todo equipo de protección personal requiere constatar adiestramiento de uso.</p>
-                                        
-                                        <label className="flex items-start gap-2 cursor-pointer select-none">
-                                            <input 
-                                                type="checkbox" checked={inducidoTeoricoPractico} onChange={e=>setInducidoTeoricoPractico(e.target.checked)}
-                                                className="rounded border-purple-300 text-purple-600 focus:ring-purple-500 w-4 h-4 mt-0.5"
-                                                required
-                                            />
-                                            <span className="text-[10.5px] leading-tight text-slate-700">Declaro haber recibido <strong>capacitación teórica y práctica</strong> (por escrito) sobre la colocación, uso correcto y cuidado de los equipos asignados.</span>
-                                        </label>
-
-                                        <label className="flex items-start gap-2 cursor-pointer select-none">
-                                            <input 
-                                                type="checkbox" checked={constanciaSujetoRiesgos} onChange={e=>setConstanciaSujetoRiesgos(e.target.checked)}
-                                                className="rounded border-purple-300 text-purple-600 focus:ring-purple-500 w-4 h-4 mt-0.5"
-                                                required
-                                            />
-                                            <span className="text-[10.5px] leading-tight text-slate-700 font-medium">Declaro conocer los <strong>procesos peligrosos y riesgos específicos</strong> que previene el uso regular de esta dotación.</span>
-                                        </label>
-                                    </div>
-                                    
-                                    <div className="mb-4 bg-white">
-                                        <SignaturePad 
-                                            label="Firma de quien recibe" 
-                                            onSave={setSignature} 
-                                        />
-                                    </div>
- 
-                                    <div className="flex gap-2">
-                                        <button disabled={saving} onClick={() => setShowConfirm(false)} className="flex-1 border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 font-bold py-3 rounded-lg text-sm transition-colors mt-2">
-                                            Cancelar
-                                        </button>
-                                        <button disabled={saving || !signature || !inducidoTeoricoPractico || !constanciaSujetoRiesgos} onClick={handleMarcarEntregado} className="flex-[2] bg-duncan-blue text-white hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-duncan-blue font-bold py-3 rounded-lg flex justify-center items-center gap-2 transition-colors mt-2">
-                                            {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <CheckCircle size={18} />}
-                                            Guardar y Confirmar
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    <div className="grid grid-cols-1 gap-2 mt-2">
-                        <div className="flex gap-2">
-                            <button type="button" disabled={saving} onClick={() => handleShare('download')} className="flex-1 py-2 bg-slate-100 text-slate-700 font-bold hover:bg-slate-200 rounded-lg text-sm flex items-center justify-center gap-2">
-                                <Download size={16} /> Descargar Acta
-                            </button>
-                            <button type="button" disabled={saving} onClick={() => handleShare('whatsapp')} className="flex-1 py-2 bg-green-100 text-green-700 font-bold hover:bg-green-200 rounded-lg text-sm flex items-center justify-center gap-2">
-                                <MessageCircle size={16} /> WhatsApp
-                            </button>
-                            <button type="button" disabled={saving} onClick={() => handleShare('email')} className="flex-1 py-2 bg-blue-100 text-blue-700 font-bold hover:bg-blue-200 rounded-lg text-sm flex items-center justify-center gap-2">
-                                <Mail size={16} /> Email
-                            </button>
-                        </div>
-                        <button type="button" onClick={onClose} className="w-full py-2 font-medium text-slate-600 hover:bg-slate-100 rounded-lg text-sm mt-2 border border-slate-200">
-                            Cerrar
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function SolicitudFormModal({ empleados, inventario, onClose, onSave }: { empleados: Empleado[], inventario: InventarioItem[], onClose: () => void, onSave: () => void }) {
-    const { user } = useAuth();
-    const [empleadoId, setEmpleadoId] = useState('');
-    const [motivo, setMotivo] = useState('');
-    const [items, setItems] = useState<{itemId: string, cantidad: number, talla: string}[]>([]);
-    const [saving, setSaving] = useState(false);
-
-    // Fajas lumbares exception parameters (Prescripción médica)
-    const [prescripcionMedicaValidada, setPrescripcionMedicaValidada] = useState(false);
-    const [registroPrescripcion, setRegistroPrescripcion] = useState('');
-    const [duracionTratamientoDias, setDuracionTratamientoDias] = useState<number>(30);
-    const [medicoValidador, setMedicoValidador] = useState('');
-
-    // Failure / Re-evaluation report flags (LOPCYMAT Art 62)
-    const [tipoReemplazo, setTipoReemplazo] = useState<'Ordinario' | 'Deterioro' | 'MalFuncionamiento' | 'Robo' | 'Perdida'>('Ordinario');
-    const [fallaReportadaExplicacion, setFallaReportadaExplicacion] = useState('');
-    const [noSatisfaceProteccionSST, setNoSatisfaceProteccionSST] = useState(false);
-
-    // Dynamic detection of lumbar girdle item in active selection
-    const contieneFajaLumbar = (items || []).some(it => {
-        const inv = (inventario || []).find(i => i.id === it.itemId);
-        if (!inv) return false;
-        return inv.esFajaLumbar === true || 
-               (inv.nombre || '').toLowerCase().includes('faja') || 
-               (inv.nombre || '').toLowerCase().includes('lumbar');
-    });
-
-    const addItem = () => {
-        setItems([...(items || []), {itemId: '', cantidad: 1, talla: ''}]);
-    };
-
-    const removeItem = (idx: number) => {
-        setItems((items || []).filter((_, i) => i !== idx));
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        const itemsList = items || [];
-        if (!empleadoId || itemsList.length === 0) {
-            toast.error("Debe seleccionar un empleado y agregar al menos un artículo");
-            return;
-        }
-
-        const itemsValid = itemsList.every(i => i.itemId && i.talla && i.cantidad > 0);
-        if (!itemsValid) {
-            toast.error("Complete todos los campos de los artículos");
-            return;
-        }
-
-        // Hard Stop Validation for Girdle restriction (INPSASEL Ergo rule)
-        if (contieneFajaLumbar) {
-            if (!prescripcionMedicaValidada) {
-                toast.error("CONSTRICCIÓN SST: Las fajas lumbares no son EPP de asignación libre. Debe validar la prescripción médica temporal.");
-                return;
-            }
-            if (!registroPrescripcion.trim() || !medicoValidador.trim()) {
-                toast.error("Debe ingresar el N° de Registro de Prescripción y el Médico Ocupacional que avala el tratamiento temporal.");
-                return;
-            }
-            if (duracionTratamientoDias <= 0) {
-                toast.error("La duración del tratamiento debe ser mayor a cero días.");
-                return;
-            }
-        }
-
-        // Failure inspection validation (LOPCYMAT Art 62)
-        if ((motivo === 'Deterioro' || noSatisfaceProteccionSST) && !fallaReportadaExplicacion.trim()) {
-            toast.error("LOPCYMAT Art. 62: Debe registrar un informe o explicación sucinta de la falla o insuficiencia del EPP para proceder al reemplazo.");
-            return;
-        }
-
-        const outOfStockItems = itemsList.some(it => {
-            const inv = (inventario || []).find(i => i.id === it.itemId);
-            const stockItem = (inv?.stock || []).find(s => s.talla === it.talla);
-            return stockItem && it.cantidad > stockItem.cantidad;
-        });
-
-        if (outOfStockItems && !window.confirm("Algunos artículos exceden el inventario disponible. ¿Desea registrar la solicitud de todos modos para forzar el pedido?")) {
-            return;
-        }
-
-        setSaving(true);
-        try {
-            await dbService.addSolicitudEPP({
-                empleadoId,
-                solicitanteId: user?.uid || '',
-                fechaSolicitud: new Date().toISOString(),
-                estado: 'Solicitada',
-                items,
-                motivo,
-                // Compliance attributes
-                prescripcionMedicaValidada: contieneFajaLumbar ? prescripcionMedicaValidada : false,
-                registroPrescripcion: contieneFajaLumbar ? registroPrescripcion : '',
-                duracionTratamientoDias: contieneFajaLumbar ? duracionTratamientoDias : 0,
-                medicoValidador: contieneFajaLumbar ? medicoValidador : '',
-                tipoReemplazo: (motivo === 'Deterioro' || noSatisfaceProteccionSST) ? 'Deterioro' : 'Ordinario',
-                fallaReportadaExplicacion: (motivo === 'Deterioro' || noSatisfaceProteccionSST) ? fallaReportadaExplicacion : '',
-                noSatisfaceProteccionSST: noSatisfaceProteccionSST
-            });
-            
-            if (noSatisfaceProteccionSST) {
-                toast.success("Solicitud enviada. ¡ALERTA SST ACTIVADA por falta de eficacia del EPP!");
-            } else {
-                toast.success("Solicitud creada exitosamente");
-            }
-            onSave();
-        } catch (error) {
-            toast.error("Error al crear solicitud");
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    return (
-        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl">
-                <form onSubmit={handleSubmit} className="p-6">
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-xl font-bold tracking-tight text-slate-800">Nueva Solicitud de EPP/Uniformes</h2>
-                        <button type="button" onClick={onClose} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full">
-                            <XCircle size={24} />
-                        </button>
-                    </div>
-
-                    <div className="space-y-4 mb-6">
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-1">Empleado</label>
-                            <select 
-                                value={empleadoId} onChange={e=>setEmpleadoId(e.target.value)}
-                                className="w-full border border-slate-300 rounded-lg p-2.5 outline-none focus:border-duncan-blue focus:ring-1 bg-white"
-                                required
-                            >
-                                <option value="">Seleccione un empleado...</option>
-                                {empleados.map(emp => (
-                                    <option key={emp.id} value={emp.id}>{emp.nombre} - {emp.cedula} ({emp.cargo})</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-1">Motivo de la solicitud <span className="text-red-500">*</span></label>
-                            <select
-                                value={motivo} onChange={e=>setMotivo(e.target.value)}
-                                className="w-full border border-slate-300 rounded-lg p-2.5 outline-none focus:border-duncan-blue focus:ring-1 bg-white font-medium"
-                                required
-                            >
-                                <option value="">Seleccione un motivo...</option>
-                                <option value="Dotación">Dotación Ordinaria (SST)</option>
-                                <option value="Deterioro">Reemplazo por Deterioro / Falla Técnica</option>
-                                <option value="Pérdida">Reemplazo por Pérdida / Extravío</option>
-                                <option value="Robo">Reemplazo por Robo / Hurto</option>
-                                <option value="Otros">Otros Motivos Justificados</option>
-                            </select>
-                        </div>
-
-                        {/* INCIDENCIA Y INSUFICIENCIA DE EPP (LOPCYMAT Art 62) */}
-                        {(motivo === 'Deterioro') && (
-                            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 text-xs space-y-3">
-                                <p className="font-bold text-orange-800 flex items-center gap-1">
-                                    <AlertCircle size={14} /> Reporte de Inspección y Falla de EPP (Art. 62 LOPCYMAT)
-                                </p>
-                                <p className="text-orange-700 leading-normal">
-                                    Por ley, cuando un EPP sea sustituido por deterioro prematuro o mal funcionamiento, el SSST debe evaluar si fue inadecuado o deficiente frente al riesgo en el puesto de trabajo.
-                                </p>
-                                
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-700 mb-1">Explicación sucinta de la falla / causa del deterioro <span className="text-red-500">*</span></label>
-                                    <textarea
-                                        value={fallaReportadaExplicacion}
-                                        onChange={(e) => setFallaReportadaExplicacion(e.target.value)}
-                                        rows={2}
-                                        className="w-full bg-white border border-slate-300 rounded-lg p-2 outline-none focus:border-orange-500 text-xs"
-                                        placeholder="Ej: La costura del guante se abrió tras 2 horas de manejo de ácidos, o el casco se quebró..."
-                                        required
-                                    />
-                                </div>
-
-                                <label className="flex items-start gap-2 cursor-pointer select-none border-t border-orange-200/50 pt-2">
-                                    <input
-                                        type="checkbox"
-                                        checked={noSatisfaceProteccionSST}
-                                        onChange={(e) => setNoSatisfaceProteccionSST(e.target.checked)}
-                                        className="rounded border-slate-300 text-red-600 focus:ring-red-500 w-4 h-4 mt-0.5"
-                                    />
-                                    <div className="leading-none text-red-800">
-                                        <p className="font-bold">⚠️ ALERTA: ¿El EPP NO cumplió su función protectora?</p>
-                                        <p className="text-[10px] text-red-600 mt-0.5 font-medium">Active esto si el trabajador estuvo expuesto o el material es ineficaz. Notificará al SSST para revisión urgente.</p>
-                                    </div>
-                                </label>
-                            </div>
-                        )}
-
-                        {/* FAJA LUMBAR: CONTROL Y EXCEPCIÓN MÉDICA OBLIGATORIA */}
-                        {contieneFajaLumbar && (
-                            <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-xs space-y-3.5">
-                                <p className="font-bold text-red-800 flex items-center gap-1 uppercase tracking-wider">
-                                    ⚠️ Expediente de Excepción Médica Requerido (Fajas Lumbares)
-                                </p>
-                                <p className="text-red-750 leading-relaxed font-medium">
-                                    ¡ALERTA!: La selección contiene un soporte o faja lumbar. De acuerdo al Servicio de Seguridad y Salud en el Trabajo, no puede suministrarse fajas lumbares de forma libre o rutinaria. Debe contar con un aval médico terapéutico específico firmado por un Médico Ocupacional del Servicio.
-                                </p>
-
-                                <label className="flex items-start gap-2.5 cursor-pointer mt-1 bg-white p-2.5 rounded-lg border border-red-200 shadow-xs">
-                                    <input 
-                                        type="checkbox" checked={prescripcionMedicaValidada} onChange={e=>setPrescripcionMedicaValidada(e.target.checked)}
-                                        className="rounded border-red-300 text-red-600 focus:ring-red-500 w-4.5 h-4.5 mt-0.5"
-                                        required
-                                    />
-                                    <div className="leading-tight">
-                                        <p className="font-bold text-slate-800">Posee aval o prescripción médica temporal validada por el SSST</p>
-                                        <p className="text-[10px] text-slate-500 mt-0.5">La indicación terapéutica justifica su uso temporal controlado para el trabajador.</p>
-                                    </div>
-                                </label>
-
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
-                                    <div className="md:col-span-2">
-                                        <label className="block text-[10px] font-bold text-slate-700 mb-1">Médico Ocupacional Validador <span className="text-red-500">*</span></label>
-                                        <input 
-                                            type="text" value={medicoValidador} onChange={e=>setMedicoValidador(e.target.value)}
-                                            className="w-full bg-white border border-slate-300 rounded p-1.5 text-xs outline-none focus:border-red-500"
-                                            placeholder="Nombre del Médico y N° de MPPS..."
-                                            required={contieneFajaLumbar}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-[10px] font-bold text-slate-700 mb-1">Tratamiento (Días) <span className="text-red-500">*</span></label>
-                                        <input 
-                                            type="number" min="1" value={duracionTratamientoDias} onChange={e=>setDuracionTratamientoDias(parseInt(e.target.value) || 30)}
-                                            className="w-full bg-white border border-slate-300 rounded p-1.5 text-xs outline-none focus:border-red-500"
-                                            required={contieneFajaLumbar}
-                                        />
-                                    </div>
-                                    <div className="md:col-span-3">
-                                        <label className="block text-[10px] font-bold text-slate-700 mb-1">Nro de Registro de Prescripción o ID de Aval Médico <span className="text-red-500">*</span></label>
-                                        <input 
-                                            type="text" value={registroPrescripcion} onChange={e=>setRegistroPrescripcion(e.target.value)}
-                                            className="w-full bg-white border border-slate-300 rounded p-1.5 text-xs outline-none focus:border-red-500"
-                                            placeholder="Nro de informe o ID del caso en SSA..."
-                                            required={contieneFajaLumbar}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="border-t border-slate-200 pt-6 mb-6">
-                        <div className="flex justify-between items-center mb-4">
-                            <label className="block text-sm font-bold text-slate-800">Artículos Solicitados</label>
-                            <button type="button" onClick={addItem} className="text-xs font-bold text-duncan-blue bg-blue-50 px-3 py-1.5 rounded hover:bg-blue-100 flex items-center gap-1">
-                                <Plus size={14} /> Artículo
-                            </button>
-                        </div>
-
-                        {items.length === 0 && (
-                            <div className="text-center p-4 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 text-sm">
-                                Haga clic en "Artículo" para agregar equipos a la solicitud
-                            </div>
-                        )}
-
-                        <div className="space-y-3">
-                            {items.map((it, idx) => {
-                                const selectedInv = inventario.find(i => i.id === it.itemId);
-                                return (
-                                    <div key={idx} className="flex flex-col gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
-                                        <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
-                                            <div className="flex-1 w-full">
-                                                <select 
-                                                    value={it.itemId} onChange={e => {
-                                                        const newIt = [...items]; 
-                                                        newIt[idx].itemId = e.target.value; 
-                                                        newIt[idx].talla = ''; // reset talla
-                                                        setItems(newIt);
-                                                    }}
-                                                    className="w-full border border-slate-300 rounded p-2 text-sm bg-white"
-                                                    required
-                                                >
-                                                    <option value="">Seleccione un artículo...</option>
-                                                    {inventario.map(inv => (
-                                                        <option key={inv.id} value={inv.id}>{inv.nombre} ({inv.codigo})</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div className="w-full md:w-32">
-                                                <select 
-                                                    value={it.talla} onChange={e => {
-                                                        const newIt = [...items]; newIt[idx].talla = e.target.value; setItems(newIt);
-                                                    }}
-                                                    className="w-full border border-slate-300 rounded p-2 text-sm bg-white"
-                                                    required
-                                                >
-                                                    <option value="">Talla...</option>
-                                                    {(selectedInv?.stock || []).map(s => (
-                                                        <option key={s.talla} value={s.talla}>{s.talla} (Disp: {s.cantidad})</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div className="w-full md:w-20">
-                                                <input 
-                                                    type="number" min="1" value={it.cantidad} 
-                                                    onChange={e => {
-                                                        const newIt = [...items]; newIt[idx].cantidad = parseInt(e.target.value) || 1; setItems(newIt);
-                                                    }}
-                                                    className={cn(
-                                                        "w-full border rounded p-2 text-sm",
-                                                        ((selectedInv?.stock || []).find(s => s.talla === it.talla)?.cantidad ?? 0) < it.cantidad ? "border-red-400 bg-red-50 text-red-700" : "border-slate-300"
-                                                    )}
-                                                    placeholder="Cant."
-                                                    required
-                                                />
-                                            </div>
-                                            <button type="button" onClick={() => removeItem(idx)} className="text-red-400 hover:text-red-600 p-2">
-                                                <XCircle size={20} />
-                                            </button>
-                                        </div>
-                                        {it.talla && ((selectedInv?.stock || []).find(s => s.talla === it.talla)?.cantidad ?? 0) < it.cantidad && (
-                                            <p className="text-xs text-red-500 font-medium">⚠️ La cantidad supera el stock disponible ({((selectedInv?.stock || []).find(s => s.talla === it.talla)?.cantidad ?? 0)}). Se requerirá reabastecimiento.</p>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    <div className="flex justify-end gap-3 border-t border-slate-200 pt-6">
-                        <button type="button" onClick={onClose} className="px-4 py-2 font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
-                        <button type="submit" disabled={saving} className="bg-duncan-blue text-white px-6 py-2 font-bold rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2">
-                            {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : null}
-                            Emitir Solicitud
-                        </button>
-                    </div>
-                </form>
-            </div>
         </div>
     );
 }

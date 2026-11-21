@@ -68,6 +68,16 @@ export interface SolicitudEPPItem {
   talla: string;
 }
 
+export interface FirmaActor {
+  nombre: string;
+  cedula: string;
+  cargo: string;
+  fecha: string;
+  firmaUrl: string; // Data URL Base64 PNG
+  registroProfesional?: string; // Ej: N° INPSASEL o carnet
+  observaciones?: string;
+}
+
 export interface SolicitudEPP {
   id: string;
   empleadoId: string;
@@ -82,12 +92,22 @@ export interface SolicitudEPP {
   createdAt?: string;
   actaEntregaUrl?: string;
   firmaEntrega?: string;
+
+  // Firmas Digitales de los 4 Actores del Proceso
+  firmaSolicitante?: FirmaActor;
+  firmaSupervisor?: FirmaActor;
+  firmaSST?: FirmaActor;
+  firmaDespacho?: FirmaActor;
+  firmaReceptor?: FirmaActor;
   
   // Prescripción y validación médica
   prescripcionMedicaValidada?: boolean;
   medicoValidador?: string;
   registroPrescripcion?: string;
   duracionTratamientoDias?: number;
+  tipoReemplazo?: string;
+  fallaReportadaExplicacion?: string;
+  noSatisfaceProteccionSST?: boolean;
 }
 
 export interface EntregaEPP {
@@ -102,6 +122,13 @@ export interface EntregaEPP {
   comentarios?: string;
   createdAt?: string;
   actaEntregaPdfUrl?: string;
+
+  // Firmas de los actores archivadas en la entrega
+  firmaSolicitante?: FirmaActor;
+  firmaSupervisor?: FirmaActor;
+  firmaSST?: FirmaActor;
+  firmaDespacho?: FirmaActor;
+  firmaReceptor?: FirmaActor;
   
   // Constancias legales LOPCYMAT
   inducidoTeoricoPractico?: boolean;
