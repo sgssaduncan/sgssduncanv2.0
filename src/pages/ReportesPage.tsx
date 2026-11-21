@@ -4,10 +4,8 @@ import {
   AlertTriangle, Shield, Building2, Printer, Search
 } from 'lucide-react';
 import { useSGD } from '../contexts/SGDContext';
-import { DUNCAN_LOGO_BW } from '../lib/logos';
 import { formatDate } from '../lib/utils';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { generarConsolidadoEjecutivoPDF } from '../lib/pdfGenerator';
 import toast from 'react-hot-toast';
 
 export default function ReportesPage() {
@@ -27,77 +25,24 @@ export default function ReportesPage() {
     return matchEmpresa && matchTipo && matchDesde && matchHasta;
   });
 
-  // Generar reporte consolidado en PDF con Logo Oficial B&W
+  // Generar reporte consolidado en PDF con Estándar Corporativo Duncan SAP/ISO
   const exportarReportePDF = () => {
     try {
-      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
-      const pageWidth = doc.internal.pageSize.getWidth();
+      const nombreEmpresaFiltro = filtroEmpresa === 'todas'
+        ? 'Todas las Empresas (Duncan / Titán)'
+        : (empresas.find(e => e._id === filtroEmpresa || e.id === filtroEmpresa)?.nombre || filtroEmpresa);
 
-      // Logo Blanco y Negro Oficial
-      try {
-        doc.addImage(DUNCAN_LOGO_BW, 'PNG', 14, 12, 45, 12);
-      } catch (e) {
-        console.warn('Logo no disponible para PDF', e);
-      }
+      const { doc, fileName } = generarConsolidadoEjecutivoPDF(
+        inspeccionesFiltradas,
+        nombreEmpresaFiltro,
+        stats.tasaCumplimiento
+      );
 
-      // Encabezado
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(14);
-      doc.text('ACUMULADORES DUNCAN, C.A.', 65, 16);
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text('GERENCIA DE SEGURIDAD, SALUD LABORAL Y AMBIENTE (SSA)', 65, 21);
-      doc.setFont('helvetica', 'bold');
-      doc.text('INFORME EJECUTIVO DE GESTIÓN Y AUDITORÍA SSA', 65, 26);
-
-      doc.setDrawColor(200, 200, 200);
-      doc.line(14, 32, pageWidth - 14, 32);
-
-      // Metadatos del reporte
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Fecha de emisión: ${new Date().toLocaleDateString('es-VE')}`, 14, 38);
-      doc.text(`Total de inspecciones analizadas: ${inspeccionesFiltradas.length}`, 14, 43);
-      doc.text(`Índice de cumplimiento global: ${stats.tasaCumplimiento}%`, 14, 48);
-
-      // Tabla de resumen de inspecciones
-      const tableData = inspeccionesFiltradas.map((item, idx) => [
-        idx + 1,
-        item.fecha ? formatDate(item.fecha) : '—',
-        item.tipoNombre || item.tipoCodigo,
-        item.establecimientoNombre,
-        item.inspector,
-        item.resultado || '—',
-        `${item.puntuacion ?? 0}%`
-      ]);
-
-      autoTable(doc, {
-        startY: 54,
-        head: [['#', 'Fecha', 'Inspección', 'Establecimiento', 'Inspector', 'Resultado', 'Puntaje']],
-        body: tableData.length > 0 ? tableData : [['—', '—', 'Sin registros en el rango', '—', '—', '—', '—']],
-        theme: 'striped',
-        headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold' },
-        styles: { fontSize: 8, cellPadding: 2 },
-      });
-
-      // Pie de página con firmas
-      const finalY = (doc as any).lastAutoTable?.finalY || 180;
-      if (finalY < 230) {
-        doc.setFontSize(8);
-        doc.text('_____________________________________', 30, finalY + 30);
-        doc.text('Francisco Rojas / SST Duncan', 35, finalY + 35);
-        doc.text('Propietario / Super Admin SSA', 37, finalY + 39);
-
-        doc.text('_____________________________________', 125, finalY + 30);
-        doc.text('Gerencia Corporativa de Operaciones', 128, finalY + 35);
-        doc.text('Acumuladores Duncan, C.A.', 138, finalY + 39);
-      }
-
-      doc.save(`SGD_Duncan_Reporte_Ejecutivo_${new Date().toISOString().slice(0, 10)}.pdf`);
-      toast.success('Informe PDF generado exitosamente');
+      doc.save(fileName);
+      toast.success('Informe ejecutivo oficial generado exitosamente');
     } catch (err) {
-      console.error(err);
-      toast.error('Error generando informe PDF');
+      console.error('Error generando informe consolidado PDF:', err);
+      toast.error('Error generando informe PDF oficial');
     }
   };
 
