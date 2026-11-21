@@ -45,6 +45,7 @@ import autoTable from 'jspdf-autotable';
 import { DUNCAN_LOGO_BW } from '../lib/logos';
 import SolicitudDetalleModal from './dotacion/SolicitudDetalleModal';
 import SolicitudFormModal from './dotacion/SolicitudFormModal';
+import { CATALOGO_TALLAS, TipoImplemento } from '../lib/tallasCatalog';
 
 export const formatDateString = (dateObj: any) => {
     if (!dateObj) return 'N/A';
@@ -601,6 +602,16 @@ function InventarioFormModal({ item, onClose, onSave }: { item: InventarioItem |
     const addTalla = () => {
         setStk([...stk, {talla: '', cantidad: 0}]);
     };
+    const aplicarPlantillaTallas = (tipo: TipoImplemento) => {
+        const tallas = CATALOGO_TALLAS[tipo] || [];
+        const existingMap = new Map(stk.map(s => [s.talla.toUpperCase(), s.cantidad]));
+        const newStk = tallas.map(t => ({
+            talla: t,
+            cantidad: existingMap.get(t.toUpperCase()) || 0
+        }));
+        setStk(newStk);
+        toast.success(`Plantilla de tallas ${tipo} aplicada (${tallas.length} tallas)`);
+    };
 
     const removeTalla = (index: number) => {
         const n = [...stk];
@@ -907,6 +918,53 @@ function InventarioFormModal({ item, onClose, onSave }: { item: InventarioItem |
                         <div className="md:col-span-2 border-t border-slate-200 pt-6">
                             <div className="flex justify-between items-center mb-4">
                                 <label className="block text-sm font-bold text-slate-800">Tallas y Existencias <span className="text-red-500">*</span></label>
+                            </div>
+
+                            {/* Plantillas Rápidas de Tallas Normativas */}
+                            <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 mb-3 text-xs">
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                                    Plantillas Rápidas de Tallas (clic para cargar):
+                                </span>
+                                <div className="flex flex-wrap gap-1.5">
+                                    <button type="button" onClick={() => aplicarPlantillaTallas('CALZADO')} className="text-[10.5px] bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 px-2 py-1 rounded-md font-semibold shadow-xs">
+                                        👟 Calzado (35-48)
+                                    </button>
+                                    <button type="button" onClick={() => aplicarPlantillaTallas('GUANTES')} className="text-[10.5px] bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 px-2 py-1 rounded-md font-semibold shadow-xs">
+                                        🧤 Guantes (7-11 / S-XL)
+                                    </button>
+                                    <button type="button" onClick={() => aplicarPlantillaTallas('PANTALON_DAMAS')} className="text-[10.5px] bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 px-2 py-1 rounded-md font-semibold shadow-xs">
+                                        👖 Pant. Damas (02-20)
+                                    </button>
+                                    <button type="button" onClick={() => aplicarPlantillaTallas('PANTALON_CABALLEROS')} className="text-[10.5px] bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 px-2 py-1 rounded-md font-semibold shadow-xs">
+                                        👖 Pant. Caballeros (28-48)
+                                    </button>
+                                    <button type="button" onClick={() => aplicarPlantillaTallas('CAMISAS')} className="text-[10.5px] bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 px-2 py-1 rounded-md font-semibold shadow-xs">
+                                        👕 Camisas Dril (S-4XL)
+                                    </button>
+                                    <button type="button" onClick={() => aplicarPlantillaTallas('FRANELAS')} className="text-[10.5px] bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 px-2 py-1 rounded-md font-semibold shadow-xs">
+                                        👕 Franelas (S-3XL)
+                                    </button>
+                                    <button type="button" onClick={() => aplicarPlantillaTallas('CHEMISES')} className="text-[10.5px] bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 px-2 py-1 rounded-md font-semibold shadow-xs">
+                                        👕 Chemises Duncan
+                                    </button>
+                                    <button type="button" onClick={() => aplicarPlantillaTallas('CHALECOS')} className="text-[10.5px] bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 px-2 py-1 rounded-md font-semibold shadow-xs">
+                                        🦺 Chalecos
+                                    </button>
+                                    <button type="button" onClick={() => aplicarPlantillaTallas('CHAQUETAS')} className="text-[10.5px] bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 px-2 py-1 rounded-md font-semibold shadow-xs">
+                                        🧥 Chaquetas
+                                    </button>
+                                    <button type="button" onClick={() => aplicarPlantillaTallas('BRAGAS')} className="text-[10.5px] bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 px-2 py-1 rounded-md font-semibold shadow-xs">
+                                        🦺 Bragas (36-48)
+                                    </button>
+                                    <button type="button" onClick={() => aplicarPlantillaTallas('FAJAS_LUMBARES')} className="text-[10.5px] bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 px-2 py-1 rounded-md font-semibold shadow-xs">
+                                        🩺 Fajas Lumbares (S-XXL)
+                                    </button>
+                                    <button type="button" onClick={() => aplicarPlantillaTallas('UNICA')} className="text-[10.5px] bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 px-2 py-1 rounded-md font-semibold shadow-xs">
+                                        🔘 Única / Ajustable
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="hidden">
                                 <button type="button" onClick={addTalla} className="text-xs font-bold text-duncan-blue bg-blue-50 px-3 py-1.5 rounded hover:bg-blue-100 flex items-center gap-1">
                                     <Plus size={14} /> Talla/Variante
                                 </button>

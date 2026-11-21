@@ -5,6 +5,7 @@
 // ============================================================
 
 import { gsApi, getSheetsUrl, postGAS } from '../lib/googleSheetsClient';
+import { detectarTipoImplemento, CATALOGO_TALLAS } from '../lib/tallasCatalog';
 import { 
   INITIAL_EMPRESAS, 
   INITIAL_LOCALIDADES, 
@@ -497,78 +498,304 @@ export const dbService = {
   // ============================================================
   async getInventario(): Promise<InventarioItem[]> {
     let list = getLocal<InventarioItem>(SK.INVENTARIO_EPP);
+
+    const INITIAL_EPP_SEED: InventarioItem[] = [
+      {
+        id: 'epp_01',
+        codigo: 'EPP-BOT-01',
+        nombre: 'Botas de Seguridad Dieléctricas con Puntera',
+        categoria: 'Protección de Pies y Piernas',
+        descripcion: 'Calzado certificado COVENIN 39:2003 resistente a impactos y ácido sulfúrico',
+        normaCovenin: 'COVENIN 39:2003',
+        vidaUtilEstimadaMeses: 6,
+        stock: [
+          { talla: '35', cantidad: 4 }, { talla: '36', cantidad: 6 }, { talla: '37', cantidad: 8 },
+          { talla: '38', cantidad: 12 }, { talla: '39', cantidad: 15 }, { talla: '40', cantidad: 22 },
+          { talla: '41', cantidad: 25 }, { talla: '42', cantidad: 20 }, { talla: '43', cantidad: 14 },
+          { talla: '44', cantidad: 8 }, { talla: '45', cantidad: 5 }, { talla: '46', cantidad: 3 }
+        ]
+      },
+      {
+        id: 'epp_01_gom',
+        codigo: 'EPP-BOT-GOM',
+        nombre: 'Botas de Goma Caña Alta Impermeables para Ácido y Agua',
+        categoria: 'Protección de Pies y Piernas',
+        descripcion: 'Bota caña alta de PVC/Nitrilo resistente a derrames químicos y electrolito ácido',
+        normaCovenin: 'COVENIN 39:2003',
+        vidaUtilEstimadaMeses: 6,
+        stock: [
+          { talla: '38', cantidad: 10 }, { talla: '39', cantidad: 12 }, { talla: '40', cantidad: 18 },
+          { talla: '41', cantidad: 20 }, { talla: '42', cantidad: 15 }, { talla: '43', cantidad: 10 },
+          { talla: '44', cantidad: 6 }, { talla: '45', cantidad: 4 }
+        ]
+      },
+      {
+        id: 'epp_03',
+        codigo: 'EPP-GUAN-NIT',
+        nombre: 'Guantes de Nitrilo Grueso Caña Larga para Ácido',
+        categoria: 'Protección de Manos y Brazos',
+        descripcion: 'Resistentes al ácido sulfúrico e hidrocarburos según norma COVENIN 2165',
+        normaCovenin: 'COVENIN 2165-84',
+        vidaUtilEstimadaMeses: 2,
+        stock: [
+          { talla: '7 (S - Pequeño)', cantidad: 20 },
+          { talla: '8 (M - Mediano)', cantidad: 45 },
+          { talla: '9 (L - Grande)', cantidad: 60 },
+          { talla: '10 (XL - Extra Grande)', cantidad: 35 },
+          { talla: '11 (XXL - Doble Grande)', cantidad: 15 }
+        ]
+      },
+      {
+        id: 'epp_03_neo',
+        codigo: 'EPP-GUAN-NEO',
+        nombre: 'Guantes de Neopreno Químicos para Manejo de Baterías',
+        categoria: 'Protección de Manos y Brazos',
+        descripcion: 'Barrera química de alta elasticidad contra ácidos concentrados y solventes',
+        normaCovenin: 'COVENIN 2165 / EN 374',
+        vidaUtilEstimadaMeses: 3,
+        stock: [
+          { talla: 'S', cantidad: 15 }, { talla: 'M', cantidad: 30 }, { talla: 'L', cantidad: 40 }, { talla: 'XL', cantidad: 25 }
+        ]
+      },
+      {
+        id: 'epp_03_vaq',
+        codigo: 'EPP-GUAN-VAQ',
+        nombre: 'Guantes de Vaqueta / Cuero Reforzado para Mecánica',
+        categoria: 'Protección de Manos y Brazos',
+        descripcion: 'Cuero flor vacuno para manipulación de paletas, plomo sólido y mantenimiento',
+        normaCovenin: 'COVENIN 1927 / EN 388',
+        vidaUtilEstimadaMeses: 3,
+        stock: [
+          { talla: '8 (M)', cantidad: 25 }, { talla: '9 (L)', cantidad: 50 }, { talla: '10 (XL)', cantidad: 30 }
+        ]
+      },
+      {
+        id: 'epp_03_diel',
+        codigo: 'EPP-GUAN-DIEL',
+        nombre: 'Guantes Dieléctricos de Alta Tensión Clase 0 (1000V)',
+        categoria: 'Protección de Manos y Brazos',
+        descripcion: 'Látex dieléctrico certificado para intervención en tableros y bancos de carga',
+        normaCovenin: 'COVENIN 1928 / ASTM D120',
+        vidaUtilEstimadaMeses: 6,
+        stock: [
+          { talla: '8 (M)', cantidad: 10 }, { talla: '9 (L)', cantidad: 15 }, { talla: '10 (XL)', cantidad: 12 }
+        ]
+      },
+      {
+        id: 'uni_01_dam',
+        codigo: 'UNI-PANT-DAM',
+        nombre: 'Pantalón Dril Algodón 100% para Damas',
+        categoria: 'Ropa de Trabajo / Uniforme',
+        descripcion: 'Pantalón operativo corte dama en dril pesado retardante con cinta reflectiva',
+        normaCovenin: 'COVENIN 2239:1991',
+        vidaUtilEstimadaMeses: 4,
+        stock: [
+          { talla: '02 (Dama)', cantidad: 5 }, { talla: '04 (Dama)', cantidad: 10 }, { talla: '06 (Dama)', cantidad: 18 },
+          { talla: '08 (Dama)', cantidad: 25 }, { talla: '10 (Dama)', cantidad: 22 }, { talla: '12 (Dama)', cantidad: 15 },
+          { talla: '14 (Dama)', cantidad: 12 }, { talla: '16 (Dama)', cantidad: 8 }, { talla: '18 (Dama)', cantidad: 5 }
+        ]
+      },
+      {
+        id: 'uni_01_cab',
+        codigo: 'UNI-PANT-CAB',
+        nombre: 'Pantalón Dril Algodón 100% para Caballeros',
+        categoria: 'Ropa de Trabajo / Uniforme',
+        descripcion: 'Pantalón de trabajo industrial de alta durabilidad con bolsillos y cinta reflectiva',
+        normaCovenin: 'COVENIN 2239:1991',
+        vidaUtilEstimadaMeses: 4,
+        stock: [
+          { talla: '28 (Caballero)', cantidad: 8 }, { talla: '30 (Caballero)', cantidad: 15 }, { talla: '32 (Caballero)', cantidad: 30 },
+          { talla: '34 (Caballero)', cantidad: 35 }, { talla: '36 (Caballero)', cantidad: 25 }, { talla: '38 (Caballero)', cantidad: 18 },
+          { talla: '40 (Caballero)', cantidad: 12 }, { talla: '42 (Caballero)', cantidad: 8 }, { talla: '44 (Caballero)', cantidad: 4 }
+        ]
+      },
+      {
+        id: 'uni_02_cam',
+        codigo: 'UNI-CAM-DRIL',
+        nombre: 'Camisa Dril Manga Larga con Cintas Reflectivas',
+        categoria: 'Ropa de Trabajo / Uniforme',
+        descripcion: 'Camisa corporativa operativa con solapa, botones reforzados y alta visibilidad',
+        normaCovenin: 'COVENIN 2239:1991',
+        vidaUtilEstimadaMeses: 4,
+        stock: [
+          { talla: 'S (Small)', cantidad: 15 }, { talla: 'M (Medium)', cantidad: 35 }, { talla: 'L (Large)', cantidad: 40 },
+          { talla: 'XL (Extra Large)', cantidad: 30 }, { talla: 'XXL (2XL)', cantidad: 15 }, { talla: '3XL (3X Large)', cantidad: 8 }
+        ]
+      },
+      {
+        id: 'uni_03_fran',
+        codigo: 'UNI-FRAN-AL',
+        nombre: 'Franela de Algodón Cuello Redondo con Logo Duncan',
+        categoria: 'Ropa de Trabajo / Uniforme',
+        descripcion: 'Franela 100% algodón transpirable para uso interior y planta de ensamble',
+        normaCovenin: 'COVENIN 2239',
+        vidaUtilEstimadaMeses: 3,
+        stock: [
+          { talla: 'S', cantidad: 20 }, { talla: 'M', cantidad: 45 }, { talla: 'L', cantidad: 50 },
+          { talla: 'XL', cantidad: 35 }, { talla: 'XXL', cantidad: 20 }, { talla: '3XL', cantidad: 10 }
+        ]
+      },
+      {
+        id: 'uni_04_chem_dam',
+        codigo: 'UNI-CHEM-DAM',
+        nombre: 'Chemise Corporativa Duncan Damas',
+        categoria: 'Ropa de Trabajo / Uniforme',
+        descripcion: 'Chemise piqué bordada Duncan corte dama para distribución y oficinas técnicas',
+        normaCovenin: 'COVENIN 2239',
+        vidaUtilEstimadaMeses: 4,
+        stock: [
+          { talla: 'S (Dama)', cantidad: 12 }, { talla: 'M (Dama)', cantidad: 20 }, { talla: 'L (Dama)', cantidad: 18 },
+          { talla: 'XL (Dama)', cantidad: 10 }, { talla: 'XXL (Dama)', cantidad: 5 }
+        ]
+      },
+      {
+        id: 'uni_04_chem_cab',
+        codigo: 'UNI-CHEM-CAB',
+        nombre: 'Chemise Corporativa Duncan Caballeros',
+        categoria: 'Ropa de Trabajo / Uniforme',
+        descripcion: 'Chemise piqué bordada Duncan corte caballero para distribución y servicentros',
+        normaCovenin: 'COVENIN 2239',
+        vidaUtilEstimadaMeses: 4,
+        stock: [
+          { talla: 'S (Caballero)', cantidad: 15 }, { talla: 'M (Caballero)', cantidad: 35 }, { talla: 'L (Caballero)', cantidad: 45 },
+          { talla: 'XL (Caballero)', cantidad: 30 }, { talla: 'XXL (Caballero)', cantidad: 18 }, { talla: '3XL', cantidad: 8 }
+        ]
+      },
+      {
+        id: 'uni_05_chal',
+        codigo: 'UNI-CHAL-REF',
+        nombre: 'Chaleco de Seguridad Reflectivo Vial e Industrial',
+        categoria: 'Ropa de Trabajo / Uniforme',
+        descripcion: 'Chaleco con cintas retro-reflectivas de 360 grados y cierre frontal para patios y almacén',
+        normaCovenin: 'COVENIN 2239 / ANSI 107',
+        vidaUtilEstimadaMeses: 6,
+        stock: [
+          { talla: 'S', cantidad: 10 }, { talla: 'M', cantidad: 25 }, { talla: 'L', cantidad: 30 },
+          { talla: 'XL', cantidad: 20 }, { talla: 'ÚNICA / AJUSTABLE', cantidad: 40 }
+        ]
+      },
+      {
+        id: 'uni_06_chaq',
+        codigo: 'UNI-CHAQ-IMP',
+        nombre: 'Chaqueta Impermeable con Capucha para Lluvia y Salpicaduras',
+        categoria: 'Ropa de Trabajo / Uniforme',
+        descripcion: 'Chaqueta impermeable de PVC/Poliéster con costuras termoselladas y ventilación',
+        normaCovenin: 'COVENIN 2237',
+        vidaUtilEstimadaMeses: 12,
+        stock: [
+          { talla: 'S', cantidad: 10 }, { talla: 'M', cantidad: 20 }, { talla: 'L', cantidad: 25 },
+          { talla: 'XL', cantidad: 18 }, { talla: 'XXL', cantidad: 10 }
+        ]
+      },
+      {
+        id: 'uni_07_brag',
+        codigo: 'UNI-BRAG-OPE',
+        nombre: 'Braga de Protección Integral tipo Overol con Reflectivo',
+        categoria: 'Ropa de Trabajo / Uniforme',
+        descripcion: 'Braga entera dril 100% algodón con cremallera doble vía para mantenimiento pesado',
+        normaCovenin: 'COVENIN 2239:1991',
+        vidaUtilEstimadaMeses: 6,
+        stock: [
+          { talla: '36', cantidad: 8 }, { talla: '38', cantidad: 14 }, { talla: '40', cantidad: 18 },
+          { talla: '42', cantidad: 15 }, { talla: '44', cantidad: 10 }, { talla: '46', cantidad: 6 }
+        ]
+      },
+      {
+        id: 'epp_07_faja',
+        codigo: 'EPP-FAJA-LUM',
+        nombre: 'Faja Lumbar Ergonómica / Ortopédica (Aval Médico SSST)',
+        categoria: 'EPP',
+        descripcion: 'Soporte lumbosacro con ballenas flexibles para tratamiento médico prescrito',
+        normaCovenin: 'Prescripción Ocupacional SSST',
+        vidaUtilEstimadaMeses: 6,
+        esFajaLumbar: true,
+        stock: [
+          { talla: 'S (28-32)', cantidad: 6 }, { talla: 'M (32-36)', cantidad: 12 }, { talla: 'L (36-40)', cantidad: 14 },
+          { talla: 'XL (40-44)', cantidad: 8 }, { talla: 'XXL (44-48)', cantidad: 4 }
+        ]
+      },
+      {
+        id: 'epp_02',
+        codigo: 'EPP-LENT-01',
+        nombre: 'Lentes de Seguridad Anti-Impacto Anti-Empañante',
+        categoria: 'Protección Ocular y Facial',
+        descripcion: 'Lentes claros con protección lateral y filtro UV para manipulación de baterías',
+        normaCovenin: 'COVENIN 955-76 / ANSI Z87.1',
+        vidaUtilEstimadaMeses: 3,
+        stock: [{ talla: 'Única', cantidad: 85 }]
+      },
+      {
+        id: 'epp_04',
+        codigo: 'EPP-RESP-PL',
+        nombre: 'Respirador Media Cara con Filtros para Vapores Ácidos y Plomo',
+        categoria: 'Protección Respiratoria',
+        descripcion: 'Protección respiratoria especializada para áreas de carga y fundición',
+        normaCovenin: 'COVENIN 1056 / NIOSH P100',
+        vidaUtilEstimadaMeses: 12,
+        stock: [{ talla: 'S (Pequeño)', cantidad: 15 }, { talla: 'M (Mediano)', cantidad: 35 }, { talla: 'L (Grande)', cantidad: 25 }]
+      },
+      {
+        id: 'epp_05',
+        codigo: 'EPP-DEL-AC',
+        nombre: 'Delantal de PVC Resistente a Ácido Sulfúrico',
+        categoria: 'Protección Química / Ácido',
+        descripcion: 'Delantal impermeable de alta resistencia química para servicentro y distribuidora',
+        normaCovenin: 'COVENIN 2237',
+        vidaUtilEstimadaMeses: 6,
+        stock: [{ talla: 'Única', cantidad: 35 }]
+      },
+      {
+        id: 'epp_06',
+        codigo: 'EPP-CASCO-01',
+        nombre: 'Casco de Seguridad Clase E con Barbiquejo',
+        categoria: 'Protección de Cabeza',
+        descripcion: 'Dieléctrico hasta 20.000 voltios con suspensión de 4 puntos',
+        normaCovenin: 'COVENIN 815:1999',
+        vidaUtilEstimadaMeses: 24,
+        stock: [{ talla: 'Ajustable', cantidad: 50 }]
+      }
+    ];
+
     if (!list || list.length === 0) {
-      // Seed inicial EPP Duncan
-      list = [
-        {
-          id: 'epp_01',
-          codigo: 'EPP-BOT-01',
-          nombre: 'Botas de Seguridad Dieléctricas con Puntera',
-          categoria: 'Protección de Pies y Piernas',
-          descripcion: 'Calzado certificado COVENIN 39:2003 resistente a impactos y ácido sulfúrico',
-          normaCovenin: 'COVENIN 39:2003',
-          vidaUtilEstimadaMeses: 6,
-          stock: [{ talla: '39', cantidad: 12 }, { talla: '40', cantidad: 20 }, { talla: '41', cantidad: 25 }, { talla: '42', cantidad: 18 }, { talla: '43', cantidad: 8 }]
-        },
-        {
-          id: 'epp_02',
-          codigo: 'EPP-LENT-01',
-          nombre: 'Lentes de Seguridad Anti-Impacto Anti-Empañante',
-          categoria: 'Protección Ocular y Facial',
-          descripcion: 'Lentes claros con protección lateral y filtro UV para manipulación de baterías',
-          normaCovenin: 'COVENIN 955-76 / ANSI Z87.1',
-          vidaUtilEstimadaMeses: 3,
-          stock: [{ talla: 'Única', cantidad: 85 }]
-        },
-        {
-          id: 'epp_03',
-          codigo: 'EPP-GUAN-NIT',
-          nombre: 'Guantes de Nitrilo Grueso Caña Larga para Ácido',
-          categoria: 'Protección de Manos y Brazos',
-          descripcion: 'Resistentes al ácido de batería e hidrocarburos según norma COVENIN 2165',
-          normaCovenin: 'COVENIN 2165-84',
-          vidaUtilEstimadaMeses: 2,
-          stock: [{ talla: 'M', cantidad: 45 }, { talla: 'L', cantidad: 60 }, { talla: 'XL', cantidad: 30 }]
-        },
-        {
-          id: 'epp_04',
-          codigo: 'EPP-RESP-PL',
-          nombre: 'Respirador Media Cara con Filtros para Vapores Ácidos y Plomo',
-          categoria: 'Protección Respiratoria',
-          descripcion: 'Protección respiratoria especializada para áreas de carga y fundición',
-          normaCovenin: 'COVENIN 1056 / NIOSH P100',
-          vidaUtilEstimadaMeses: 12,
-          stock: [{ talla: 'M', cantidad: 24 }, { talla: 'L', cantidad: 18 }]
-        },
-        {
-          id: 'epp_05',
-          codigo: 'EPP-DEL-AC',
-          nombre: 'Delantal de PVC Resistente a Ácido Sulfúrico',
-          categoria: 'Protección Química / Ácido',
-          descripcion: 'Delantal impermeable de alta resistencia química para servicentro y distribuidora',
-          normaCovenin: 'COVENIN 2237',
-          vidaUtilEstimadaMeses: 6,
-          stock: [{ talla: 'Única', cantidad: 35 }]
-        },
-        {
-          id: 'epp_06',
-          codigo: 'EPP-CASCO-01',
-          nombre: 'Casco de Seguridad Clase E con Barbiquejo',
-          categoria: 'Protección de Cabeza',
-          descripcion: 'Dieléctrico hasta 20.000 voltios con suspensión de 4 puntos',
-          normaCovenin: 'COVENIN 815:1999',
-          vidaUtilEstimadaMeses: 24,
-          stock: [{ talla: 'Ajustable', cantidad: 50 }]
-        }
-      ];
+      list = INITIAL_EPP_SEED;
       setLocal(SK.INVENTARIO_EPP, list);
+    } else {
+      // Complementar con artículos del catálogo inicial que no existan
+      let missingAdded = false;
+      for (const seedItem of INITIAL_EPP_SEED) {
+        const exists = list.some(i => i.codigo === seedItem.codigo || i.id === seedItem.id);
+        if (!exists) {
+          list.push(seedItem);
+          missingAdded = true;
+        }
+      }
+
+      // Auto-sanitizar: Si algún artículo existente tiene stock vacío o sin tallas, poblarlo automáticamente
+      let sanitized = false;
+      list = list.map(i => {
+        let currentStock = Array.isArray(i.stock) ? i.stock.filter(s => s && s.talla && s.talla.trim() !== '') : [];
+        if (currentStock.length === 0) {
+          sanitized = true;
+          const tipo = detectarTipoImplemento(i.nombre, i.categoria);
+          const tallas = CATALOGO_TALLAS[tipo] || CATALOGO_TALLAS.PROTECCION_GENERAL;
+          currentStock = tallas.map(t => ({ talla: t, cantidad: 10 }));
+        }
+        return {
+          ...i,
+          stock: currentStock
+        };
+      });
+
+      if (missingAdded || sanitized) {
+        setLocal(SK.INVENTARIO_EPP, list);
+      }
     }
+
     return (list || []).map(i => ({
       ...i,
       stock: Array.isArray(i.stock) ? i.stock : []
     }));
   },
-
   async addInventarioItem(data: any): Promise<string> {
     const list = await this.getInventario();
     const id = genId('epp_item');

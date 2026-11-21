@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import SignaturePad from '../SignaturePad';
 import { useAuth } from '../../hooks/useAuth';
 import { dbService } from '../../services/db';
@@ -10,11 +10,20 @@ import {
   ShieldCheck,
   PenTool,
   CheckCircle,
-  UserCheck
+  UserCheck,
+  User,
+  Sparkles,
+  Shirt,
+  Info
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { Empleado, InventarioItem, FirmaActor } from '../../types';
 import toast from 'react-hot-toast';
+import {
+  obtenerOpcionesTalla,
+  obtenerTallaSugerida,
+  detectarTipoImplemento
+} from '../../lib/tallasCatalog';
 
 interface SolicitudFormModalProps {
   empleados: Empleado[];
@@ -32,10 +41,13 @@ export default function SolicitudFormModal({
   const { user } = useAuth();
   const [empleadoId, setEmpleadoId] = useState('');
   const [motivo, setMotivo] = useState('Dotación');
-  const [items, setItems] = useState<{ itemId: string; cantidad: number; talla: string }[]>([
-    { itemId: '', cantidad: 1, talla: '' }
+  const [items, setItems] = useState<{ itemId: string; cantidad: number; talla: string; esCustom?: boolean }[]>([
+    { itemId: '', cantidad: 1, talla: '', esCustom: false }
   ]);
   const [saving, setSaving] = useState(false);
+
+  // Selected employee profile
+  const selectedEmpleado = (empleados || []).find(e => e.id === empleadoId);
 
   // Solicitante / Supervisor details
   const [solicitanteNombre, setSolicitanteNombre] = useState(user?.email?.split('@')[0] || '');
@@ -43,7 +55,6 @@ export default function SolicitudFormModal({
   const [solicitanteCargo, setSolicitanteCargo] = useState('Supervisor de Área');
   const [apruebaComoSupervisor, setApruebaComoSupervisor] = useState(true);
   const [firmaSolicitanteUrl, setFirmaSolicitanteUrl] = useState('');
-  const [mostrarFirmaPad, setMostrarFirmaPad] = useState(false);
 
   // Fajas lumbares exception parameters (Prescripción médica)
   const [prescripcionMedicaValidada, setPrescripcionMedicaValidada] = useState(false);
@@ -54,6 +65,22 @@ export default function SolicitudFormModal({
   // Failure / Re-evaluation report flags (LOPCYMAT Art 62)
   const [fallaReportadaExplicacion, setFallaReportadaExplicacion] = useState('');
   const [noSatisfaceProteccionSST, setNoSatisfaceProteccionSST] = useState(false);
+
+  // Auto-suggest sizes when worker changes
+  useEffect(() => {
+    if (!selectedEmpleado) return;
+    setItems(currentItems =>
+      currentItems.map(it => {
+        if (!it.itemId) return it;
+        const inv = (inventario || []).find(i => i.id === it.itemId);
+        if (!it.talla || it.talla.trim() === '') {
+          const sugerida = obtenerTallaSugerida(inv, selectedEmpleado);
+          return { ...it, talla: sugerida || it.talla };
+        }
+        return it;
+      })
+    );
+  }, [empleadoId]);
 
   // Dynamic detection of lumbar girdle item in active selection
   const contieneFajaLumbar = (items || []).some(it => {
@@ -67,11 +94,36 @@ export default function SolicitudFormModal({
   });
 
   const addItem = () => {
-    setItems([...(items || []), { itemId: '', cantidad: 1, talla: '' }]);
+    setItems([...(items || []), { itemId: '', cantidad: 1, talla: '', esCustom: false }]);
   };
 
   const removeItem = (idx: number) => {
     setItems((items || []).filter((_, i) => i !== idx));
+  };
+
+  const handleItemChange = (idx: number, newItemId: string) => {
+    const inv = (inventario || []).find(i => i.id === newItemId);
+    const sugerida = obtenerTallaSugerida(inv, selectedEmpleado);
+    const newItems = [...items];
+    newItems[idx] = {
+      ...newItems[idx],
+      itemId: newItemId,
+      talla: sugerida || '',
+      esCustom: false
+    };
+    setItems(newItems);
+  };
+
+  const handleTallaChange = (idx: number, val: string) => {
+    const newItems = [...items];
+    if (val === '__CUSTOM__') {
+      newItems[idx].esCustom = true;
+      newItems[idx].talla = '';
+    } else {
+      newItems[idx].esCustom = false;
+      newItems[idx].talla = val;
+    }
+    setItems(newItems);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -82,9 +134,9 @@ export default function SolicitudFormModal({
       return;
     }
 
-    const itemsValid = itemsList.every(i => i.itemId && i.talla && i.cantidad > 0);
+    const itemsValid = itemsList.every(i => i.itemId && i.talla.trim() !== '' && i.cantidad > 0);
     if (!itemsValid) {
-      toast.error('Complete todos los campos requeridos en la lista de artículos (artículo, talla y cantidad).');
+      toast.error('Complete todos los campos requeridos (artículo, talla y cantidad mayor a cero).');
       return;
     }
 
@@ -111,17 +163,23 @@ export default function SolicitudFormModal({
       return;
     }
 
-    const outOfStockItems = itemsList.some(it => {
+    // Notification of items without immediate stock
+    const outOfStockItems = itemsList.filter(it => {
       const inv = (inventario || []).find(i => i.id === it.itemId);
-      const stockItem = (inv?.stock || []).find(s => s.talla === it.talla);
-      return stockItem && it.cantidad > stockItem.cantidad;
+      const stockItem = (inv?.stock || []).find(s => s.talla.toUpperCase() === it.talla.toUpperCase());
+      return !stockItem || stockItem.cantidad < it.cantidad;
     });
 
-    if (
-      outOfStockItems &&
-      !window.confirm('Algunos artículos exceden el inventario disponible. ¿Desea registrar la solicitud de todos modos para generar la orden de pedido?')
-    ) {
-      return;
+    if (outOfStockItems.length > 0) {
+      const nombresFaltantes = outOfStockItems.map(it => {
+        const inv = (inventario || []).find(i => i.id === it.itemId);
+        return `• ${inv?.nombre || 'Artículo'} (Talla: ${it.talla})`;
+      }).join('\n');
+
+      const confirmar = window.confirm(
+        `AVISO DE REABASTECIMIENTO / COMPRAS:\n\nLos siguientes artículos no cuentan con stock suficiente en almacén:\n${nombresFaltantes}\n\n¿Desea registrar la solicitud para activar la requisición de dotación y pedido especial a Compras?`
+      );
+      if (!confirmar) return;
     }
 
     setSaving(true);
@@ -143,7 +201,7 @@ export default function SolicitudFormModal({
         solicitanteId: user?.uid || '',
         fechaSolicitud: new Date().toISOString().split('T')[0],
         estado: estadoInicial,
-        items,
+        items: items.map(i => ({ itemId: i.itemId, cantidad: i.cantidad, talla: i.talla })),
         motivo,
         firmaSolicitante: firmaSolicitanteObj,
         firmaSupervisor: apruebaComoSupervisor ? firmaSolicitanteObj : undefined,
@@ -203,10 +261,10 @@ export default function SolicitudFormModal({
                 <span className="bg-yellow-400 text-slate-950 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded">
                   ETAPA 1: SOLICITUD
                 </span>
-                <span className="text-xs text-slate-500">Flujo Digital de 4 Actores</span>
+                <span className="text-xs text-slate-500 font-medium">Flujo Digital de 4 Actores</span>
               </div>
               <h2 className="text-lg md:text-xl font-bold text-slate-900">
-                Nueva Solicitud de Dotación y E.P.P.
+                Nueva Solicitud de Dotación, E.P.P. y Uniformes
               </h2>
             </div>
             <button
@@ -220,44 +278,72 @@ export default function SolicitudFormModal({
 
           <div className="p-5 md:p-6 space-y-6 flex-1">
             {/* Step 1: Worker & Motivo */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Trabajador Beneficiario <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={empleadoId}
-                  onChange={e => setEmpleadoId(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-duncan-blue bg-white font-medium"
-                  required
-                >
-                  <option value="">Seleccione un trabajador de la nómina...</option>
-                  {(empleados || []).map(emp => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.nombre} — C.I: {emp.cedula} ({emp.cargo})
-                    </option>
-                  ))}
-                </select>
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Trabajador Beneficiario <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={empleadoId}
+                    onChange={e => setEmpleadoId(e.target.value)}
+                    className="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-duncan-blue bg-white font-medium"
+                    required
+                  >
+                    <option value="">Seleccione un trabajador de la nómina...</option>
+                    {(empleados || []).map(emp => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.nombre} — C.I: {emp.cedula} ({emp.cargo})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Motivo de la Solicitud <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={motivo}
+                    onChange={e => setMotivo(e.target.value)}
+                    className="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-duncan-blue bg-white font-medium"
+                    required
+                  >
+                    <option value="Dotación">Dotación Ordinaria Reglamentaria (SST)</option>
+                    <option value="Deterioro">Reemplazo por Deterioro / Falla Técnica (Art. 62)</option>
+                    <option value="Pérdida">Reemplazo por Pérdida / Extravío</option>
+                    <option value="Robo">Reemplazo por Robo / Hurto</option>
+                    <option value="Ingreso">Nueva Incorporación / Ingreso de Personal</option>
+                    <option value="Otros">Otros Motivos Justificados</option>
+                  </select>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Motivo de la Solicitud <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={motivo}
-                  onChange={e => setMotivo(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-duncan-blue bg-white font-medium"
-                  required
-                >
-                  <option value="Dotación">Dotación Ordinaria Reglamentaria (SST)</option>
-                  <option value="Deterioro">Reemplazo por Deterioro / Falla Técnica (Art. 62)</option>
-                  <option value="Pérdida">Reemplazo por Pérdida / Extravío</option>
-                  <option value="Robo">Reemplazo por Robo / Hurto</option>
-                  <option value="Ingreso">Nueva Incorporación / Ingreso de Personal</option>
-                  <option value="Otros">Otros Motivos Justificados</option>
-                </select>
-              </div>
+              {/* Ficha de Tallas del Trabajador Seleccionado */}
+              {selectedEmpleado && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50/60 border border-blue-200/80 rounded-xl p-3 flex flex-wrap items-center justify-between gap-2.5 text-xs animate-fadeIn">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-bold text-duncan-blue flex items-center gap-1.5 text-xs">
+                      <User size={15} /> Tallas en Expediente de {selectedEmpleado.nombre.split(' ')[0]}:
+                    </span>
+                    <span className="bg-white px-2.5 py-1 rounded-lg border border-blue-200 font-semibold text-slate-700 flex items-center gap-1 shadow-xs">
+                      👟 Calzado: <strong className="text-duncan-blue font-bold">{selectedEmpleado.tallaCalzado || 'No reg.'}</strong>
+                    </span>
+                    <span className="bg-white px-2.5 py-1 rounded-lg border border-blue-200 font-semibold text-slate-700 flex items-center gap-1 shadow-xs">
+                      👖 Pantalón: <strong className="text-duncan-blue font-bold">{selectedEmpleado.tallaPantalon || 'No reg.'}</strong>
+                    </span>
+                    <span className="bg-white px-2.5 py-1 rounded-lg border border-blue-200 font-semibold text-slate-700 flex items-center gap-1 shadow-xs">
+                      👕 Camisa/Prenda: <strong className="text-duncan-blue font-bold">{selectedEmpleado.tallaCamisa || 'No reg.'}</strong>
+                    </span>
+                    <span className="bg-white px-2 py-1 rounded-lg border border-blue-200 text-slate-600 text-[11px] font-medium">
+                      ⚧ {selectedEmpleado.genero === 'F' ? 'Corte Damas' : 'Corte Caballeros'}
+                    </span>
+                  </div>
+                  <span className="text-[10.5px] text-blue-700 font-medium flex items-center gap-1">
+                    <Sparkles size={12} className="text-amber-500" /> Selección inteligente activa
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Deterioro / Art 62 LOPCYMAT Form */}
@@ -359,12 +445,18 @@ export default function SolicitudFormModal({
               </div>
             )}
 
-            {/* Step 2: Items List */}
+            {/* Step 2: Items List & Size Selection */}
             <div>
               <div className="flex justify-between items-center mb-3">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                  Implementos y Uniformes a Suministrar
-                </label>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                    <Shirt size={15} className="text-duncan-blue" />
+                    Implementos y Uniformes a Suministrar
+                  </label>
+                  <p className="text-[10.5px] text-slate-500">
+                    Seleccione el equipo y su talla estandarizada (calzados 35-48, guantes 7-11, pantalones damas/caballeros, etc.)
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={addItem}
@@ -377,85 +469,225 @@ export default function SolicitudFormModal({
               <div className="space-y-3">
                 {items.map((it, idx) => {
                   const selectedInv = (inventario || []).find(i => i.id === it.itemId);
-                  const stockDisponible =
-                    (selectedInv?.stock || []).find(s => s.talla === it.talla)?.cantidad ?? 0;
-                  const isExceeded = it.talla && it.cantidad > stockDisponible;
+                  const opcionesTallas = obtenerOpcionesTalla(selectedInv, selectedEmpleado);
+                  const tipoDetectado = selectedInv ? detectarTipoImplemento(selectedInv.nombre, selectedInv.categoria, selectedEmpleado?.genero) : null;
+                  
+                  const stockSeleccionado = (selectedInv?.stock || []).find(
+                    s => s.talla.toUpperCase() === (it.talla || '').toUpperCase()
+                  )?.cantidad ?? 0;
+
+                  const isSinStock = !!it.talla && stockSeleccionado === 0 && !it.esCustom;
 
                   return (
                     <div
                       key={idx}
-                      className="flex flex-col md:flex-row gap-2.5 items-start md:items-center bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs"
+                      className="flex flex-col gap-2.5 bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs shadow-xs"
                     >
-                      <div className="flex-1 w-full">
-                        <select
-                          value={it.itemId}
-                          onChange={e => {
-                            const newIt = [...items];
-                            newIt[idx].itemId = e.target.value;
-                            newIt[idx].talla = '';
-                            setItems(newIt);
-                          }}
-                          className="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-medium outline-none focus:border-duncan-blue"
-                          required
-                        >
-                          <option value="">Seleccione un implemento del catálogo...</option>
-                          {(inventario || []).map(inv => (
-                            <option key={inv.id} value={inv.id}>
-                              {inv.nombre} ({inv.codigo}) — Cat: {inv.categoria}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                      <div className="flex flex-col md:flex-row gap-2.5 items-start md:items-center">
+                        {/* Selector de Implemento */}
+                        <div className="flex-1 w-full">
+                          <label className="block text-[10px] font-bold text-slate-500 mb-0.5">
+                            Equipo / Prenda ({idx + 1})
+                          </label>
+                          <select
+                            value={it.itemId}
+                            onChange={e => handleItemChange(idx, e.target.value)}
+                            className="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-medium outline-none focus:border-duncan-blue"
+                            required
+                          >
+                            <option value="">Seleccione un implemento del catálogo...</option>
+                            {(inventario || []).map(inv => (
+                              <option key={inv.id} value={inv.id}>
+                                {inv.nombre} ({inv.codigo}) — Cat: {inv.categoria}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
 
-                      <div className="w-full md:w-40">
-                        <select
-                          value={it.talla}
-                          onChange={e => {
-                            const newIt = [...items];
-                            newIt[idx].talla = e.target.value;
-                            setItems(newIt);
-                          }}
-                          className="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-medium outline-none focus:border-duncan-blue"
-                          required
-                        >
-                          <option value="">Seleccione Talla...</option>
-                          {(selectedInv?.stock || []).map(s => (
-                            <option key={s.talla} value={s.talla}>
-                              {s.talla} (Disp: {s.cantidad})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="w-full md:w-24">
-                        <input
-                          type="number"
-                          min="1"
-                          value={it.cantidad}
-                          onChange={e => {
-                            const newIt = [...items];
-                            newIt[idx].cantidad = parseInt(e.target.value) || 1;
-                            setItems(newIt);
-                          }}
-                          className={cn(
-                            'w-full border rounded-lg p-2 text-xs font-bold text-center outline-none',
-                            isExceeded
-                              ? 'border-red-400 bg-red-50 text-red-700'
-                              : 'border-slate-300 bg-white focus:border-duncan-blue'
+                        {/* Selector de Talla */}
+                        <div className="w-full md:w-56">
+                          <label className="block text-[10px] font-bold text-slate-500 mb-0.5">
+                            Talla Estandarizada <span className="text-red-500">*</span>
+                          </label>
+                          {!it.esCustom ? (
+                            <select
+                              value={it.talla}
+                              onChange={e => handleTallaChange(idx, e.target.value)}
+                              className={cn(
+                                "w-full border rounded-lg p-2 text-xs font-semibold outline-none bg-white",
+                                !it.talla ? "border-amber-300 text-amber-800" : "border-slate-300 text-slate-900 focus:border-duncan-blue"
+                              )}
+                              required
+                              disabled={!it.itemId}
+                            >
+                              <option value="">
+                                {!it.itemId ? 'Primero elija un implemento...' : `Seleccione Talla (${opcionesTallas.length} opciones)...`}
+                              </option>
+                              {opcionesTallas.map(opt => (
+                                <option key={opt.talla} value={opt.talla}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                              <option value="__CUSTOM__">✏️ Otra Medida / Personalizada...</option>
+                            </select>
+                          ) : (
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="text"
+                                value={it.talla}
+                                onChange={e => {
+                                  const n = [...items];
+                                  n[idx].talla = e.target.value.toUpperCase();
+                                  setItems(n);
+                                }}
+                                className="w-full border border-duncan-blue rounded-lg p-2 text-xs bg-white font-bold uppercase outline-none"
+                                placeholder="Escriba talla..."
+                                required
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const n = [...items];
+                                  n[idx].esCustom = false;
+                                  n[idx].talla = '';
+                                  setItems(n);
+                                }}
+                                title="Volver a lista desplegable"
+                                className="text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 px-2 py-2 rounded-lg font-bold"
+                              >
+                                ✕
+                              </button>
+                            </div>
                           )}
-                          placeholder="Cant."
-                          required
-                        />
+                        </div>
+
+                        {/* Cantidad */}
+                        <div className="w-full md:w-24">
+                          <label className="block text-[10px] font-bold text-slate-500 mb-0.5">
+                            Cantidad
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={it.cantidad}
+                            onChange={e => {
+                              const newIt = [...items];
+                              newIt[idx].cantidad = parseInt(e.target.value) || 1;
+                              setItems(newIt);
+                            }}
+                            className={cn(
+                              'w-full border rounded-lg p-2 text-xs font-bold text-center outline-none',
+                              isSinStock
+                                ? 'border-amber-400 bg-amber-50 text-amber-900'
+                                : 'border-slate-300 bg-white focus:border-duncan-blue'
+                            )}
+                            placeholder="Cant."
+                            required
+                          />
+                        </div>
+
+                        {/* Eliminar fila */}
+                        {items.length > 1 && (
+                          <div className="md:pt-4">
+                            <button
+                              type="button"
+                              onClick={() => removeItem(idx)}
+                              className="text-red-400 hover:text-red-600 p-2 rounded-lg transition-colors"
+                              title="Quitar artículo"
+                            >
+                              <XCircle size={18} />
+                            </button>
+                          </div>
+                        )}
                       </div>
 
-                      {items.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeItem(idx)}
-                          className="text-red-400 hover:text-red-600 p-2 rounded-lg transition-colors"
-                        >
-                          <XCircle size={18} />
-                        </button>
+                      {/* Info badge & Quick Size buttons */}
+                      {selectedInv && (
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/60 text-[11px]">
+                          <div className="flex items-center gap-2 text-slate-500">
+                            <span className="font-medium">
+                              Tipo: <strong className="text-slate-700">{tipoDetectado || 'Implemento General'}</strong>
+                            </span>
+                            {selectedInv.documentoEficacia && (
+                              <span className="text-[10px] bg-slate-200/70 px-1.5 py-0.5 rounded text-slate-600">
+                                {selectedInv.documentoEficacia}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Quick Worker Size Assign Chip */}
+                          {selectedEmpleado && (
+                            <div className="flex items-center gap-1.5">
+                              {tipoDetectado === 'CALZADO' && selectedEmpleado.tallaCalzado && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const n = [...items];
+                                    n[idx].talla = selectedEmpleado.tallaCalzado || '';
+                                    n[idx].esCustom = false;
+                                    setItems(n);
+                                  }}
+                                  className={cn(
+                                    "px-2 py-0.5 rounded text-[10.5px] font-bold transition-all border",
+                                    it.talla === selectedEmpleado.tallaCalzado
+                                      ? "bg-emerald-100 text-emerald-800 border-emerald-300 shadow-xs"
+                                      : "bg-blue-50 hover:bg-blue-100 text-duncan-blue border-blue-200"
+                                  )}
+                                >
+                                  👟 Talla Trabajador: {selectedEmpleado.tallaCalzado} {it.talla === selectedEmpleado.tallaCalzado ? '✓' : '(Asignar)'}
+                                </button>
+                              )}
+
+                              {(tipoDetectado === 'PANTALON_DAMAS' || tipoDetectado === 'PANTALON_CABALLEROS' || tipoDetectado === 'BRAGAS') && selectedEmpleado.tallaPantalon && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const n = [...items];
+                                    n[idx].talla = selectedEmpleado.tallaPantalon || '';
+                                    n[idx].esCustom = false;
+                                    setItems(n);
+                                  }}
+                                  className={cn(
+                                    "px-2 py-0.5 rounded text-[10.5px] font-bold transition-all border",
+                                    it.talla === selectedEmpleado.tallaPantalon
+                                      ? "bg-emerald-100 text-emerald-800 border-emerald-300 shadow-xs"
+                                      : "bg-blue-50 hover:bg-blue-100 text-duncan-blue border-blue-200"
+                                  )}
+                                >
+                                  👖 Talla Trabajador: {selectedEmpleado.tallaPantalon} {it.talla === selectedEmpleado.tallaPantalon ? '✓' : '(Asignar)'}
+                                </button>
+                              )}
+
+                              {(tipoDetectado === 'CAMISAS' || tipoDetectado === 'FRANELAS' || tipoDetectado === 'CHEMISES' || tipoDetectado === 'CHALECOS' || tipoDetectado === 'CHAQUETAS') && selectedEmpleado.tallaCamisa && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const n = [...items];
+                                    n[idx].talla = selectedEmpleado.tallaCamisa || '';
+                                    n[idx].esCustom = false;
+                                    setItems(n);
+                                  }}
+                                  className={cn(
+                                    "px-2 py-0.5 rounded text-[10.5px] font-bold transition-all border",
+                                    it.talla === selectedEmpleado.tallaCamisa
+                                      ? "bg-emerald-100 text-emerald-800 border-emerald-300 shadow-xs"
+                                      : "bg-blue-50 hover:bg-blue-100 text-duncan-blue border-blue-200"
+                                  )}
+                                >
+                                  👕 Talla Trabajador: {selectedEmpleado.tallaCamisa} {it.talla === selectedEmpleado.tallaCamisa ? '✓' : '(Asignar)'}
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Warning if requested size has no stock in warehouse */}
+                      {isSinStock && (
+                        <p className="text-[10.5px] text-amber-700 bg-amber-50 p-1.5 rounded border border-amber-200/80 flex items-center gap-1 font-medium">
+                          <Info size={13} className="shrink-0 text-amber-600" />
+                          <span>Esta talla no tiene unidades disponibles en almacén. Se registrará la solicitud para generar la orden de pedido y reposición a Compras.</span>
+                        </p>
                       )}
                     </div>
                   );
