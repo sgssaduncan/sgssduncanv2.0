@@ -23,6 +23,20 @@
  * ===================================================================
  */
 
+// ID oficial de la hoja de cálculo de Google Sheets como backend
+var SPREADSHEET_ID = '1dH0vgYL80DDpwPcdwwaxsg9qCNvNahCbCUxlzDejcFU';
+
+function getSpreadsheet() {
+  if (SPREADSHEET_ID) {
+    try {
+      return SpreadsheetApp.openById(SPREADSHEET_ID);
+    } catch (e) {
+      Logger.log('Error abriendo por ID, usando getActiveSpreadsheet: ' + e);
+    }
+  }
+  return SpreadsheetApp.getActiveSpreadsheet();
+}
+
 // Nombres de las hojas (tablas)
 var SHEETS = {
   INSPECCIONES: 'Inspecciones',
@@ -140,7 +154,7 @@ function doPost(e) {
 // ===================================================================
 
 function handleGetInitData() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet();
   var sheetInsp = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
   var sheetPlan = getOrCreateSheet(ss, SHEETS.PLAN_ACCION);
 
@@ -191,7 +205,7 @@ function handleGetInitData() {
 }
 
 function handleGetInspecciones() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet();
   var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
   return sheetToObjects(sheet);
 }
@@ -207,13 +221,13 @@ function handleGetInspeccion(id) {
 }
 
 function handleGetPlanAccion() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet();
   var sheet = getOrCreateSheet(ss, SHEETS.PLAN_ACCION);
   return sheetToObjects(sheet);
 }
 
 function handleGetEmpleados(q) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet();
   var sheet = getOrCreateSheet(ss, SHEETS.EMPLEADOS);
   var emps = sheetToObjects(sheet);
   if (!q) return emps;
@@ -230,7 +244,7 @@ function handleGetEmpleados(q) {
 // ===================================================================
 
 function handleCreateInspeccion(payload) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet();
   var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
 
   var newId = payload._id || ('insp_' + Date.now());
@@ -266,7 +280,7 @@ function handleCreateInspeccion(payload) {
 }
 
 function handleSaveFormData(payload) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet();
   var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
   var data = sheet.getDataRange().getValues();
 
@@ -287,7 +301,7 @@ function handleSaveFormData(payload) {
 }
 
 function handleCompleteInspeccion(payload) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet();
   var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
   var data = sheet.getDataRange().getValues();
 
@@ -343,7 +357,7 @@ function handleCompleteInspeccion(payload) {
 }
 
 function handleDeleteInspeccion(payload) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet();
   var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
   var data = sheet.getDataRange().getValues();
 
@@ -357,7 +371,7 @@ function handleDeleteInspeccion(payload) {
 }
 
 function handleUpdatePlanAccion(payload) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet();
   var sheet = getOrCreateSheet(ss, SHEETS.PLAN_ACCION);
   var data = sheet.getDataRange().getValues();
 
@@ -373,7 +387,7 @@ function handleUpdatePlanAccion(payload) {
 }
 
 function handleLogAudit(payload) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet();
   var sheet = getOrCreateSheet(ss, SHEETS.AUDIT_LOG);
   sheet.appendRow([
     'aud_' + Date.now(),
@@ -460,7 +474,7 @@ function sheetToObjects(sheet) {
 // INICIALIZADOR AUTOMÁTICO DE LA BASE DE DATOS (1-CLICK SETUP)
 // ===================================================================
 function setupSpreadsheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet();
 
   // 1. Pestaña Inspecciones
   var sheetInsp = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
@@ -508,6 +522,13 @@ function setupSpreadsheet() {
     sheetUsr.appendRow(['_id', 'email', 'nombre', 'rol', 'activo']);
     sheetUsr.appendRow(['usr_admin', 'admin@duncan.com.ve', 'Administrador General', 'Super Admin', true]);
     formatHeaderRow(sheetUsr);
+  }
+
+  // 6. Pestaña Establecimientos
+  var sheetEst = getOrCreateSheet(ss, SHEETS.ESTABLECIMIENTOS);
+  if (sheetEst.getLastRow() === 0) {
+    sheetEst.appendRow(['_id', 'nombre', 'localidadId', 'localidadNombre', 'tipo', 'empresaId', 'empresaNombre']);
+    formatHeaderRow(sheetEst);
   }
 
   SpreadsheetApp.flush();
