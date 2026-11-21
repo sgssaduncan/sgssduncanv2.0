@@ -563,7 +563,10 @@ export const dbService = {
       ];
       setLocal(SK.INVENTARIO_EPP, list);
     }
-    return list;
+    return (list || []).map(i => ({
+      ...i,
+      stock: Array.isArray(i.stock) ? i.stock : []
+    }));
   },
 
   async addInventarioItem(data: any): Promise<string> {
@@ -595,10 +598,14 @@ export const dbService = {
 
   async getSolicitudesEPP(empleadoId?: string): Promise<SolicitudEPP[]> {
     const list = getLocal<SolicitudEPP>(SK.SOLICITUDES_EPP);
+    const cleanList = (list || []).map(s => ({
+      ...s,
+      items: Array.isArray(s?.items) ? s.items : []
+    }));
     if (empleadoId) {
-      return list.filter(s => s.empleadoId === empleadoId);
+      return cleanList.filter(s => s.empleadoId === empleadoId);
     }
-    return list;
+    return cleanList;
   },
 
   async addSolicitudEPP(data: any): Promise<string> {
@@ -629,10 +636,14 @@ export const dbService = {
 
   async getEntregasEPP(empleadoId?: string): Promise<EntregaEPP[]> {
     const list = getLocal<EntregaEPP>(SK.ENTREGAS_EPP);
+    const cleanList = (list || []).map(e => ({
+      ...e,
+      items: Array.isArray(e?.items) ? e.items : []
+    }));
     if (empleadoId) {
-      return list.filter(e => e.empleadoId === empleadoId);
+      return cleanList.filter(e => e.empleadoId === empleadoId);
     }
-    return list;
+    return cleanList;
   },
 
   async addEntregaEPP(data: any, items: SolicitudEPPItem[]): Promise<string> {

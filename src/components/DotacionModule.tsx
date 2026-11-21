@@ -56,9 +56,9 @@ function DotacionModule() {
                     dbService.getSolicitudesEPP(),
                     dbService.getInventario()
                 ]);
-                const pending = sol.filter(s => s.estado !== 'Recibida' && s.estado !== 'Rechazada').length;
-                const low = inv.filter(i => {
-                    const stockTotal = i.stock.reduce((a, c) => a + c.cantidad, 0);
+                const pending = (sol || []).filter(s => s && s.estado !== 'Recibida' && s.estado !== 'Rechazada').length;
+                const low = (inv || []).filter(i => {
+                    const stockTotal = (i?.stock || []).reduce((a, c) => a + (c?.cantidad || 0), 0);
                     return stockTotal <= 5;
                 }).length;
                 setStats({ pendingReqs: pending, lowStockItems: low });
@@ -171,7 +171,8 @@ function SolicitudesTab() {
         return emp ? `${emp.nombre} - ${emp.cargo}` : 'Desconocido';
     };
 
-    const filteredSolicitudes = solicitudes.filter(sol => {
+    const filteredSolicitudes = (solicitudes || []).filter(sol => {
+        if (!sol) return false;
         // Status filter
         let statusMatch = true;
         if (statusFilter === 'IN_PROGRESS') statusMatch = !['Recibida', 'Rechazada'].includes(sol.estado);
@@ -182,13 +183,14 @@ function SolicitudesTab() {
         let searchMatch = true;
         if (searchTerm.trim() !== '') {
             const empInfo = getEmpleadoInfo(sol.empleadoId).toLowerCase();
-            const cedula = empleados.find(e => e.id === sol.empleadoId)?.cedula || '';
+            const cedula = (empleados || []).find(e => e.id === sol.empleadoId)?.cedula || '';
             const searchLower = searchTerm.toLowerCase();
-            searchMatch = empInfo.includes(searchLower) || sol.id.toLowerCase().includes(searchLower) || cedula.includes(searchLower);
+            const solId = (sol.id || '').toLowerCase();
+            searchMatch = empInfo.includes(searchLower) || solId.includes(searchLower) || cedula.toLowerCase().includes(searchLower);
         }
 
         return statusMatch && searchMatch;
-    }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }).sort((a, b) => new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime());
 
     return (
         <div className="p-6">
@@ -253,10 +255,10 @@ function SolicitudesTab() {
                             </thead>
                             <tbody className="divide-y divide-slate-100 bg-white">
                                 {filteredSolicitudes.map(sol => (
-                                    <tr key={sol.id} className="hover:bg-slate-50 transition-colors">
+                                    <tr key={sol.id || String(Math.random())} className="hover:bg-slate-50 transition-colors">
                                         <td className="px-4 py-3 text-slate-700">{formatDateString(sol.createdAt)}</td>
                                         <td className="px-4 py-3 text-slate-700 font-medium">{getEmpleadoInfo(sol.empleadoId)}</td>
-                                        <td className="px-4 py-3 text-slate-500">{sol.items.length} artículo(s)</td>
+                                        <td className="px-4 py-3 text-slate-500">{(sol.items || []).length} artículo(s)</td>
                                         <td className="px-4 py-3">
                                             <span className={cn(
                                                 "px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
@@ -287,11 +289,11 @@ function SolicitudesTab() {
                     {/* Vista móvil (cards) */}
                     <div className="md:hidden flex flex-col divide-y divide-slate-100">
                         {filteredSolicitudes.map(sol => (
-                            <div key={sol.id} className="p-4 hover:bg-slate-50 transition-colors flex flex-col gap-3">
+                            <div key={sol.id || String(Math.random())} className="p-4 hover:bg-slate-50 transition-colors flex flex-col gap-3">
                                 <div className="flex justify-between items-start">
                                     <div className="flex-1">
                                         <p className="text-sm font-bold text-slate-800">{getEmpleadoInfo(sol.empleadoId)}</p>
-                                        <p className="text-xs text-slate-500">{formatDateString(sol.createdAt)} &middot; {sol.items.length} artículo(s)</p>
+                                        <p className="text-xs text-slate-500">{formatDateString(sol.createdAt)} &middot; {(sol.items || []).length} artículo(s)</p>
                                     </div>
                                     <span className={cn(
                                         "px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ml-3",
@@ -557,8 +559,8 @@ function SolicitudDetalleModal({ solicitud, empleados, inventario, entregas, onC
         doc.text('2.0 DETALLE DE IMPLEMENTOS, PROTECCIONES PERSONALES (E.P.P.) Y UNIFORMES', marginX + 3, currentY + 4.2);
         currentY += 6;
 
-        const itemsRows = solicitud.items.map((it, idx) => {
-            const inv = inventario.find(i => i.id === it.itemId);
+        const itemsRows = (solicitud.items || []).map((it, idx) => {
+            const inv = (inventario || []).find(i => i.id === it.itemId);
             return [
                 `0${idx + 1}`,
                 inv?.codigo || 'S/C',
@@ -566,7 +568,7 @@ function SolicitudDetalleModal({ solicitud, empleados, inventario, entregas, onC
                 (inv?.categoria || 'EPP').toUpperCase(),
                 (inv?.documentoEficacia || 'ESTÁNDAR SST').toUpperCase(),
                 it.talla || 'ÚNICA',
-                String(it.cantidad)
+                String(it.cantidad || 1)
             ];
         });
 
@@ -594,13 +596,13 @@ function SolicitudDetalleModal({ solicitud, empleados, inventario, entregas, onC
                 valign: 'middle'
             },
             columnStyles: {
-                0: { cellWidth: 12, halign: 'center', fontStyle: 'bold' },
+                0: { cellWidth: 10, halign: 'center', fontStyle: 'bold' },
                 1: { cellWidth: 25, fontStyle: 'bold' },
-                2: { cellWidth: 66, halign: 'left' },
-                3: { cellWidth: 22, halign: 'center' },
-                4: { cellWidth: 35, halign: 'left', fontSize: 7 },
+                2: { halign: 'left' },
+                3: { cellWidth: 24, halign: 'center' },
+                4: { cellWidth: 38, halign: 'left', fontSize: 7 },
                 5: { cellWidth: 15, halign: 'center' },
-                6: { cellWidth: 12.9, halign: 'center', fontStyle: 'bold' }
+                6: { cellWidth: 14, halign: 'center', fontStyle: 'bold' }
             },
             head: [['POS', 'CÓDIGO', 'DESCRIPCIÓN DEL MATERIAL / E.P.P.', 'TIPO', 'NORMA / CERT.', 'TALLA', 'CANT']],
             body: itemsRows.length > 0 ? itemsRows : [['01', 'N/A', 'SIN ARTÍCULOS REGISTRADOS', '-', '-', '-', '0']]
@@ -753,8 +755,9 @@ function SolicitudDetalleModal({ solicitud, empleados, inventario, entregas, onC
         doc.text('DOCUMENTO GENERADO POR SISTEMA SGD-DUNCAN - PÁGINA 1 / 1', pageWidth / 2, footerY, { align: 'center' });
         doc.text('GRUPO EMPRESARIAL DUNCAN', pageWidth - marginX, footerY, { align: 'right' });
 
-        const equipoNombre = solicitud.items.length > 0 ? (inventario.find(i => i.id === solicitud.items[0].itemId)?.nombre || 'Equipo') : 'Equipo';
-        const extraEquipos = solicitud.items.length > 1 ? ' y otros' : '';
+        const itemsList = solicitud.items || [];
+        const equipoNombre = itemsList.length > 0 ? ((inventario || []).find(i => i.id === itemsList[0]?.itemId)?.nombre || 'Equipo') : 'Equipo';
+        const extraEquipos = itemsList.length > 1 ? ' y otros' : '';
         const fileName = `Acta_EPP_${equipoNombre}${extraEquipos}_${emp?.nombre || 'Colaborador'}_${formatDateString(solicitud.createdAt).replace(/\//g, '-')}.pdf`
             .replace(/[/\\?%*:|"<>]/g, '-')
             .replace(/\s+/g, '_');
@@ -877,13 +880,13 @@ function SolicitudDetalleModal({ solicitud, empleados, inventario, entregas, onC
 
                 <h3 className="text-sm font-bold text-slate-800 mb-3">Artículos:</h3>
                 <ul className="space-y-3 mb-6">
-                    {solicitud.items.map((it, idx) => {
-                        const inv = inventario.find(i => i.id === it.itemId);
+                    {(solicitud.items || []).map((it, idx) => {
+                        const inv = (inventario || []).find(i => i.id === it.itemId);
                         return (
                             <li key={idx} className="flex justify-between items-center border-b border-slate-100 pb-2">
                                 <div>
                                     <p className="text-sm font-bold text-slate-700">{inv?.nombre || `Artículo Desconocido (${it.itemId})`}</p>
-                                    <p className="text-xs text-slate-500">Categoría: {inv?.categoria} | Talla/Ref: {it.talla}</p>
+                                    <p className="text-xs text-slate-500">Categoría: {inv?.categoria || 'EPP'} | Talla/Ref: {it.talla || 'Única'}</p>
                                 </div>
                                 <div className="text-right">
                                     <p className="text-sm font-bold text-slate-800">{it.cantidad} und</p>
@@ -1032,30 +1035,31 @@ function SolicitudFormModal({ empleados, inventario, onClose, onSave }: { emplea
     const [noSatisfaceProteccionSST, setNoSatisfaceProteccionSST] = useState(false);
 
     // Dynamic detection of lumbar girdle item in active selection
-    const contieneFajaLumbar = items.some(it => {
-        const inv = inventario.find(i => i.id === it.itemId);
+    const contieneFajaLumbar = (items || []).some(it => {
+        const inv = (inventario || []).find(i => i.id === it.itemId);
         if (!inv) return false;
         return inv.esFajaLumbar === true || 
-               inv.nombre.toLowerCase().includes('faja') || 
-               inv.nombre.toLowerCase().includes('lumbar');
+               (inv.nombre || '').toLowerCase().includes('faja') || 
+               (inv.nombre || '').toLowerCase().includes('lumbar');
     });
 
     const addItem = () => {
-        setItems([...items, {itemId: '', cantidad: 1, talla: ''}]);
+        setItems([...(items || []), {itemId: '', cantidad: 1, talla: ''}]);
     };
 
     const removeItem = (idx: number) => {
-        setItems(items.filter((_, i) => i !== idx));
+        setItems((items || []).filter((_, i) => i !== idx));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!empleadoId || items.length === 0) {
+        const itemsList = items || [];
+        if (!empleadoId || itemsList.length === 0) {
             toast.error("Debe seleccionar un empleado y agregar al menos un artículo");
             return;
         }
 
-        const itemsValid = items.every(i => i.itemId && i.talla && i.cantidad > 0);
+        const itemsValid = itemsList.every(i => i.itemId && i.talla && i.cantidad > 0);
         if (!itemsValid) {
             toast.error("Complete todos los campos de los artículos");
             return;
@@ -1083,9 +1087,9 @@ function SolicitudFormModal({ empleados, inventario, onClose, onSave }: { emplea
             return;
         }
 
-        const outOfStockItems = items.some(it => {
-            const inv = inventario.find(i => i.id === it.itemId);
-            const stockItem = inv?.stock.find(s => s.talla === it.talla);
+        const outOfStockItems = itemsList.some(it => {
+            const inv = (inventario || []).find(i => i.id === it.itemId);
+            const stockItem = (inv?.stock || []).find(s => s.talla === it.talla);
             return stockItem && it.cantidad > stockItem.cantidad;
         });
 
@@ -1303,7 +1307,7 @@ function SolicitudFormModal({ empleados, inventario, onClose, onSave }: { emplea
                                                     required
                                                 >
                                                     <option value="">Talla...</option>
-                                                    {selectedInv?.stock.map(s => (
+                                                    {(selectedInv?.stock || []).map(s => (
                                                         <option key={s.talla} value={s.talla}>{s.talla} (Disp: {s.cantidad})</option>
                                                     ))}
                                                 </select>
@@ -1316,7 +1320,7 @@ function SolicitudFormModal({ empleados, inventario, onClose, onSave }: { emplea
                                                     }}
                                                     className={cn(
                                                         "w-full border rounded p-2 text-sm",
-                                                        (selectedInv?.stock.find(s => s.talla === it.talla)?.cantidad ?? 0) < it.cantidad ? "border-red-400 bg-red-50 text-red-700" : "border-slate-300"
+                                                        ((selectedInv?.stock || []).find(s => s.talla === it.talla)?.cantidad ?? 0) < it.cantidad ? "border-red-400 bg-red-50 text-red-700" : "border-slate-300"
                                                     )}
                                                     placeholder="Cant."
                                                     required
@@ -1326,8 +1330,8 @@ function SolicitudFormModal({ empleados, inventario, onClose, onSave }: { emplea
                                                 <XCircle size={20} />
                                             </button>
                                         </div>
-                                        {it.talla && (selectedInv?.stock.find(s => s.talla === it.talla)?.cantidad ?? 0) < it.cantidad && (
-                                            <p className="text-xs text-red-500 font-medium">⚠️ La cantidad supera el stock disponible ({selectedInv?.stock.find(s => s.talla === it.talla)?.cantidad}). Se requerirá reabastecimiento.</p>
+                                        {it.talla && ((selectedInv?.stock || []).find(s => s.talla === it.talla)?.cantidad ?? 0) < it.cantidad && (
+                                            <p className="text-xs text-red-500 font-medium">⚠️ La cantidad supera el stock disponible ({((selectedInv?.stock || []).find(s => s.talla === it.talla)?.cantidad ?? 0)}). Se requerirá reabastecimiento.</p>
                                         )}
                                     </div>
                                 );
@@ -1377,12 +1381,13 @@ function InventarioTab() {
         await loadInventario();
     };
 
-    const filteredItems = items.filter(item => {
+    const filteredItems = (items || []).filter(item => {
+        if (!item) return false;
         if (!searchTerm) return true;
         const searchLower = searchTerm.toLowerCase();
-        return item.nombre.toLowerCase().includes(searchLower) || 
-               item.codigo.toLowerCase().includes(searchLower) || 
-               item.categoria.toLowerCase().includes(searchLower);
+        return (item.nombre || '').toLowerCase().includes(searchLower) || 
+               (item.codigo || '').toLowerCase().includes(searchLower) || 
+               (item.categoria || '').toLowerCase().includes(searchLower);
     });
 
     return (
@@ -1426,7 +1431,7 @@ function InventarioTab() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredItems.map(item => {
-                        const totalStock = item.stock.reduce((acc, curr) => acc + curr.cantidad, 0);
+                        const totalStock = (item?.stock || []).reduce((acc, curr) => acc + (curr?.cantidad || 0), 0);
                         return (
                             <div key={item.id} className="border border-slate-200 rounded-xl p-4 flex flex-col hover:border-duncan-blue transition-colors bg-white">
                                 <div className="flex justify-between items-start mb-4">
@@ -1490,7 +1495,7 @@ function InventarioFormModal({ item, onClose, onSave }: { item: InventarioItem |
     const [categoria, setCategoria] = useState<import('../types').CategoriaInventario>(item?.categoria || 'EPP');
     const [descripcion, setDescripcion] = useState(item?.descripcion || '');
     const [fotoUrl, setFotoUrl] = useState(item?.fotoUrl || '');
-    const [stk, setStk] = useState<{talla: string, cantidad: number}[]>(item?.stock && item.stock.length > 0 ? item.stock : [{talla: 'UNICA', cantidad: 0}]);
+    const [stk, setStk] = useState<{talla: string, cantidad: number}[]>(item?.stock && Array.isArray(item.stock) && item.stock.length > 0 ? item.stock : [{talla: 'UNICA', cantidad: 0}]);
     const [saving, setSaving] = useState(false);
 
     // Venezuelan SST Compliance State Properties (LOPCYMAT & NT-03-2016)
@@ -1923,8 +1928,8 @@ function ReportesDotacionTab() {
         const rows = [
             ["ID ARTICULO", "NOMBRE", "CATEGORIA", "STOCK DISPONIBLE"],
         ];
-        inventario.forEach(inv => {
-            const stockTotal = inv.stock.reduce((a, c) => a + c.cantidad, 0);
+        (inventario || []).forEach(inv => {
+            const stockTotal = (inv?.stock || []).reduce((a, c) => a + (c?.cantidad || 0), 0);
             rows.push([
                 inv.codigo,
                 `"${inv.nombre}"`,
@@ -2009,9 +2014,9 @@ function ReportesDotacionTab() {
 
             currentY += 27;
 
-            const entregadasList = solicitudes.filter(s => s.estado === 'Recibida');
+            const entregadasList = (solicitudes || []).filter(s => s && s.estado === 'Recibida');
             const totalEntregadasCount = entregadasList.length;
-            const itemsEntregadosCount = entregadasList.reduce((acc, curr) => acc + curr.items.reduce((a, c) => a + c.cantidad, 0), 0);
+            const itemsEntregadosCount = entregadasList.reduce((acc, curr) => acc + (curr?.items || []).reduce((a, c) => a + (c?.cantidad || 0), 0), 0);
 
             // SECCIÓN 1.0 RESUMEN EJECUTIVO
             doc.setFillColor(0, 75, 147);
@@ -2043,7 +2048,7 @@ function ReportesDotacionTab() {
                 },
                 head: [['SOLICITUDES PROCESADAS', 'SOLICITUDES ENTREGADAS', 'ARTÍCULOS SUMINISTRADOS']],
                 body: [[
-                    { content: String(solicitudes.length), styles: { fontStyle: 'bold', fontSize: 12, textColor: [0, 0, 0] } },
+                    { content: String((solicitudes || []).length), styles: { fontStyle: 'bold', fontSize: 12, textColor: [0, 0, 0] } },
                     { content: String(totalEntregadasCount), styles: { fontStyle: 'bold', fontSize: 12, textColor: [22, 101, 52] } },
                     { content: String(itemsEntregadosCount), styles: { fontStyle: 'bold', fontSize: 12, textColor: [30, 64, 175] } }
                 ]]
@@ -2060,9 +2065,9 @@ function ReportesDotacionTab() {
             doc.text('2.0 DISPONIBILIDAD DE MATERIALES Y RECURSOS SST / E.P.P.', marginX + 3, currentY + 4.2);
             currentY += 6;
 
-            const invRows = inventario.map(inv => {
-                const stockTotal = inv.stock.reduce((a, c) => a + c.cantidad, 0);
-                const tallasDetalle = inv.stock.map(s => `${s.talla}: ${s.cantidad}`).join(' | ');
+            const invRows = (inventario || []).map(inv => {
+                const stockTotal = (inv?.stock || []).reduce((a, c) => a + (c?.cantidad || 0), 0);
+                const tallasDetalle = (inv?.stock || []).map(s => `${s?.talla || ''}: ${s?.cantidad || 0}`).join(' | ');
                 return [
                     inv.codigo || '—',
                     String(inv.nombre || '').toUpperCase(),
@@ -2156,9 +2161,9 @@ function ReportesDotacionTab() {
 
     if (loading) return <div className="p-8 text-center"><div className="w-8 h-8 border-4 border-duncan-blue border-t-transparent rounded-full animate-spin mx-auto"/></div>;
 
-    const entregadas = solicitudes.filter(s => s.estado === 'Recibida');
+    const entregadas = (solicitudes || []).filter(s => s && s.estado === 'Recibida');
     const totalEntregadas = entregadas.length;
-    const itemsEntregados = entregadas.reduce((acc, curr) => acc + curr.items.reduce((a, c) => a + c.cantidad, 0), 0);
+    const itemsEntregados = entregadas.reduce((acc, curr) => acc + (curr?.items || []).reduce((a, c) => a + (c?.cantidad || 0), 0), 0);
 
     return (
         <div className="p-6">
@@ -2232,8 +2237,8 @@ function ReportesDotacionTab() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {inventario.map(inv => {
-                                const stockTotal = inv.stock.reduce((a, c) => a + c.cantidad, 0);
+                            {(inventario || []).map(inv => {
+                                const stockTotal = (inv?.stock || []).reduce((a, c) => a + (c?.cantidad || 0), 0);
                                 return (
                                     <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
                                         <td className="px-6 py-4 font-mono text-xs text-slate-500">{inv.codigo}</td>
@@ -2262,8 +2267,8 @@ function ReportesDotacionTab() {
 
                 {/* Mobile View */}
                 <div className="md:hidden flex flex-col divide-y divide-slate-100">
-                    {inventario.map(inv => {
-                        const stockTotal = inv.stock.reduce((a, c) => a + c.cantidad, 0);
+                    {(inventario || []).map(inv => {
+                        const stockTotal = (inv?.stock || []).reduce((a, c) => a + (c?.cantidad || 0), 0);
                         return (
                             <div key={inv.id} className="p-4 hover:bg-slate-50 flex flex-col gap-2">
                                 <div className="flex justify-between items-start">
