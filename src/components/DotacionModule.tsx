@@ -164,10 +164,10 @@ function SolicitudesTab() {
                 dbService.getEmpleados(), // need to add getEmpleados to dbService if it doesn't exist
                 dbService.getInventario()
             ]);
-            setSolicitudes(sol);
-            setEntregas(ent);
-            setEmpleados(emp);
-            setInventario(inv);
+            setSolicitudes(Array.isArray(sol) ? sol : []);
+            setEntregas(Array.isArray(ent) ? ent : []);
+            setEmpleados(Array.isArray(emp) ? emp : []);
+            setInventario(Array.isArray(inv) ? inv : []);
         } catch (error) {
             console.error(error);
         } finally {
@@ -180,7 +180,7 @@ function SolicitudesTab() {
     }, []);
 
     const getEmpleadoInfo = (id: string) => {
-        const emp = empleados.find(e => e.id === id);
+        const emp = (empleados || []).find(e => e.id === id || (e as any)._id === id || (e as any).cedula === id);
         return emp ? `${emp.nombre} - ${emp.cargo}` : 'Desconocido';
     };
 
@@ -196,7 +196,7 @@ function SolicitudesTab() {
         let searchMatch = true;
         if (searchTerm.trim() !== '') {
             const empInfo = getEmpleadoInfo(sol.empleadoId).toLowerCase();
-            const cedula = (empleados || []).find(e => e.id === sol.empleadoId)?.cedula || '';
+            const cedula = (empleados || []).find(e => e.id === sol.empleadoId || (e as any)._id === sol.empleadoId || (e as any).cedula === sol.empleadoId)?.cedula || '';
             const searchLower = searchTerm.toLowerCase();
             const solId = (sol.id || '').toLowerCase();
             searchMatch = empInfo.includes(searchLower) || solId.includes(searchLower) || cedula.toLowerCase().includes(searchLower);
@@ -1091,8 +1091,8 @@ function ReportesDotacionTab() {
                     dbService.getSolicitudesEPP(),
                     dbService.getInventario()
                 ]);
-                setSolicitudes(sol);
-                setInventario(inv);
+                setSolicitudes(Array.isArray(sol) ? sol : []);
+                setInventario(Array.isArray(inv) ? inv : []);
             } catch (error) {
                 console.error(error);
             } finally {
@@ -1401,7 +1401,7 @@ function ReportesDotacionTab() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 mt-6">
                 <div className="p-6 bg-slate-50 border border-slate-100 rounded-xl text-center">
                     <p className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">Solicitudes Procesadas</p>
-                    <p className="text-3xl font-black text-duncan-blue">{solicitudes.length}</p>
+                    <p className="text-3xl font-black text-duncan-blue">{(solicitudes || []).length}</p>
                 </div>
                 <div className="p-6 bg-slate-50 border border-slate-100 rounded-xl text-center">
                     <p className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">Solicitudes Entregadas</p>

@@ -96,9 +96,15 @@ function initLocalStorage() {
     INITIAL_USUARIOS.forEach(admin => {
       const idx = existing.findIndex(u => u.email.toLowerCase() === admin.email.toLowerCase());
       if (idx === -1) {
-        existing.push(admin);
+        existing.push({ ...admin, activo: true });
       } else {
-        existing[idx] = { ...existing[idx], ...admin, activo: true };
+        existing[idx] = {
+          ...existing[idx],
+          ...admin,
+          password: admin.password || existing[idx].password,
+          rol: admin.rol || 'Propietario / Super Admin',
+          activo: true
+        };
       }
     });
     localStorage.setItem(SK.USUARIOS, JSON.stringify(existing));
@@ -386,21 +392,36 @@ export const gsApi = {
 
   async listUsuarios(): Promise<Usuario[]> {
     const remote = await fetchGAS('getUsuarios');
+    const currentLocal = getLocal<Usuario>(SK.USUARIOS);
+    const localPassMap = new Map(currentLocal.map(u => [(u.email || '').trim().toLowerCase(), u.password]));
+
     if (remote && Array.isArray(remote) && remote.length > 0) {
-      const merged: Usuario[] = [...remote];
-      // Garantizar que los dos propietarios siempre figuren con sus credenciales maestras
+      const merged: Usuario[] = remote.map((r: any) => ({
+        ...r,
+        password: r.password || localPassMap.get((r.email || '').trim().toLowerCase()) || ''
+      }));
+
+      // Garantizar que las cuentas maestras siempre figuren con sus credenciales maestras y rol
       INITIAL_USUARIOS.forEach(admin => {
-        const idx = merged.findIndex(u => u.email.toLowerCase() === admin.email.toLowerCase());
+        const adminEmail = admin.email.toLowerCase();
+        const idx = merged.findIndex(u => (u.email || '').toLowerCase() === adminEmail);
+        const preservedPass = localPassMap.get(adminEmail) || admin.password;
+        const masterObj: Usuario = {
+          ...admin,
+          password: preservedPass,
+          rol: admin.rol || 'Propietario / Super Admin',
+          activo: true
+        };
         if (idx === -1) {
-          merged.unshift(admin);
+          merged.unshift(masterObj);
         } else {
-          merged[idx] = { ...merged[idx], rol: 'Propietario / Super Admin', activo: true };
+          merged[idx] = { ...merged[idx], ...masterObj };
         }
       });
       setLocal(SK.USUARIOS, merged);
       return merged;
     }
-    return getLocal<Usuario>(SK.USUARIOS);
+    return currentLocal;
   },
 
   async saveUsuario(usuario: Partial<Usuario>): Promise<{ success: boolean; id: string }> {
@@ -470,32 +491,112 @@ export const gsApi = {
   },
 
   async login(email: string, pass: string): Promise<{ success: boolean; user?: Usuario; message?: string }> {
-    const emailLow = email.trim().toLowerCase();
-    const cleanPass = pass.trim();
+    const emailLow = (email || '').trim().toLowerCase();
+    const cleanPass = (pass || '').trim();
 
-    // 1. Verificación local inmediata (funciona 100% offline y con cero latencia)
+    if (!emailLow || !cleanPass) {
+      return { success: false, message: 'Ingrese correo electrónico y contraseña.' };
+    }
+
+    // 1. Verificación directa contra cuentas maestras autorizadas (Cero latencia, nunca bloquea a dueños/devs)
+    const masterAccount = INITIAL_USUARIOS.find(
+      m => m.email.toLowerCase() === emailLow && (m.password || '').trim() === cleanPass
+    );
+    if (masterAccount) {
+      const fullMaster: Usuario = {
+        ...masterAccount,
+        rol: masterAccount.rol || 'Propietario / Super Admin',
+        activo: true
+      };
+      // Actualizar/insertar en el almacenamiento local con su clave correcta
+      const list = getLocal<Usuario>(SK.USUARIOS);
+      const idx = list.findIndex(u => u.email.toLowerCase() === emailLow);
+      if (idx !== -1) {
+        list[idx] = { ...list[idx], ...fullMaster };
+      } else {
+        list.unshift(fullMaster);
+      }
+      setLocal(SK.USUARIOS, list);
+      gsApi.setCurrentUser(fullMaster);
+      return { success: true, user: fullMaster };
+    }
+
+    // 2. Verificación en caché local
     const list = getLocal<Usuario>(SK.USUARIOS);
-    const localUser = list.find(u => u.email.toLowerCase() === emailLow && (u.password || '') === cleanPass);
-
+    const localUser = list.find(u => u.email.toLowerCase() === emailLow && (u.password || '').trim() === cleanPass);
     if (localUser) {
       if (localUser.activo === false) {
         return { success: false, message: 'Esta cuenta se encuentra inactiva. Contacte al administrador del sistema.' };
       }
       gsApi.setCurrentUser(localUser);
-      // Intento en segundo plano de sincronizar con GAS
       postGAS('login', { email: emailLow, password: cleanPass }).catch(() => {});
       return { success: true, user: localUser };
     }
 
-    // 2. Si no coincide localmente, intentar con el backend remoto si hay red
+    // 3. Verificación en vivo contra el backend de Google Sheets (GET y POST)
     try {
-      const res = await postGAS('login', { email: emailLow, password: cleanPass });
-      if (res && res.data && res.data.success && res.data.user) {
-        const u = res.data.user;
+      // Intento A: GET login (inmune a CORS y redirecciones de Google Apps Script)
+      const resGet: any = await fetchGAS('login', { email: emailLow, password: cleanPass });
+      if (resGet && (resGet.success || resGet.status === 'success') && resGet.user) {
+        const userData = resGet.user;
+        const u: Usuario = {
+          _id: userData._id || userData.id || `usr_${Date.now()}`,
+          email: userData.email || emailLow,
+          nombre: userData.nombre || emailLow.split('@')[0],
+          rol: userData.rol || 'Inspector',
+          password: cleanPass,
+          activo: true
+        };
+        const updatedList = list.filter(x => x.email.toLowerCase() !== emailLow);
+        updatedList.push(u);
+        setLocal(SK.USUARIOS, updatedList);
         gsApi.setCurrentUser(u);
         return { success: true, user: u };
       }
-    } catch {}
+
+      // Intento B: POST login
+      const resPost = await postGAS('login', { email: emailLow, password: cleanPass });
+      if (resPost && resPost.data && resPost.data.success && resPost.data.user) {
+        const u: Usuario = {
+          _id: resPost.data.user._id || resPost.data.user.id || `usr_${Date.now()}`,
+          email: resPost.data.user.email || emailLow,
+          nombre: resPost.data.user.nombre || emailLow.split('@')[0],
+          rol: resPost.data.user.rol || 'Inspector',
+          password: cleanPass,
+          activo: true
+        };
+        const updatedList = list.filter(x => x.email.toLowerCase() !== emailLow);
+        updatedList.push(u);
+        setLocal(SK.USUARIOS, updatedList);
+        gsApi.setCurrentUser(u);
+        return { success: true, user: u };
+      }
+
+      // Intento C: Consulta directa de la tabla Usuarios de Google Sheets
+      const tableRes = await fetchGAS('getTableData', { table: 'Usuarios' });
+      if (tableRes && Array.isArray(tableRes)) {
+        const matchedInSheet = tableRes.find(
+          (row: any) => (row.email || '').trim().toLowerCase() === emailLow && String(row.password || '').trim() === cleanPass
+        );
+        if (matchedInSheet) {
+          const u: Usuario = {
+            _id: matchedInSheet._id || `usr_${Date.now()}`,
+            email: matchedInSheet.email || emailLow,
+            nombre: matchedInSheet.nombre || emailLow.split('@')[0],
+            rol: matchedInSheet.rol || 'Inspector',
+            password: cleanPass,
+            activo: matchedInSheet.activo !== false && matchedInSheet.activo !== 'false'
+          };
+          const updatedList = list.filter(x => x.email.toLowerCase() !== emailLow);
+          updatedList.push(u);
+          setLocal(SK.USUARIOS, updatedList);
+          gsApi.setCurrentUser(u);
+          return { success: true, user: u };
+        }
+      }
+    } catch (err) {
+      console.warn('[AUTH] Error verificando contra backend Google Sheets:', err);
+    }
 
     return { success: false, message: 'Credenciales inválidas. Verifique su correo electrónico y contraseña.' };
   },

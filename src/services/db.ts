@@ -825,10 +825,27 @@ export const dbService = {
 
   async getSolicitudesEPP(empleadoId?: string): Promise<SolicitudEPP[]> {
     const list = getLocal<SolicitudEPP>(SK.SOLICITUDES_EPP);
-    const cleanList = (list || []).map(s => ({
-      ...s,
-      items: Array.isArray(s?.items) ? s.items : []
-    }));
+    const cleanList = (list || []).filter(Boolean).map(s => {
+      let itemsList: any[] = [];
+      const rawItems = (s as any)?.items;
+      if (Array.isArray(rawItems)) {
+        itemsList = rawItems;
+      } else if (typeof rawItems === 'string' && rawItems.trim()) {
+        try {
+          const parsed = JSON.parse(rawItems);
+          itemsList = Array.isArray(parsed) ? parsed : [];
+        } catch {
+          itemsList = [];
+        }
+      }
+      return {
+        ...s,
+        id: s.id || `sol_${Math.random().toString(36).substring(2, 9)}`,
+        estado: s.estado || 'Solicitada',
+        createdAt: s.createdAt || s.fechaSolicitud || new Date().toISOString(),
+        items: itemsList
+      };
+    });
     if (empleadoId) {
       return cleanList.filter(s => s.empleadoId === empleadoId);
     }
@@ -863,10 +880,25 @@ export const dbService = {
 
   async getEntregasEPP(empleadoId?: string): Promise<EntregaEPP[]> {
     const list = getLocal<EntregaEPP>(SK.ENTREGAS_EPP);
-    const cleanList = (list || []).map(e => ({
-      ...e,
-      items: Array.isArray(e?.items) ? e.items : []
-    }));
+    const cleanList = (list || []).filter(Boolean).map(e => {
+      let itemsList: any[] = [];
+      const rawItems = (e as any)?.items;
+      if (Array.isArray(rawItems)) {
+        itemsList = rawItems;
+      } else if (typeof rawItems === 'string' && rawItems.trim()) {
+        try {
+          const parsed = JSON.parse(rawItems);
+          itemsList = Array.isArray(parsed) ? parsed : [];
+        } catch {
+          itemsList = [];
+        }
+      }
+      return {
+        ...e,
+        id: e.id || `ent_${Math.random().toString(36).substring(2, 9)}`,
+        items: itemsList
+      };
+    });
     if (empleadoId) {
       return cleanList.filter(e => e.empleadoId === empleadoId);
     }

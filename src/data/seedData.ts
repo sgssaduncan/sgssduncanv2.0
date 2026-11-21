@@ -101,6 +101,14 @@ export const INITIAL_TIPOS_INSPECCION: TipoInspeccion[] = [
 
 export const INITIAL_USUARIOS: Usuario[] = [
   {
+    _id: 'usr_admin_duncan',
+    email: 'admin@duncan.com.ve',
+    nombre: 'Administrador Duncan Master',
+    rol: 'Propietario / Super Admin',
+    password: 'Duncan2026*',
+    activo: true,
+  },
+  {
     _id: 'usr_admin_becerra',
     email: 'aabecerra852@gmail.com',
     nombre: 'A. Becerra (Administrador del Sistema)',

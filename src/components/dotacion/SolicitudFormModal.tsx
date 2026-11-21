@@ -34,6 +34,145 @@ interface SolicitudFormModalProps {
   onSave: () => void;
 }
 
+
+export const QUICK_SIZES_MAP: Record<string, { value: string; label: string }[]> = {
+  CALZADO: [
+    { value: '35', label: '35' },
+    { value: '36', label: '36' },
+    { value: '37', label: '37' },
+    { value: '38', label: '38' },
+    { value: '39', label: '39' },
+    { value: '40', label: '40' },
+    { value: '41', label: '41' },
+    { value: '42', label: '42' },
+    { value: '43', label: '43' },
+    { value: '44', label: '44' },
+    { value: '45', label: '45' },
+    { value: '46', label: '46' },
+    { value: '47', label: '47' },
+    { value: '48', label: '48' },
+  ],
+  GUANTES: [
+    { value: '7 (S - Pequeño)', label: '7 (S)' },
+    { value: '8 (M - Mediano)', label: '8 (M)' },
+    { value: '9 (L - Grande)', label: '9 (L)' },
+    { value: '10 (XL - Extra Grande)', label: '10 (XL)' },
+    { value: '11 (XXL - Doble Grande)', label: '11 (XXL)' },
+    { value: 'S', label: 'S' },
+    { value: 'M', label: 'M' },
+    { value: 'L', label: 'L' },
+    { value: 'XL', label: 'XL' },
+  ],
+  PANTALON_DAMAS: [
+    { value: '02 (Dama)', label: '02' },
+    { value: '04 (Dama)', label: '04' },
+    { value: '06 (Dama)', label: '06' },
+    { value: '08 (Dama)', label: '08' },
+    { value: '10 (Dama)', label: '10' },
+    { value: '12 (Dama)', label: '12' },
+    { value: '14 (Dama)', label: '14' },
+    { value: '16 (Dama)', label: '16' },
+    { value: '18 (Dama)', label: '18' },
+    { value: '20 (Dama)', label: '20' },
+  ],
+  PANTALON_CABALLEROS: [
+    { value: '28 (Caballero)', label: '28' },
+    { value: '30 (Caballero)', label: '30' },
+    { value: '32 (Caballero)', label: '32' },
+    { value: '34 (Caballero)', label: '34' },
+    { value: '36 (Caballero)', label: '36' },
+    { value: '38 (Caballero)', label: '38' },
+    { value: '40 (Caballero)', label: '40' },
+    { value: '42 (Caballero)', label: '42' },
+    { value: '44 (Caballero)', label: '44' },
+    { value: '46 (Caballero)', label: '46' },
+    { value: '48 (Caballero)', label: '48' },
+    { value: '50 (Caballero)', label: '50' },
+  ],
+  CAMISAS: [
+    { value: 'S', label: 'S' },
+    { value: 'M', label: 'M' },
+    { value: 'L', label: 'L' },
+    { value: 'XL', label: 'XL' },
+    { value: 'XXL', label: 'XXL (2XL)' },
+    { value: '3XL', label: '3XL' },
+    { value: '4XL', label: '4XL' },
+  ],
+  FRANELAS: [
+    { value: 'S', label: 'S' },
+    { value: 'M', label: 'M' },
+    { value: 'L', label: 'L' },
+    { value: 'XL', label: 'XL' },
+    { value: 'XXL', label: 'XXL' },
+    { value: '3XL', label: '3XL' },
+  ],
+  CHEMISES: [
+    { value: 'S', label: 'S' },
+    { value: 'M', label: 'M' },
+    { value: 'L', label: 'L' },
+    { value: 'XL', label: 'XL' },
+    { value: 'XXL', label: 'XXL' },
+    { value: '3XL', label: '3XL' },
+    { value: '4XL', label: '4XL' },
+  ],
+  CHALECOS: [
+    { value: 'S', label: 'S' },
+    { value: 'M', label: 'M' },
+    { value: 'L', label: 'L' },
+    { value: 'XL', label: 'XL' },
+    { value: 'XXL', label: 'XXL' },
+    { value: '3XL', label: '3XL' },
+    { value: 'ÚNICA / AJUSTABLE', label: 'Ajustable' },
+  ],
+  CHAQUETAS: [
+    { value: 'S', label: 'S' },
+    { value: 'M', label: 'M' },
+    { value: 'L', label: 'L' },
+    { value: 'XL', label: 'XL' },
+    { value: 'XXL', label: 'XXL' },
+    { value: '3XL', label: '3XL' },
+  ],
+  BRAGAS: [
+    { value: '36', label: '36' },
+    { value: '38', label: '38' },
+    { value: '40', label: '40' },
+    { value: '42', label: '42' },
+    { value: '44', label: '44' },
+    { value: '46', label: '46' },
+    { value: '48', label: '48' },
+  ],
+  FAJAS_LUMBARES: [
+    { value: 'S (28-32)', label: 'S (28-32)' },
+    { value: 'M (32-36)', label: 'M (32-36)' },
+    { value: 'L (36-40)', label: 'L (36-40)' },
+    { value: 'XL (40-44)', label: 'XL (40-44)' },
+    { value: 'XXL (44-48)', label: 'XXL (44-48)' },
+  ],
+  RESPIRADORES: [
+    { value: 'S (Pequeño)', label: 'S' },
+    { value: 'M (Mediano)', label: 'M' },
+    { value: 'L (Grande)', label: 'L' },
+  ]
+};
+
+export const getDefaultSizeForType = (tipo?: string | null): string => {
+  switch (tipo) {
+    case 'CALZADO': return '41';
+    case 'GUANTES': return '9 (L - Grande)';
+    case 'PANTALON_DAMAS': return '08 (Dama)';
+    case 'PANTALON_CABALLEROS': return '34 (Caballero)';
+    case 'CAMISAS':
+    case 'FRANELAS':
+    case 'CHEMISES':
+    case 'CHALECOS':
+    case 'CHAQUETAS': return 'L';
+    case 'BRAGAS': return '40';
+    case 'FAJAS_LUMBARES': return 'L (36-40)';
+    case 'RESPIRADORES': return 'M (Mediano)';
+    default: return 'N/A';
+  }
+};
+
 export default function SolicitudFormModal({
   empleados,
   inventario,
@@ -110,12 +249,16 @@ export default function SolicitudFormModal({
   const handleItemChange = (idx: number, newItemId: string) => {
     const inv = (inventario || []).find(i => i.id === newItemId);
     const necesita = requiereTalla(inv);
-    const sugerida = necesita ? obtenerTallaSugerida(inv, selectedEmpleado) : 'N/A';
+    const tipo = detectarTipoImplemento(inv?.nombre || '', inv?.categoria || '', selectedEmpleado?.genero);
+    let sugerida = necesita ? obtenerTallaSugerida(inv, selectedEmpleado) : 'N/A';
+    if (necesita && (!sugerida || sugerida.trim() === '')) {
+      sugerida = getDefaultSizeForType(tipo);
+    }
     const newItems = [...items];
     newItems[idx] = {
       ...newItems[idx],
       itemId: newItemId,
-      talla: sugerida || (necesita ? '' : 'N/A'),
+      talla: sugerida || (necesita ? getDefaultSizeForType(tipo) : 'N/A'),
       esCustom: false
     };
     setItems(newItems);
@@ -141,16 +284,9 @@ export default function SolicitudFormModal({
       return;
     }
 
-    const itemsValid = itemsList.every(i => {
-      if (!i.itemId || i.cantidad <= 0) return false;
-      const inv = (inventario || []).find(x => x.id === i.itemId);
-      const necesita = requiereTalla(inv);
-      if (!necesita) return true;
-      return (i.talla || '').trim() !== '';
-    });
-
+    const itemsValid = itemsList.every(i => i.itemId && i.cantidad > 0);
     if (!itemsValid) {
-      toast.error('Complete todos los campos requeridos (artículo, talla en implementos que la requieran, y cantidad mayor a cero).');
+      toast.error('Complete todos los campos requeridos (seleccione el artículo y una cantidad mayor a cero).');
       return;
     }
 
@@ -577,7 +713,6 @@ export default function SolicitudFormModal({
                                 "w-full border rounded-lg p-2 text-xs font-semibold outline-none bg-white",
                                 !it.talla ? "border-amber-300 text-amber-800" : "border-slate-300 text-slate-900 focus:border-duncan-blue"
                               )}
-                              required
                             >
                               <option value="">
                                 {`Seleccione Talla (${opcionesTallas.length} opciones)...`}
@@ -602,7 +737,6 @@ export default function SolicitudFormModal({
                                 }}
                                 className="w-full border border-duncan-blue rounded-lg p-2 text-xs bg-white font-bold uppercase outline-none"
                                 placeholder="Escriba talla..."
-                                required
                               />
                               <button
                                 type="button"
@@ -742,6 +876,74 @@ export default function SolicitudFormModal({
                                   👕 Talla Trabajador: {selectedEmpleado.tallaCamisa} {it.talla === selectedEmpleado.tallaCamisa ? '✓' : '(Asignar)'}
                                 </button>
                               )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* One-click Interactive Quick Size Pills */}
+                      {selectedInv && (
+                        <div className="pt-2 border-t border-slate-200">
+                          {necesitaTalla ? (
+                            <div>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-[10px] font-bold text-slate-700 flex items-center gap-1">
+                                  <span>⚡ Botones de Talla Rápida:</span>
+                                  <span className="text-duncan-blue font-semibold">({tipoDetectado || 'Estándar'})</span>
+                                </span>
+                                {it.talla && (
+                                  <span className="text-[9.5px] font-bold text-duncan-blue bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                                    Talla Activa: {it.talla}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap gap-1.5 items-center">
+                                {(QUICK_SIZES_MAP[tipoDetectado || ''] || []).map(q => {
+                                  const isSelected = it.talla === q.value || (it.talla && it.talla.startsWith(q.value));
+                                  return (
+                                    <button
+                                      key={q.value}
+                                      type="button"
+                                      onClick={() => {
+                                        const n = [...items];
+                                        n[idx].talla = q.value;
+                                        n[idx].esCustom = false;
+                                        setItems(n);
+                                      }}
+                                      className={cn(
+                                        "px-2.5 py-1 rounded-md text-xs font-bold transition-all border shadow-2xs cursor-pointer",
+                                        isSelected
+                                          ? "bg-duncan-blue text-white border-blue-800 ring-2 ring-blue-300 scale-105"
+                                          : "bg-white hover:bg-slate-100 text-slate-700 border-slate-300 hover:border-slate-400"
+                                      )}
+                                    >
+                                      {q.label}
+                                    </button>
+                                  );
+                                })}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const n = [...items];
+                                    n[idx].talla = 'N/A';
+                                    n[idx].esCustom = false;
+                                    setItems(n);
+                                  }}
+                                  className={cn(
+                                    "px-2 py-1 rounded-md text-[10.5px] font-semibold transition-all border cursor-pointer",
+                                    it.talla === 'N/A'
+                                      ? "bg-slate-700 text-white border-slate-800"
+                                      : "bg-slate-50 hover:bg-slate-100 text-slate-500 border-slate-200"
+                                  )}
+                                >
+                                  Talla Única (N/A)
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg p-2 text-xs">
+                              <span className="font-bold text-[11px]">✓ Equipo de Medida Universal / Ajustable</span>
+                              <span className="text-[10px] text-emerald-700">(No requiere selección obligatoria de talla)</span>
                             </div>
                           )}
                         </div>

@@ -101,6 +101,10 @@ function doGet(e) {
         responseData = handleGetUsuarios();
         break;
 
+      case 'login':
+        responseData = handleLogin(params);
+        break;
+
       case 'getTableData':
         responseData = handleGetTableData(params.table);
         break;
@@ -187,17 +191,6 @@ function doPost(e) {
       default:
         result = { status: 'error', message: 'Acción POST desconocida: ' + action };
     }
-
-    return ContentService
-      .createTextOutput(JSON.stringify({ status: 'success', data: result }))
-      .setMimeType(ContentService.MimeType.JSON);
-
-  } catch (err) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ status: 'error', message: err.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-}
 
     return ContentService
       .createTextOutput(JSON.stringify({ status: 'success', data: result }))
@@ -402,6 +395,18 @@ function handleLogin(payload) {
   }
 
   // Fallback seguro de credenciales maestras autorizadas
+  if (email === 'aabecerra852@gmail.com' && password === 'Panelas369*') {
+    return {
+      success: true,
+      user: {
+        _id: 'usr_admin_becerra',
+        email: 'aabecerra852@gmail.com',
+        nombre: 'A. Becerra (Administrador del Sistema)',
+        rol: 'Propietario / Super Admin',
+        activo: true
+      }
+    };
+  }
   if (email === 'francisco.rojasp@gmail.com' && password === 'Leo150873#*$') {
     return {
       success: true,
