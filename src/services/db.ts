@@ -45,7 +45,12 @@ import type {
   CalculoCargaFuegoArea,
   InspeccionCentralIncendio,
   ExtintorEquipo,
-  PermisoBomberos
+  PermisoBomberos,
+  ConsultaMedicaDiaria,
+  ControlPresionArterial,
+  CertificadoAptitudPsicofisica,
+  EvaluacionGoniometria,
+  MorbilidadReporteItem
 } from '../types';
 
 // Storage keys
@@ -67,6 +72,10 @@ const SK = {
   LOTO_AUDITORIAS: 'sgd_loto_auditorias',
   PERMISOS_TRABAJO: 'sgd_permisos_trabajo',
   EVALUACIONES_MED: 'sgd_evaluaciones_med',
+  CONSULTAS_MEDICAS: 'sgd_consultas_medicas',
+  CONTROLES_PRESION: 'sgd_controles_presion',
+  APTITUD_PSICOFISICA: 'sgd_aptitud_psicofisica',
+  GONIOMETRIAS: 'sgd_goniometrias',
   TRANSPORTE_CHECKLISTS: 'sgd_transporte_checklists',
   TRANSPORTE_VEHICULOS: 'sgd_transporte_vehiculos',
   ACCIDENTES_F465: 'sgd_accidentes_f465',
@@ -929,6 +938,355 @@ export const dbService = {
       setLocal(SK.EVALUACIONES_MED, list);
       await this.logAction('UPDATE', 'evaluacionesMedicas', id, `Evaluación médica ${id} actualizada`);
     }
+  },
+
+  // ============================================================
+  // V-EXPRESS: REGISTRO DIARIO DE CONSULTAS MÉDICAS (REG_DIARIO)
+  // ============================================================
+  async getConsultasMedicas(): Promise<ConsultaMedicaDiaria[]> {
+    let list = getLocal<ConsultaMedicaDiaria>(SK.CONSULTAS_MEDICAS);
+    if (!list || list.length === 0) {
+      list = [
+        {
+          id: 'cd_01',
+          fecha: '2026-10-01',
+          hora: '08:00',
+          cedula: '27715315',
+          codigoFicha: '591714',
+          nombreApellido: 'CARRASQUEL GONZALEZ ALESKA CARIDAD',
+          genero: 'FEMENINO',
+          edad: 25,
+          empresaNombre: 'INVERSIONES 1286 C.A.',
+          departamento: 'TESORERIA',
+          sucursal: 'CARACAS',
+          cargo: 'ANALISTA DE CUENTAS POR PAGAR',
+          tipoConsulta: 'Consulta 1',
+          enfermeroNombre: 'GUERRERO DE REYES ALIX COROMOTO',
+          medicoNombre: 'RAMOS MARTINEZ CARMEN ISMELDA',
+          ciMedico: '6211215',
+          numeroMSDS: '43739',
+          numeroCMV: '17585',
+          temperaturaC: 36.6,
+          saturacionO2: 98,
+          frecuenciaCardiacaPpm: 72,
+          presionSistolica: 120,
+          presionDiastolica: 70,
+          condicionPresion: 'NORMAL',
+          impresionDiagnostica: 'Esguince de tobillo grado I',
+          diagnosticoDetallado: 'Traumatismo leve durante trayecto peatonal.',
+          sistemaAfectado: 'Músculo-esquelético',
+          esInfecciosoContagioso: false,
+          clasificacionGeneral: 'Accidente de Trayecto',
+          tratamientoSuministrado: 'Ibuprofeno 400mg + vendaje compresivo',
+          medicamento: 'Analgésico / Antiinflamatorio',
+          viaSuministro: 'Oral',
+          cantidadSuministrada: '1 tableta',
+          tieneReposo: false,
+          fueReferido: false,
+          observacionesEvolucion: 'Evolución favorable, se indican pautas de reposo articular relativo.'
+        },
+        {
+          id: 'cd_02',
+          fecha: '2026-10-05',
+          hora: '10:15',
+          cedula: '15892341',
+          codigoFicha: '590412',
+          nombreApellido: 'MENDOZA CARLOS EDUARDO',
+          genero: 'MASCULINO',
+          edad: 38,
+          empresaNombre: 'ACUMULADORES DUNCAN, C.A.',
+          departamento: 'PRODUCCION Y CARGA',
+          sucursal: 'LOS RUICES',
+          cargo: 'TECNICO DE CARGA Y FORMACION',
+          tipoConsulta: 'Consulta 1',
+          medicoNombre: 'RAMOS MARTINEZ CARMEN ISMELDA',
+          ciMedico: '6211215',
+          numeroMSDS: '43739',
+          numeroCMV: '17585',
+          temperaturaC: 36.8,
+          saturacionO2: 97,
+          frecuenciaCardiacaPpm: 78,
+          presionSistolica: 130,
+          presionDiastolica: 85,
+          condicionPresion: 'NORMAL_ALTA',
+          impresionDiagnostica: 'Dorsalgia / Lumbalgia mecánica ocupacional',
+          diagnosticoDetallado: 'Sobreesfuerzo por manipulación manual de baterías 31MR.',
+          sistemaAfectado: 'Músculo-esquelético',
+          esInfecciosoContagioso: false,
+          clasificacionGeneral: 'Enfermedad Ocupacional',
+          tratamientoSuministrado: 'Ketoprofeno 100mg + Complejo B intramuscular',
+          medicamento: 'Analgésico / Relajante muscular',
+          viaSuministro: 'Intramuscular',
+          cantidadSuministrada: '1 ampolla',
+          tieneReposo: true,
+          fechaInicioReposo: '2026-10-05',
+          fechaReintegro: '2026-10-08',
+          diasReposo: 3,
+          fueReferido: true,
+          especialidadReferida: 'Traumatología',
+          motivoReferencia: 'Evaluación de columna lumbar y goniometría de control.',
+          observacionesEvolucion: 'Reposo médico otorgado por 3 días. Notificado a SSA y supervisor de área.'
+        }
+      ];
+      setLocal(SK.CONSULTAS_MEDICAS, list);
+    }
+    return list;
+  },
+
+  async saveConsultaMedica(data: any): Promise<string> {
+    const list = await this.getConsultasMedicas();
+    const id = data.id || genId('cmed');
+    const item = {
+      ...data,
+      id,
+      createdAt: new Date().toISOString()
+    };
+    list.unshift(item);
+    setLocal(SK.CONSULTAS_MEDICAS, list);
+    await this.logAction('CREATE', 'consultasMedicas', id, `Consulta diaria registrada para ${data.nombreApellido}`);
+    return id;
+  },
+
+  // ============================================================
+  // V-EXPRESS: PROGRAMA CONTROL PRESIÓN ARTERIAL (REG_CONTROL_PA)
+  // ============================================================
+  async getControlesPresion(): Promise<ControlPresionArterial[]> {
+    let list = getLocal<ControlPresionArterial>(SK.CONTROLES_PRESION);
+    if (!list || list.length === 0) {
+      list = [
+        {
+          id: 'pa_01',
+          fecha: '2026-10-10',
+          hora: '08:30',
+          cedula: '11754040',
+          codigoFicha: '154040',
+          nombreApellido: 'SEGOVIA PADILLA JESUS ALFREDO',
+          genero: 'MASCULINO',
+          edad: 55,
+          departamento: 'ALMACEN CENTRAL',
+          sucursal: 'CARACAS',
+          cargo: 'OPERADOR DE MONTACARGAS',
+          diagnostico: 'Hipertensión Arterial Primaria (HTA Controlada)',
+          presionSistolica: 125,
+          presionDiastolica: 80,
+          condicion: 'Normal (120-129/80-84)',
+          medicamentoAntihipertensivo: 'Losartán Potásico 50mg',
+          dosis: '1 tableta diaria VO',
+          administradoEnServicio: true,
+          observaciones: 'Presión arterial dentro de rango meta. Apto para operar montacargas sin restricciones.'
+        },
+        {
+          id: 'pa_02',
+          fecha: '2026-10-12',
+          hora: '09:00',
+          cedula: '12450891',
+          codigoFicha: '590891',
+          nombreApellido: 'HERNANDEZ JOSE RAMON',
+          genero: 'MASCULINO',
+          edad: 48,
+          departamento: 'TRANSPORTE Y RUTAS',
+          sucursal: 'CARACAS',
+          cargo: 'CHOFER DE RUTA NACIONAL',
+          diagnostico: 'Descarte de Hipertensión / Cifras tensionales elevadas',
+          presionSistolica: 145,
+          presionDiastolica: 95,
+          condicion: 'HTA Grado 1 (140-159/90-99)',
+          medicamentoAntihipertensivo: 'Enalapril 10mg',
+          dosis: '1 tableta',
+          administradoEnServicio: true,
+          observaciones: 'Se sugiere monitoreo ambulatorio de presión arterial (MAPA) y reevaluación antes de salida de ruta.'
+        }
+      ];
+      setLocal(SK.CONTROLES_PRESION, list);
+    }
+    return list;
+  },
+
+  async saveControlPresion(data: any): Promise<string> {
+    const list = await this.getControlesPresion();
+    const id = data.id || genId('cpa');
+    const item = {
+      ...data,
+      id,
+      createdAt: new Date().toISOString()
+    };
+    list.unshift(item);
+    setLocal(SK.CONTROLES_PRESION, list);
+    await this.logAction('CREATE', 'controlPresion', id, `Monitoreo PA registrado para ${data.nombreApellido}`);
+    return id;
+  },
+
+  // ============================================================
+  // V-EXPRESS: CERTIFICADO APTITUD PSICOFÍSICA (REG_APF)
+  // ============================================================
+  async getAptitudesPsicofisicas(): Promise<CertificadoAptitudPsicofisica[]> {
+    let list = getLocal<CertificadoAptitudPsicofisica>(SK.APTITUD_PSICOFISICA);
+    if (!list || list.length === 0) {
+      list = [
+        {
+          id: 'apf_01',
+          fecha: '2026-10-02',
+          hora: '09:00',
+          lugar: 'CARACAS',
+          tipoEvaluacion: 'Pre-Vacacional',
+          cedula: '27222497',
+          codigoFicha: '222497',
+          nombreApellido: 'FLORES MORENO LUZ MARY',
+          genero: 'FEMENINO',
+          edad: 26,
+          sucursal: 'CARACAS',
+          empresaNombre: 'INVERSIONES 1286 C.A.',
+          departamento: 'COMPRAS INTERNACIONALES',
+          cargo: 'ANALISTA DE IMPORTACION',
+          conceptoAptitud: 'NO_EXISTE_CONTRAINDICACION',
+          restricciones: {
+            noLevantarPesoMayor22Kg: false,
+            noExposicionPolvoAcidoGasPlomo: false,
+            noUbicarLugarRuidoso: false,
+            evitarExcesivoCaminar: false,
+            evitarPosicionSentadaExceso: true,
+            evitarPosicionPieExceso: false,
+            trabajarSoloHorasDiurnas: false,
+            noPosicionCuclillas: false,
+            usoBotasCorreccionOrtopedica: false,
+            instruidoSeguridadHigiene: true,
+            instruidoPrimerosAuxilios: true
+          },
+          observacionesComentarios: 'Sin contraindicación actual para disfrute vacacional. Se indican pausas activas e higiene postural.',
+          medicoNombre: 'RAMOS MARTINEZ CARMEN ISMELDA',
+          ciMedico: '6211215',
+          numeroMSDS: '43739',
+          numeroCMV: '17585'
+        },
+        {
+          id: 'apf_02',
+          fecha: '2026-11-06',
+          hora: '08:20',
+          lugar: 'CARACAS',
+          tipoEvaluacion: 'Ocupacional / Periódico',
+          cedula: '21130755',
+          codigoFicha: '130755',
+          nombreApellido: 'RODRIGUEZ COLON CESAR LUCIANO',
+          genero: 'MASCULINO',
+          edad: 34,
+          sucursal: 'CARACAS',
+          empresaNombre: 'DISTRIBUIDORA DUNCAN, C.A.',
+          departamento: 'DISTRIBUCION Y RUTAS',
+          cargo: 'CONDUCTOR / VENDEDOR DE RUTA',
+          conceptoAptitud: 'APTO_CON_LIMITACIONES',
+          restricciones: {
+            noLevantarPesoMayor22Kg: true,
+            noExposicionPolvoAcidoGasPlomo: true,
+            noUbicarLugarRuidoso: false,
+            evitarExcesivoCaminar: false,
+            evitarPosicionSentadaExceso: false,
+            evitarPosicionPieExceso: true,
+            trabajarSoloHorasDiurnas: true,
+            noPosicionCuclillas: false,
+            usoBotasCorreccionOrtopedica: true,
+            instruidoSeguridadHigiene: true,
+            instruidoPrimerosAuxilios: true,
+            otrasRestricciones: 'Debe usar faja ergonómica y solicitar apoyo mecánico para descargas de baterías de más de 22kg.'
+          },
+          observacionesComentarios: 'Apto condicionado a cumplimiento estricto de límites de carga y uso de EPP antiácido.',
+          medicoNombre: 'RAMOS MARTINEZ CARMEN ISMELDA',
+          ciMedico: '6211215',
+          numeroMSDS: '43739',
+          numeroCMV: '17585'
+        }
+      ];
+      setLocal(SK.APTITUD_PSICOFISICA, list);
+    }
+    return list;
+  },
+
+  async saveAptitudPsicofisica(data: any): Promise<string> {
+    const list = await this.getAptitudesPsicofisicas();
+    const id = data.id || genId('apf');
+    const item = {
+      ...data,
+      id,
+      createdAt: new Date().toISOString()
+    };
+    list.unshift(item);
+    setLocal(SK.APTITUD_PSICOFISICA, list);
+    await this.logAction('CREATE', 'aptitudPsicofisica', id, `Certificado APF emitido para ${data.nombreApellido}`);
+    return id;
+  },
+
+  // ============================================================
+  // V-EXPRESS: EVALUACIÓN GONIOMÉTRICA (REG_GONIOMETRÍA)
+  // ============================================================
+  async getGoniometrias(): Promise<EvaluacionGoniometria[]> {
+    let list = getLocal<EvaluacionGoniometria>(SK.GONIOMETRIAS);
+    if (!list || list.length === 0) {
+      list = [
+        {
+          id: 'gon_01',
+          fecha: '2026-10-18',
+          hora: '11:00',
+          cedula: '15892341',
+          codigoFicha: '590412',
+          nombreApellido: 'MENDOZA CARLOS EDUARDO',
+          genero: 'MASCULINO',
+          edad: 38,
+          empresaNombre: 'ACUMULADORES DUNCAN, C.A.',
+          departamento: 'PRODUCCION Y CARGA',
+          sucursal: 'LOS RUICES',
+          cargo: 'TECNICO DE CARGA Y FORMACION',
+          medicoNombre: 'RAMOS MARTINEZ CARMEN ISMELDA',
+          cervical: {
+            flexion: 40,
+            extension: 42,
+            rotacionIzq: 58,
+            rotacionDer: 60,
+            inclinacionIzq: 42,
+            inclinacionDer: 44
+          },
+          lumbar: {
+            flexion: 65, // Limitado (normal 0-80)
+            extension: 22, // Limitado (normal 0-30)
+            rotacionIzq: 38,
+            rotacionDer: 40,
+            lateralizacionIzq: 30,
+            lateralizacionDer: 32
+          },
+          hombroDerecho: {
+            flexion: 175,
+            extension: 55,
+            abduccion: 170,
+            rotacionInterna: 68,
+            rotacionExterna: 85
+          },
+          hombroIzquierdo: {
+            flexion: 178,
+            extension: 58,
+            abduccion: 175,
+            rotacionInterna: 70,
+            rotacionExterna: 88
+          },
+          diagnosticoBiomecanico: 'Limitación funcional leve en flexión y extensión de columna lumbar secundaria a sobreesfuerzo.',
+          limitacionFuncionalDetectada: true,
+          observaciones: 'Se recomienda programa de fisioterapia ocupacional y rotación temporal de puesto de carga.'
+        }
+      ];
+      setLocal(SK.GONIOMETRIAS, list);
+    }
+    return list;
+  },
+
+  async saveGoniometria(data: any): Promise<string> {
+    const list = await this.getGoniometrias();
+    const id = data.id || genId('gon');
+    const item = {
+      ...data,
+      id,
+      createdAt: new Date().toISOString()
+    };
+    list.unshift(item);
+    setLocal(SK.GONIOMETRIAS, list);
+    await this.logAction('CREATE', 'goniometria', id, `Evaluación goniométrica registrada para ${data.nombreApellido}`);
+    return id;
   },
 
   // ============================================================

@@ -15,7 +15,8 @@ import {
   FileSpreadsheet,
   Printer,
   ShieldAlert,
-  Download
+  ShieldCheck,
+  Heart
 } from 'lucide-react';
 import type { EvaluacionMedica } from '../types/medical';
 import { useAuth } from '../hooks/useAuth';
@@ -25,9 +26,17 @@ import MedicalEvaluationsCharts from './MedicalEvaluationsCharts';
 import { exportMedicalEvaluationsData } from '../lib/exportUtils';
 import { cn } from '../lib/utils';
 import toast from 'react-hot-toast';
+import VexpressDailyManager from './VexpressDailyManager';
+import VexpressPressureManager from './VexpressPressureManager';
+import VexpressAptitudManager from './VexpressAptitudManager';
+import VexpressGoniometriaManager from './VexpressGoniometriaManager';
+import VexpressMorbilidadReport from './VexpressMorbilidadReport';
+
+type MedicalTab = 'solicitudes' | 'consultas-diarias' | 'control-pa' | 'aptitud-apf' | 'goniometria' | 'morbilidad';
 
 export default function MedicalEvaluationsManager() {
   const { profile, isSuperAdmin } = useAuth();
+  const [activeTab, setActiveTab] = useState<MedicalTab>('solicitudes');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [showCharts, setShowCharts] = useState(true);
   const [evaluaciones, setEvaluaciones] = useState<EvaluacionMedica[]>([]);
@@ -108,170 +117,270 @@ export default function MedicalEvaluationsManager() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header General */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-yellow-400 text-slate-900 rounded-xl shadow-sm">
             <Activity size={24} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">Salud Ocupacional, Plombemia y Vacaciones</h1>
-            <p className="text-sm text-slate-500">Exámenes Ocupacionales, Monitoreo de Plomo en Sangre (PbB) y Control de Fatiga Laboral</p>
+            <h1 className="text-2xl font-bold text-slate-800">Salud Ocupacional & Epidemiología (V-EXPRESS)</h1>
+            <p className="text-sm text-slate-500">
+              Evaluaciones Ocupacionales, Plombemia (PbB), Consultas Diarias, Presión Arterial, Aptitud APF, Goniometría y Morbilidad INPSASEL
+            </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-          <button
-            onClick={() => setShowCharts(!showCharts)}
-            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold text-xs transition-colors border border-slate-200"
-          >
-            {showCharts ? 'Ocultar Gráficos' : 'Ver Estadísticas'}
-          </button>
-
-          {/* Export Buttons */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+        {activeTab === 'solicitudes' && (
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
             <button
-              onClick={() => handleExportCurrentView('excel')}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-xs transition-colors shadow-sm"
-              title="Exportar a Excel (.xlsx)"
+              onClick={() => setShowCharts(!showCharts)}
+              className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold text-xs transition-colors border border-slate-200"
             >
-              <FileSpreadsheet size={14} />
-              Excel
+              {showCharts ? 'Ocultar Gráficos' : 'Ver Estadísticas'}
             </button>
+
+            {/* Export Buttons */}
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+              <button
+                onClick={() => handleExportCurrentView('excel')}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-xs transition-colors shadow-sm"
+                title="Exportar a Excel (.xlsx)"
+              >
+                <FileSpreadsheet size={14} />
+                Excel
+              </button>
+              <button
+                onClick={() => handleExportCurrentView('csv')}
+                className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold text-xs transition-colors"
+                title="Exportar a CSV (.csv)"
+              >
+                <FileText size={14} />
+                CSV
+              </button>
+            </div>
+
             <button
-              onClick={() => handleExportCurrentView('csv')}
-              className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold text-xs transition-colors"
-              title="Exportar a CSV (.csv)"
+              onClick={() => setIsFormOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-slate-900 rounded-xl font-bold text-sm shadow-sm transition-colors ml-auto md:ml-0"
             >
-              <FileText size={14} />
-              CSV
+              <Plus size={18} />
+              Nueva Solicitud
             </button>
           </div>
-
-          <button
-            onClick={() => setIsFormOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-slate-900 rounded-xl font-bold text-sm shadow-sm transition-colors ml-auto md:ml-0"
-          >
-            <Plus size={18} />
-            Nueva Solicitud
-          </button>
-        </div>
-      </div>
-
-      {/* Analytics Charts */}
-      {showCharts && evaluaciones.length > 0 && (
-        <MedicalEvaluationsCharts evaluaciones={evaluaciones} />
-      )}
-
-      {/* Search and Filters */}
-      <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-xl border border-slate-100 shadow-sm">
-        <Search size={18} className="text-slate-400" />
-        <input
-          type="text"
-          placeholder="Buscar trabajador por nombre, cédula, tipo de examen o sede..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full text-sm outline-none text-slate-700 placeholder:text-slate-400 bg-transparent"
-        />
-        {searchQuery && (
-          <button 
-            onClick={() => setSearchQuery('')}
-            className="text-xs text-slate-400 hover:text-slate-600 font-semibold"
-          >
-            Limpiar
-          </button>
         )}
       </div>
 
-      {/* List of Evaluations */}
-      {loading ? (
-        <div className="bg-white p-12 text-center rounded-2xl border border-slate-100 text-slate-400">
-          Cargando registros médicos...
-        </div>
-      ) : filteredEvaluaciones.length === 0 ? (
-        <div className="bg-white p-12 text-center rounded-2xl border border-slate-100 space-y-3">
-          <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-400">
-            <BriefcaseMedical size={24} />
-          </div>
-          <h3 className="font-bold text-slate-700">No se encontraron evaluaciones médicas</h3>
-          <p className="text-sm text-slate-400 max-w-sm mx-auto">
-            {searchQuery ? 'Prueba ajustando los términos de búsqueda.' : 'Genera una nueva solicitud de evaluación ocupacional o control de plombemia.'}
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <AnimatePresence>
-            {filteredEvaluaciones.map((item) => (
-              <motion.div
-                key={item.id}
-                layout
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                onClick={() => setSelectedEval(item)}
-                className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col justify-between space-y-4"
+      {/* Selector de Pestañas V-EXPRESS */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none border-b border-slate-200">
+        <button
+          onClick={() => setActiveTab('solicitudes')}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all shadow-sm",
+            activeTab === 'solicitudes'
+              ? "bg-slate-900 text-yellow-400 border border-slate-800"
+              : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
+          )}
+        >
+          <Activity size={16} />
+          Exámenes Ocupacionales & Plombemia
+          <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-slate-800 text-yellow-400 border border-slate-700">
+            {evaluaciones.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('consultas-diarias')}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all shadow-sm",
+            activeTab === 'consultas-diarias'
+              ? "bg-slate-900 text-yellow-400 border border-slate-800"
+              : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
+          )}
+        >
+          <Stethoscope size={16} />
+          Consultas Diarias (REG_DIARIO)
+        </button>
+
+        <button
+          onClick={() => setActiveTab('control-pa')}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all shadow-sm",
+            activeTab === 'control-pa'
+              ? "bg-slate-900 text-yellow-400 border border-slate-800"
+              : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
+          )}
+        >
+          <Heart size={16} className="text-red-500" />
+          Control Presión Arterial (REG_CONTROL_PA)
+        </button>
+
+        <button
+          onClick={() => setActiveTab('aptitud-apf')}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all shadow-sm",
+            activeTab === 'aptitud-apf'
+              ? "bg-slate-900 text-yellow-400 border border-slate-800"
+              : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
+          )}
+        >
+          <ShieldCheck size={16} className="text-blue-500" />
+          Aptitud Psicofísica (REG_APF)
+        </button>
+
+        <button
+          onClick={() => setActiveTab('goniometria')}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all shadow-sm",
+            activeTab === 'goniometria'
+              ? "bg-slate-900 text-yellow-400 border border-slate-800"
+              : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
+          )}
+        >
+          <ShieldAlert size={16} className="text-purple-500" />
+          Goniometría Articular (REG_GONIOMETRÍA)
+        </button>
+
+        <button
+          onClick={() => setActiveTab('morbilidad')}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all shadow-sm",
+            activeTab === 'morbilidad'
+              ? "bg-slate-900 text-yellow-400 border border-slate-800"
+              : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
+          )}
+        >
+          <FileSpreadsheet size={16} className="text-emerald-600" />
+          Morbilidad INPSASEL
+        </button>
+      </div>
+
+      {/* Contenido Condicional según Pestaña Activa */}
+      {activeTab === 'solicitudes' && (
+        <>
+          {/* Analytics Charts */}
+          {showCharts && evaluaciones.length > 0 && (
+            <MedicalEvaluationsCharts evaluaciones={evaluaciones} />
+          )}
+
+          {/* Search and Filters */}
+          <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-xl border border-slate-100 shadow-sm">
+            <Search size={18} className="text-slate-400" />
+            <input
+              type="text"
+              placeholder="Buscar trabajador por nombre, cédula, tipo de examen o sede..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full text-sm outline-none text-slate-700 placeholder:text-slate-400 bg-transparent"
+            />
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="text-xs text-slate-400 hover:text-slate-600 font-semibold"
               >
-                <div className="space-y-3">
-                  <div className="flex justify-between items-start gap-2">
-                    <span className="text-xs font-bold px-2.5 py-1 rounded-lg border flex items-center gap-1.5 bg-slate-50 text-slate-700 border-slate-200">
-                      {getTipoIcon(item.tipoEvaluacion)}
-                      {item.tipoEvaluacion.replace(/_/g, ' ')}
-                    </span>
-                    <span className={cn("text-xs font-bold px-2.5 py-0.5 rounded-full border", getStatusColor(item.estado))}>
-                      {item.estado}
-                    </span>
-                  </div>
+                Limpiar
+              </button>
+            )}
+          </div>
 
-                  <div>
-                    <h3 className="font-bold text-slate-800 text-base">{item.empleadoNombre}</h3>
-                    <div className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                      <User size={12} /> C.I. {item.empleadoCedula} • {item.empleadoCargo}
-                    </div>
-                  </div>
-
-                  {/* Highlights de Plombemia o Vacaciones */}
-                  {item.plombemiaPbB !== undefined && (
-                    <div className="p-2.5 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-between text-xs">
-                      <span className="font-semibold text-orange-900">Plomo en Sangre (PbB):</span>
-                      <span className={cn(
-                        "font-bold px-2 py-0.5 rounded-full",
-                        item.plombemiaPbB < 30 ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"
-                      )}>
-                        {item.plombemiaPbB} µg/dL {item.plombemiaPbB < 30 ? '(Normal)' : '(Elevado)'}
-                      </span>
-                    </div>
-                  )}
-
-                  {item.alertaFatiga && (
-                    <div className="p-2.5 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-900 flex items-center gap-1.5">
-                      <Clock size={14} className="text-blue-600 shrink-0" />
-                      <span>Alerta de Fatiga: Chofer con vacaciones pendientes</span>
-                    </div>
-                  )}
-
-                  <div className="text-xs text-slate-500 space-y-1">
-                    <div className="flex items-center gap-1.5">
-                      <Calendar size={13} className="text-slate-400" />
-                      <span>Solicitado: {item.fechaSolicitud}</span>
-                    </div>
-                    {item.fechaAgendada && (
-                      <div className="flex items-center gap-1.5">
-                        <Clock size={13} className="text-slate-400" />
-                        <span>Cita: {item.fechaAgendada}</span>
+          {/* List of Evaluations */}
+          {loading ? (
+            <div className="bg-white p-12 text-center rounded-2xl border border-slate-100 text-slate-400">
+              Cargando registros médicos...
+            </div>
+          ) : filteredEvaluaciones.length === 0 ? (
+            <div className="bg-white p-12 text-center rounded-2xl border border-slate-100 space-y-3">
+              <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-400">
+                <BriefcaseMedical size={24} />
+              </div>
+              <h3 className="font-bold text-slate-700">No se encontraron evaluaciones médicas</h3>
+              <p className="text-sm text-slate-400 max-w-sm mx-auto">
+                {searchQuery ? 'Prueba ajustando los términos de búsqueda.' : 'Genera una nueva solicitud de evaluación ocupacional o control de plombemia.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <AnimatePresence>
+                {filteredEvaluaciones.map((item) => (
+                  <motion.div
+                    key={item.id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    onClick={() => setSelectedEval(item)}
+                    className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col justify-between space-y-4"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-start gap-2">
+                        <span className="text-xs font-bold px-2.5 py-1 rounded-lg border flex items-center gap-1.5 bg-slate-50 text-slate-700 border-slate-200">
+                          {getTipoIcon(item.tipoEvaluacion)}
+                          {item.tipoEvaluacion.replace(/_/g, ' ')}
+                        </span>
+                        <span className={cn("text-xs font-bold px-2.5 py-0.5 rounded-full border", getStatusColor(item.estado))}>
+                          {item.estado}
+                        </span>
                       </div>
-                    )}
-                  </div>
-                </div>
 
-                <div className="pt-3 border-t border-slate-50 flex items-center justify-between text-xs text-slate-400">
-                  <span className="truncate max-w-[150px]">{item.clinicaAutorizada || 'Clínica asignada'}</span>
-                  <span className="font-semibold text-yellow-600 hover:text-yellow-700">Ver Formato &rarr;</span>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
+                      <div>
+                        <h3 className="font-bold text-slate-800 text-base">{item.empleadoNombre}</h3>
+                        <div className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
+                          <User size={12} /> C.I. {item.empleadoCedula} • {item.empleadoCargo}
+                        </div>
+                      </div>
+
+                      {/* Highlights de Plombemia o Vacaciones */}
+                      {item.plombemiaPbB !== undefined && (
+                        <div className="p-2.5 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-between text-xs">
+                          <span className="font-semibold text-orange-900">Plomo en Sangre (PbB):</span>
+                          <span className={cn(
+                            "font-bold px-2 py-0.5 rounded-full",
+                            item.plombemiaPbB < 30 ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"
+                          )}>
+                            {item.plombemiaPbB} µg/dL {item.plombemiaPbB < 30 ? '(Normal)' : '(Elevado)'}
+                          </span>
+                        </div>
+                      )}
+
+                      {item.alertaFatiga && (
+                        <div className="p-2.5 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-900 flex items-center gap-1.5">
+                          <Clock size={14} className="text-blue-600 shrink-0" />
+                          <span>Alerta de Fatiga: Chofer con vacaciones pendientes</span>
+                        </div>
+                      )}
+
+                      <div className="text-xs text-slate-500 space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <Calendar size={13} className="text-slate-400" />
+                          <span>Solicitado: {item.fechaSolicitud}</span>
+                        </div>
+                        {item.fechaAgendada && (
+                          <div className="flex items-center gap-1.5">
+                            <Clock size={13} className="text-slate-400" />
+                            <span>Cita: {item.fechaAgendada}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-50 flex items-center justify-between text-xs text-slate-400">
+                      <span className="truncate max-w-[150px]">{item.clinicaAutorizada || 'Clínica asignada'}</span>
+                      <span className="font-semibold text-yellow-600 hover:text-yellow-700">Ver Formato &rarr;</span>
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
+        </>
       )}
+
+      {/* Submódulos V-EXPRESS */}
+      {activeTab === 'consultas-diarias' && <VexpressDailyManager />}
+      {activeTab === 'control-pa' && <VexpressPressureManager />}
+      {activeTab === 'aptitud-apf' && <VexpressAptitudManager />}
+      {activeTab === 'goniometria' && <VexpressGoniometriaManager />}
+      {activeTab === 'morbilidad' && <VexpressMorbilidadReport />}
 
       {/* Formulario Modal */}
       {isFormOpen && (
