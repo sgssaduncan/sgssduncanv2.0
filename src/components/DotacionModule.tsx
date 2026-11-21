@@ -32,6 +32,7 @@ import type {
 import toast from 'react-hot-toast';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { DUNCAN_LOGO_BW } from '../lib/logos';
 
 export const formatDateString = (dateObj: any) => {
     if (!dateObj) return 'N/A';
@@ -447,13 +448,14 @@ function SolicitudDetalleModal({ solicitud, empleados, inventario, entregas, onC
         doc.line(marginX + col1W, currentY, marginX + col1W, currentY + 24);
         doc.line(marginX + col1W + col2W, currentY, marginX + col1W + col2W, currentY + 24);
 
-        // Bloque Marca Duncan
-        doc.setFillColor(0, 75, 147); // #004B93
-        doc.roundedRect(marginX + 4, currentY + 4, col1W - 8, 10, 1.5, 1.5, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(11);
-        doc.text('DUNCAN', marginX + col1W / 2, currentY + 10.5, { align: 'center' });
+        // Logo Oficial Duncan B&W
+        try {
+          const logoW = 34;
+          const logoH = 12;
+          doc.addImage(DUNCAN_LOGO_BW, 'PNG', marginX + (col1W - logoW) / 2, currentY + 2.5, logoW, logoH);
+        } catch (e) {
+          console.warn('Error insertando logo en Dotacion', e);
+        }
 
         doc.setTextColor(51, 65, 85);
         doc.setFontSize(6.5);
@@ -1968,12 +1970,14 @@ function ReportesDotacionTab() {
             doc.line(marginX + col1W, currentY, marginX + col1W, currentY + 22);
             doc.line(marginX + col1W + col2W, currentY, marginX + col1W + col2W, currentY + 22);
 
-            doc.setFillColor(0, 75, 147);
-            doc.roundedRect(marginX + 5, currentY + 4, col1W - 10, 9, 1.5, 1.5, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(11);
-            doc.text('DUNCAN', marginX + col1W / 2, currentY + 10, { align: 'center' });
+            // Logo Oficial Duncan B&W
+            try {
+              const logoW = 32;
+              const logoH = 11.3;
+              doc.addImage(DUNCAN_LOGO_BW, 'PNG', marginX + (col1W - logoW) / 2, currentY + 2, logoW, logoH);
+            } catch (e) {
+              console.warn('Error insertando logo en Consolidado Dotacion', e);
+            }
             doc.setTextColor(51, 65, 85);
             doc.setFontSize(6.5);
             doc.text('CONTROL DE DOTACIÓN Y EPP', marginX + col1W / 2, currentY + 17.5, { align: 'center' });

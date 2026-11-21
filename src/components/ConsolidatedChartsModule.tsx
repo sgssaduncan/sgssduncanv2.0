@@ -521,7 +521,7 @@ export default function ConsolidatedChartsModule({ inspecciones, localidades, es
             {/* Header */}
             <div className="flex justify-between items-end border-b-2 border-[#00519E] pb-4 mb-6">
                 <div>
-                   <img src="/logo.png" alt="Duncan" style={{ height: "40px", objectFit: "contain" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                   <img src="/duncan-logo-bw.png" alt="Duncan" style={{ height: "40px", objectFit: "contain" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                 </div>
                 <div className="text-right">
                     <h2 className="text-xl font-bold text-[#00519E] uppercase m-0 leading-tight">

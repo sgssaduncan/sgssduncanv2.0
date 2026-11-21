@@ -567,6 +567,7 @@ export default function VexpressAptitudManager() {
             <div className="p-6 bg-slate-900 text-white flex justify-between items-center print:bg-white print:text-black">
               <div className="flex items-center gap-3">
                 <img src="/duncan-logo-color.png" alt="Duncan" className="h-6 w-auto print:hidden" />
+                <img src="/duncan-logo-bw.png" alt="Duncan" className="h-6 w-auto hidden print:block" />
                 <div>
                   <h3 className="font-bold text-lg">Certificado de Aptitud Psicofísica</h3>
                   <p className="text-xs text-slate-400 print:text-slate-600">Servicios de Seguridad y Salud en el Trabajo (SSST)</p>

@@ -46,16 +46,9 @@ interface ReportProps {
   onEdit?: () => void;
 }
 
-// Template especifico para montacargas (según layout solicitado)
+// Logo oficial Duncan
 const getCompanyLogo = (metadata: any) => {
-  if (metadata?.empresa?.logoUrl) return metadata.empresa.logoUrl;
-  const nombre = metadata?.empresa?.nombre?.toLowerCase() || '';
-  if (nombre.includes('titán') || nombre.includes('titan')) {
-    return '/logo-titan.png';
-  } else if (nombre.includes('ergoexpress')) {
-    return '/logo-ergoexpress.png';
-  }
-  return '/duncan-logo-color.png';
+  return metadata?.empresa?.logoUrl || '/duncan-logo-bw.png';
 };
 
 export default function InspectionReport({

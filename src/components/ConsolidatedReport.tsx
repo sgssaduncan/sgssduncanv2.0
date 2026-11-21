@@ -472,7 +472,7 @@ export default function ConsolidatedReport() {
             <tbody>
                 <tr>
                     <td style={{ width: '20%', borderRight: '1.5px solid #000', padding: '12px', textAlign: 'center', verticalAlign: 'middle' }}>
-                        <img src="/logo.png" alt="Duncan" style={{ maxHeight: '55px', maxWidth: '100%', objectFit: 'contain' }} />
+                        <img src="/duncan-logo-bw.png" alt="Duncan" style={{ maxHeight: '42px', maxWidth: '100%', objectFit: 'contain' }} />
                     </td>
                     <td style={{ width: '55%', borderRight: '1.5px solid #000', padding: '8px', textAlign: 'center', verticalAlign: 'middle' }}>
                         <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#000', lineHeight: '1.2' }}>PROGRAMA DE SEGURIDAD Y SALUD EN EL TRABAJO</div>
