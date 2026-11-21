@@ -157,3 +157,70 @@ export interface InitData {
   planStats: PlanStats;
   inspeccionesRecientes: Inspeccion[];
 }
+
+export interface ArticuloEPP {
+  _id: string;
+  codigo: string;
+  nombre: string;
+  categoria: 'Protección Cabeza' | 'Protección Ocular' | 'Protección Respiratoria' | 'Protección Auditiva' | 'Protección Manos' | 'Calzado y Ropa';
+  stockActual: number;
+  stockMinimo: number;
+  unidad: string;
+  talla?: string;
+}
+
+export interface DotacionEPP {
+  _id: string;
+  empleadoId?: string;
+  empleadoNombre: string;
+  cedula: string;
+  cargo: string;
+  empresaNombre: string;
+  establecimientoNombre: string;
+  articulos: { articuloId: string; nombre: string; cantidad: number; talla?: string }[];
+  fechaEntrega: string;
+  proximaEntrega?: string;
+  entregadoPor: string;
+  firmaRecibido?: string;
+}
+
+export interface EquipoLOTO {
+  _id: string;
+  tag: string;
+  nombre: string;
+  ubicacion: string;
+  tipoEnergia: 'Eléctrica' | 'Química / Ácido' | 'Neumática' | 'Mecánica' | 'Térmica';
+  dispositivoBloqueo: string;
+  procedimiento: string;
+}
+
+export interface BloqueoLOTO {
+  _id: string;
+  equipoTag: string;
+  equipoNombre: string;
+  ubicacion: string;
+  motivo: string;
+  responsable: string;
+  fechaInicio: string;
+  horaInicio: string;
+  fechaFinEstimada?: string;
+  estado: 'Activo' | 'Liberado';
+  candadosColocados: number;
+  energiaCeroVerificada: boolean;
+}
+
+export interface EvaluacionMedica {
+  _id: string;
+  empleadoId?: string;
+  empleadoNombre: string;
+  cedula: string;
+  empresaNombre: string;
+  establecimientoNombre: string;
+  tipoEvaluacion: 'Pre-empleo' | 'Periódica Anual' | 'Pre-vacacional' | 'Post-vacacional' | 'Egreso' | 'Especial Plombemia';
+  fecha: string;
+  medicoTratante: string;
+  plombemiaValor?: number; // µg/dL (Plomo en sangre para Duncan)
+  audiometria?: 'Normal' | 'Hipoacusia Leve' | 'Hipoacusia Moderada';
+  aptitud: 'Apto' | 'Apto con Restricciones' | 'No Apto Temporal';
+  observaciones?: string;
+}

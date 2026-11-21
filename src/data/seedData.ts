@@ -120,4 +120,34 @@ export const INITIAL_USUARIOS: Usuario[] = [
 
 export const INITIAL_INSPECCIONES: any[] = [];
 export const INITIAL_PLAN_ACCION: any[] = [];
-export const INITIAL_EMPLEADOS: Empleado[] = [];
+export const INITIAL_EMPLEADOS: Empleado[] = [
+  { _id: 'emp_01', cedula: 'V-15894123', nombre: 'Carlos Eduardo Mendoza', cargo: 'Operador de Formación y Carga', departamento: 'Producción', empresaNombre: 'Acumuladores Duncan, C.A.', activo: true },
+  { _id: 'emp_02', cedula: 'V-18765432', nombre: 'José Manuel Rivas', cargo: 'Técnico de Mantenimiento Eléctrico', departamento: 'Mantenimiento', empresaNombre: 'Acumuladores Duncan, C.A.', activo: true },
+  { _id: 'emp_03', cedula: 'V-20112345', nombre: 'María Alejandra Delgado', cargo: 'Supervisora de Distribución', departamento: 'Logística', empresaNombre: 'Distribuidora Duncan, C.A.', activo: true },
+  { _id: 'emp_04', cedula: 'V-14567890', nombre: 'Roberto Antonio Gómez', cargo: 'Mecánico / Operador de Montacargas', departamento: 'Almacén', empresaNombre: 'Distribuidora Duncan, C.A.', activo: true },
+  { _id: 'emp_05', cedula: 'V-19345678', nombre: 'Luis Fernando Castillo', cargo: 'Técnico de Servicentro', departamento: 'Servicio al Cliente', empresaNombre: 'Inversiones 1286, C.A.', activo: true },
+];
+
+export const INITIAL_EPP_INVENTARIO: any[] = [
+  { _id: 'epp_01', codigo: 'EPP-CAS-01', nombre: 'Casco Dieléctrico Tipo I Clase E con Barbiquejo', categoria: 'Protección Cabeza', stockActual: 45, stockMinimo: 15, unidad: 'Und' },
+  { _id: 'epp_02', codigo: 'EPP-LEN-02', nombre: 'Lentes de Seguridad Antiempañantes Antiácido', categoria: 'Protección Ocular', stockActual: 68, stockMinimo: 20, unidad: 'Und' },
+  { _id: 'epp_03', codigo: 'EPP-RES-03', nombre: 'Respirador Media Cara con Filtros para Vapores y Nieblas Ácidas', categoria: 'Protección Respiratoria', stockActual: 18, stockMinimo: 10, unidad: 'Und' },
+  { _id: 'epp_04', codigo: 'EPP-GNT-04', nombre: 'Guantes de Nitrilo Pesado Antiácido Sulfúrico', categoria: 'Protección Manos', stockActual: 82, stockMinimo: 25, unidad: 'Par' },
+  { _id: 'epp_05', codigo: 'EPP-GNT-05', nombre: 'Guantes de Vaqueta / Carnaza para Carga y Estibado', categoria: 'Protección Manos', stockActual: 90, stockMinimo: 30, unidad: 'Par' },
+  { _id: 'epp_06', codigo: 'EPP-BOT-06', nombre: 'Botas de Seguridad con Puntera Dieléctrica y Suela Resistente a Ácidos', categoria: 'Calzado y Ropa', stockActual: 24, stockMinimo: 12, unidad: 'Par' },
+  { _id: 'epp_07', codigo: 'EPP-PET-07', nombre: 'Pechera / Delantal de PVC Antiácido de Alta Resistencia', categoria: 'Calzado y Ropa', stockActual: 32, stockMinimo: 10, unidad: 'Und' },
+  { _id: 'epp_08', codigo: 'EPP-AUD-08', nombre: 'Protector Auditivo Tipo Copa NRR 27dB', categoria: 'Protección Auditiva', stockActual: 28, stockMinimo: 10, unidad: 'Und' },
+];
+
+export const INITIAL_LOTO_EQUIPOS: any[] = [
+  { _id: 'loto_01', tag: 'TGBT-01', nombre: 'Tablero General de Baja Tensión 480V', ubicacion: 'Sala de Carga y Formación', tipoEnergia: 'Eléctrica', dispositivoBloqueo: 'Bloqueador de interruptor de caja moldeada + Candado Rojo', procedimiento: 'Desconectar carga, bajar interruptor principal, verificar energía cero con voltímetro calibrado y colocar pinza múltiple.' },
+  { _id: 'loto_02', tag: 'RECT-04', nombre: 'Rectificador de Carga DC Banco #4', ubicacion: 'Área de Formación de Baterías', tipoEnergia: 'Eléctrica', dispositivoBloqueo: 'Candado de seguridad rojo + tarjeta LOTO peligro no operar', procedimiento: 'Apagar banco, desconectar cables de carga, bloquear breaker de alimentación 220V trifásico.' },
+  { _id: 'loto_03', tag: 'VALV-ACID-02', nombre: 'Válvula Principal de Dosificación Ácido Sulfúrico', ubicacion: 'Tanques de Almacenamiento de Ácido', tipoEnergia: 'Química / Ácido', dispositivoBloqueo: 'Bloqueador de válvula de bola con cable de acero y candado amarillo', procedimiento: 'Cerrar válvula de paso, purgar línea hacia tanque neutralizador, verificar manómetro en 0 PSI.' },
+  { _id: 'loto_04', tag: 'COMP-01', nombre: 'Compresor de Tornillo Atlas Copco 120 PSI', ubicacion: 'Sala de Máquinas', tipoEnergia: 'Neumática', dispositivoBloqueo: 'Bloqueador de línea neumática de conexión rápida + candado', procedimiento: 'Apagar compresor, despresurizar tanque pulmón, cerrar válvula de suministro y bloquear interruptor.' },
+];
+
+export const INITIAL_EVALUACIONES_MEDICAS: any[] = [
+  { _id: 'med_01', empleadoNombre: 'Carlos Eduardo Mendoza', cedula: 'V-15894123', empresaNombre: 'Acumuladores Duncan, C.A.', establecimientoNombre: 'Planta Los Ruices', tipoEvaluacion: 'Especial Plombemia', fecha: '2026-02-15', medicoTratante: 'Dra. Elena Silva (Médico Ocupacional)', plombemiaValor: 18.5, audiometria: 'Normal', aptitud: 'Apto', observaciones: 'Nivel de plomo en sangre dentro de los límites biológicos permisibles (< 30 µg/dL).' },
+  { _id: 'med_02', empleadoNombre: 'José Manuel Rivas', cedula: 'V-18765432', empresaNombre: 'Acumuladores Duncan, C.A.', establecimientoNombre: 'Planta Los Ruices', tipoEvaluacion: 'Periódica Anual', fecha: '2026-01-20', medicoTratante: 'Dr. Marcos Valera', plombemiaValor: 24.2, audiometria: 'Normal', aptitud: 'Apto', observaciones: 'Examen físico y de laboratorio sin alteraciones relevantes. Se recomienda continuar uso estricto de respirador.' },
+  { _id: 'med_03', empleadoNombre: 'Roberto Antonio Gómez', cedula: 'V-14567890', empresaNombre: 'Distribuidora Duncan, C.A.', establecimientoNombre: 'Distribuidora Valencia', tipoEvaluacion: 'Periódica Anual', fecha: '2026-02-05', medicoTratante: 'Dra. Elena Silva', plombemiaValor: 12.0, audiometria: 'Hipoacusia Leve', aptitud: 'Apto con Restricciones', observaciones: 'Uso obligatorio y permanente de protector auditivo en zona de carga y montacargas.' },
+];

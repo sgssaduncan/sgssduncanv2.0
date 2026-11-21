@@ -15,6 +15,10 @@ import {
   INITIAL_ESTABLECIMIENTOS,
   INITIAL_TIPOS_INSPECCION,
   INITIAL_USUARIOS,
+  INITIAL_EMPLEADOS,
+  INITIAL_EPP_INVENTARIO,
+  INITIAL_LOTO_EQUIPOS,
+  INITIAL_EVALUACIONES_MEDICAS,
 } from '../data/seedData';
 import type { Usuario } from '../types';
 
@@ -67,11 +71,19 @@ function initLocalStorage() {
   if (!localStorage.getItem(SK.PLAN_ACCION))      localStorage.setItem(SK.PLAN_ACCION, '[]');
   if (!localStorage.getItem(SK.OFFLINE_QUEUE))    localStorage.setItem(SK.OFFLINE_QUEUE, '[]');
   if (!localStorage.getItem(SK.AUDIT_LOG))        localStorage.setItem(SK.AUDIT_LOG, '[]');
-  if (!localStorage.getItem(SK.EMPLEADOS))        localStorage.setItem(SK.EMPLEADOS, '[]');
-  if (!localStorage.getItem(SK.EVALUACIONES_MED)) localStorage.setItem(SK.EVALUACIONES_MED, '[]');
-  if (!localStorage.getItem(SK.INVENTARIO_EPP))   localStorage.setItem(SK.INVENTARIO_EPP, '[]');
+  if (!localStorage.getItem(SK.EMPLEADOS) || localStorage.getItem(SK.EMPLEADOS) === '[]') {
+    localStorage.setItem(SK.EMPLEADOS, JSON.stringify(INITIAL_EMPLEADOS));
+  }
+  if (!localStorage.getItem(SK.EVALUACIONES_MED) || localStorage.getItem(SK.EVALUACIONES_MED) === '[]') {
+    localStorage.setItem(SK.EVALUACIONES_MED, JSON.stringify(INITIAL_EVALUACIONES_MEDICAS));
+  }
+  if (!localStorage.getItem(SK.INVENTARIO_EPP) || localStorage.getItem(SK.INVENTARIO_EPP) === '[]') {
+    localStorage.setItem(SK.INVENTARIO_EPP, JSON.stringify(INITIAL_EPP_INVENTARIO));
+  }
   if (!localStorage.getItem(SK.SOLICITUDES_EPP))  localStorage.setItem(SK.SOLICITUDES_EPP, '[]');
-  if (!localStorage.getItem(SK.LOTO_EQUIPOS))     localStorage.setItem(SK.LOTO_EQUIPOS, '[]');
+  if (!localStorage.getItem(SK.LOTO_EQUIPOS) || localStorage.getItem(SK.LOTO_EQUIPOS) === '[]') {
+    localStorage.setItem(SK.LOTO_EQUIPOS, JSON.stringify(INITIAL_LOTO_EQUIPOS));
+  }
   if (!localStorage.getItem(SK.LOTO_BLOQUEOS))    localStorage.setItem(SK.LOTO_BLOQUEOS, '[]');
   if (!localStorage.getItem(SK.ESTABLECIMIENTOS)) localStorage.setItem(SK.ESTABLECIMIENTOS, JSON.stringify(INITIAL_ESTABLECIMIENTOS));
   try {
