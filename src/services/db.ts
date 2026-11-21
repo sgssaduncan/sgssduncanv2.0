@@ -54,6 +54,7 @@ import type {
   RegistroReposoMedico,
   RegistroReferenciaMedica
 } from '../types';
+import { auditService } from './auditService';
 
 // Storage keys
 const SK = {
@@ -2052,6 +2053,42 @@ export const dbService = {
     logs.unshift(newLog);
     setLocal(SK.AUDIT_LOGS, logs.slice(0, 300));
     gsApi.logAudit({ usuario: user, accion: newLog.accion, entidad: resourceType, entidadId: resourceId, detalles: details }).catch(console.error);
+
+    // Enlace a la bitácora integral forense de auditoría
+    try {
+      let modulo: any = 'CONFIGURACION_SISTEMA';
+      const rt = resourceType.toLowerCase();
+      if (rt.includes('insp')) modulo = 'INSPECCIONES';
+      else if (rt.includes('plan')) modulo = 'PLAN_ACCION';
+      else if (rt.includes('epp')) modulo = 'DOTACION_EPP';
+      else if (rt.includes('med') || rt.includes('reposo') || rt.includes('referencia') || rt.includes('gonio') || rt.includes('presion') || rt.includes('aptitud')) modulo = 'SALUD_OCUPACIONAL';
+      else if (rt.includes('accidente')) modulo = 'ACCIDENTES_F465';
+      else if (rt.includes('fuego') || rt.includes('bombero') || rt.includes('extintor')) modulo = 'CARGA_FUEGO';
+      else if (rt.includes('transporte') || rt.includes('vehiculo')) modulo = 'TRANSPORTE_FLOTA';
+      else if (rt.includes('loto') || rt.includes('permiso')) modulo = 'LOTO_PERMISOS';
+      else if (rt.includes('comite') || rt.includes('minuta') || rt.includes('delegado')) modulo = 'COMITES_CSSL';
+      else if (rt.includes('user') || rt.includes('usuario')) modulo = 'USUARIOS_SEGURIDAD';
+
+      let accionForense: any = 'ACTUALIZAR';
+      const act = action.toUpperCase();
+      if (act.includes('CREATE') || act.includes('CREAR')) accionForense = 'CREAR';
+      else if (act.includes('DELETE') || act.includes('ELIMINAR')) accionForense = 'ELIMINAR';
+      else if (act.includes('SEED')) accionForense = 'SINCRONIZACION';
+
+      const severidad = accionForense === 'ELIMINAR' ? 'CRITICO' : 'INFO';
+
+      auditService.log({
+        modulo,
+        accion: accionForense,
+        entidadTipo: resourceType,
+        entidadId: resourceId,
+        descripcion: details || `${accionForense} en ${resourceType}`,
+        detalles: { accionOriginal: action, resourceType, resourceId, details },
+        severidad
+      }).catch(console.warn);
+    } catch (e) {
+      console.warn('Error sincronizando auditService en logAction:', e);
+    }
   },
 
   async getAuditLogs(): Promise<AuditLog[]> {

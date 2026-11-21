@@ -24,11 +24,14 @@ import ConsolidadorPage from './pages/ConsolidadorPage';
 import ReportesPage from './pages/ReportesPage';
 import UsuariosPage from './pages/UsuariosPage';
 import AjustesPage from './pages/AjustesPage';
+import AuditoriaPage from './pages/AuditoriaPage';
+import AuditNavigationTracker from './components/AuditNavigationTracker';
 
 export default function App() {
   return (
     <SGDProvider>
       <BrowserRouter>
+        <AuditNavigationTracker />
         <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
         <Routes>
           <Route path="/" element={<Layout />}>
@@ -54,6 +57,7 @@ export default function App() {
             <Route path="formacion" element={<FormacionPage />} />
             
             {/* Auditoría y Gestión */}
+            <Route path="auditoria" element={<AuditoriaPage />} />
             <Route path="consolidador" element={<ConsolidadorPage />} />
             <Route path="comites" element={<ComitesPage />} />
             <Route path="reportes" element={<ReportesPage />} />

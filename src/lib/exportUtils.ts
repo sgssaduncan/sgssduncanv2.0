@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { auditService } from '../services/auditService';
 import type { Inspeccion, Empresa, Localidad, Establecimiento, TipoInspeccion, UserProfile, PlanAccion, Empleado } from '../types';
 import type { EvaluacionMedica } from '../types/medical';
 import type { PermisoTrabajo } from '../types/permits';
@@ -34,6 +35,7 @@ export function downloadCSV(csvContent: string, filename: string) {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+  auditService.logExport('CSV', filename, 'Dataset', undefined).catch(console.warn);
 }
 
 /**
@@ -203,6 +205,7 @@ export function exportInspectionsToExcel(
 
   const filename = `${options.filenamePrefix || 'Inspecciones_SST'}_${new Date().toISOString().split('T')[0]}.xlsx`;
   XLSX.writeFile(wb, filename);
+  auditService.logExport('EXCEL', filename, 'Inspecciones', undefined, { total: inspections.length }).catch(console.warn);
 }
 
 /**
@@ -382,6 +385,7 @@ export function exportConsolidatedReportToExcel(
   const cleanRegion = regionName.replace(/[^a-zA-Z0-9_-]/g, '_');
   const filename = `Reporte_Consolidado_SST_${cleanRegion}_${new Date().toISOString().split('T')[0]}.xlsx`;
   XLSX.writeFile(wb, filename);
+  auditService.logExport('EXCEL', filename, 'ConsolidadoRegion', undefined, { region: regionName }).catch(console.warn);
 }
 
 /**
@@ -498,6 +502,7 @@ export function exportSingleInspectionToExcel(
   const ref = inspection.referencia || inspection.id.substring(0, 8).toUpperCase();
   const filename = `Inspeccion_${ref}_${new Date().toISOString().split('T')[0]}.xlsx`;
   XLSX.writeFile(wb, filename);
+  auditService.logExport('EXCEL', filename, 'Inspeccion', inspection.id, { ref }).catch(console.warn);
 }
 
 /**
@@ -578,7 +583,9 @@ export function exportCurrentViewData(
   const matrix = [header, ...rows.map(r => Object.values(r))];
   autoFitColumns(ws, matrix);
   XLSX.utils.book_append_sheet(wb, ws, sheetName.substring(0, 31));
-  XLSX.writeFile(wb, `${filenamePrefix}_${dateStamp}.xlsx`);
+  const fileNameOut = `${filenamePrefix}_${dateStamp}.xlsx`;
+  XLSX.writeFile(wb, fileNameOut);
+  auditService.logExport('EXCEL', fileNameOut, 'DatasetView', undefined, { totalRows: rows.length }).catch(console.warn);
 }
 
 /**
@@ -701,6 +708,7 @@ export function exportActionPlansToExcel(
 
   const filename = `${options.filenamePrefix || 'Planes_Accion_SST'}_${new Date().toISOString().split('T')[0]}.xlsx`;
   XLSX.writeFile(wb, filename);
+  auditService.logExport('EXCEL', filename, 'PlanesAccion', undefined, { total: planes.length }).catch(console.warn);
 }
 
 /**

@@ -3,6 +3,7 @@ import autoTable from 'jspdf-autotable';
 import { formatDate } from './utils';
 import { getFormDefinition } from './formDefinitions';
 import { DUNCAN_LOGO_BW } from './logos';
+import { auditService } from '../services/auditService';
 import type { Inspeccion, AccidenteF465, CalculoCargaFuegoArea, ChecklistTransporte, VehiculoFlota } from '../types';
 
 interface PDFGeneratorResult {
@@ -355,6 +356,12 @@ export function generarInspeccionPDF(inspection: Inspeccion, metadataInput?: any
   const blob = doc.output('blob');
   const dataUri = doc.output('datauristring');
 
+  auditService.logExport('PDF', fileName, 'Inspeccion', inspection._id || inspection.id, {
+    tipoCodigo,
+    correlativo: correlativoStr,
+    inspector
+  }).catch(console.warn);
+
   return { doc, fileName, blob, dataUri };
 }
 
@@ -468,6 +475,11 @@ export function generarConsolidadoEjecutivoPDF(
   doc.text('Acumuladores Duncan, C.A.', 138, sigY + 9);
 
   const fileName = `SGD_Duncan_Reporte_Ejecutivo_${new Date().toISOString().slice(0, 10)}.pdf`;
+  auditService.logExport('PDF', fileName, 'ConsolidadoEjecutivo', undefined, {
+    empresa: filtroEmpresaNombre,
+    tasaCumplimiento,
+    totalInspecciones: inspecciones.length
+  }).catch(console.warn);
   return { doc, fileName };
 }
 
@@ -761,6 +773,11 @@ export function generarInformeAccidentePDF(accidente: AccidenteF465): PDFGenerat
   const fileName = `Informe_Tecnico_Accidente_${accidente.correlativo || 'F465'}_${accidente.cedula}.pdf`;
   const blob = doc.output('blob');
   const dataUri = doc.output('datauristring');
+  auditService.logExport('PDF', fileName, 'AccidenteF465', accidente.id, {
+    correlativo: accidente.correlativo,
+    cedula: accidente.cedula,
+    trabajador: accidente.nombreCompleto
+  }).catch(console.warn);
   return { doc, fileName, blob, dataUri };
 }
 
@@ -930,6 +947,11 @@ export function generarCertificadoCargaFuegoPDF(carga: CalculoCargaFuegoArea): P
   const fileName = `Carga_Fuego_${(carga.sedeNombre || 'Duncan').replace(/\s+/g, '_')}_${(carga.areaNombre || 'Area').replace(/\s+/g, '_')}.pdf`;
   const blob = doc.output('blob');
   const dataUri = doc.output('datauristring');
+  auditService.logExport('PDF', fileName, 'CalculoCargaFuegoArea', carga.id, {
+    sede: carga.sedeNombre,
+    area: carga.areaNombre,
+    densidadCalorifica: carga.densidadCargaCalorificaMcalM2
+  }).catch(console.warn);
   return { doc, fileName, blob, dataUri };
 }
 
@@ -1140,5 +1162,10 @@ export function generarHojaRutaTransportePDF(checklist: ChecklistTransporte, veh
   const fileName = `Hoja_Ruta_${checklist.placa || 'Flota'}_${checklist.fecha || '2026'}.pdf`;
   const blob = doc.output('blob');
   const dataUri = doc.output('datauristring');
+  auditService.logExport('PDF', fileName, 'ChecklistTransporte', checklist.id, {
+    placa: checklist.placa,
+    semaforo: checklist.semaforoSalida,
+    chofer: checklist.choferNombre
+  }).catch(console.warn);
   return { doc, fileName, blob, dataUri };
 }

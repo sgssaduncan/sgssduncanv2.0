@@ -26,7 +26,8 @@ import {
   AlertTriangle,
   GraduationCap,
   Building,
-  BarChart2
+  BarChart2,
+  ShieldCheck
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -78,6 +79,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     category: 'SISTEMA & REPORTES',
     items: [
+      { to: '/auditoria', icon: ShieldCheck, label: 'Auditoría & Trazabilidad', badge: 'FORENSE' },
       { to: '/reportes', icon: FileText, label: 'Informes Ejecutivos' },
       { to: '/usuarios', icon: Users, label: 'Usuarios y Accesos' },
       { to: '/ajustes', icon: Settings, label: 'Ajustes & Google Sheets' }

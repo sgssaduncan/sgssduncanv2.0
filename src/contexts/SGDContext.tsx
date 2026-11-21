@@ -4,6 +4,7 @@ import {
   getOfflineQueueCount, syncOfflineQueue,
 } from '../lib/googleSheetsClient';
 import { INITIAL_EMPRESAS, INITIAL_LOCALIDADES, INITIAL_TIPOS_INSPECCION } from '../data/seedData';
+import { auditService } from '../services/auditService';
 import type { Inspeccion, PlanAccion, Empresa, Localidad, Establecimiento, TipoInspeccion, Empleado, Usuario, DashboardStats, PlanStats } from '../types';
 
 interface SGDContextType {
@@ -158,12 +159,31 @@ export function SGDProvider({ children }: { children: React.ReactNode }) {
     const res = await gsApi.login(email, pass);
     if (res.success && res.user) {
       setCurrentUser(res.user);
+      auditService.log({
+        modulo: 'AUTENTICACION',
+        accion: 'INICIO_SESION',
+        entidadTipo: 'Usuario',
+        entidadId: res.user.id || res.user._id,
+        descripcion: `Inicio de sesión exitoso de ${res.user.nombre} (${res.user.rol})`,
+        detalles: { email, rol: res.user.rol }
+      }).catch(console.warn);
+    } else {
+      auditService.logSecurity(`Fallo en autenticación para ${email}`, { email }).catch(console.warn);
     }
     await refreshData();
     return res;
   };
 
   const logout = () => {
+    if (currentUser) {
+      auditService.log({
+        modulo: 'AUTENTICACION',
+        accion: 'CIERRE_SESION',
+        entidadTipo: 'Usuario',
+        entidadId: currentUser.id || currentUser._id,
+        descripcion: `Cierre de sesión de ${currentUser.nombre}`
+      }).catch(console.warn);
+    }
     gsApi.logout();
     setCurrentUser(null);
   };
@@ -171,16 +191,39 @@ export function SGDProvider({ children }: { children: React.ReactNode }) {
   const switchUser = (u: Usuario) => {
     gsApi.setCurrentUser(u);
     setCurrentUser(u);
+    auditService.log({
+      modulo: 'AUTENTICACION',
+      accion: 'INICIO_SESION',
+      entidadTipo: 'Usuario',
+      entidadId: u.id || u._id,
+      descripcion: `Cambio de usuario activo a: ${u.nombre} (${u.rol})`
+    }).catch(console.warn);
   };
 
   const saveUsuario = async (u: Partial<Usuario>) => {
     const res = await gsApi.saveUsuario(u);
+    auditService.log({
+      modulo: 'USUARIOS_SEGURIDAD',
+      accion: u.id || u._id ? 'ACTUALIZAR' : 'CREAR',
+      entidadTipo: 'Usuario',
+      entidadId: u.id || u._id,
+      descripcion: `Perfil de usuario ${u.nombre || u.email} ${u.id || u._id ? 'actualizado' : 'creado'}`,
+      detalles: { email: u.email, rol: u.rol, activo: u.activo }
+    }).catch(console.warn);
     await refreshData();
     return res;
   };
 
   const deleteUsuario = async (id: string) => {
     const res = await gsApi.deleteUsuario(id);
+    auditService.log({
+      modulo: 'USUARIOS_SEGURIDAD',
+      accion: 'ELIMINAR',
+      entidadTipo: 'Usuario',
+      entidadId: id,
+      descripcion: `Eliminación de cuenta de usuario ID: ${id}`,
+      severidad: 'CRITICO'
+    }).catch(console.warn);
     await refreshData();
     return res;
   };
