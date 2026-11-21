@@ -25,10 +25,156 @@ export function normalizeCedula(val: any): string | null {
   if (!val) return null;
   const str = String(val).trim().toUpperCase();
   const digits = str.replace(/[^0-9]/g, '');
-  if (digits.length < 5 || digits.length > 9) return null;
+  if (digits.length < 4 || digits.length > 9) return null;
 
   const prefix = str.startsWith('E') ? 'E-' : 'V-';
   return `${prefix}${digits}`;
+}
+
+/**
+ * Identifica con precisión las columnas del archivo de nómina y trabajadores
+ * Soporta las 22 columnas completas del ERP Duncan sin colisiones de subcadenas.
+ */
+export function identifyWorkerColumns(headerRow: any[]): Record<string, number> {
+  const colMap: Record<string, number> = {};
+  const cleanHeaders = (headerRow || []).map(c => String(c || '').toLowerCase().trim().replace(/[\s\-_]+/g, '_'));
+
+  cleanHeaders.forEach((t, col) => {
+    // 1. Cédula de Identidad (evitar coincidencias con residencia o provincia)
+    if (
+      t.includes('cedula') ||
+      t.includes('cédula') ||
+      t.includes('identidad') ||
+      t.includes('identificacion') ||
+      t === 'ci' ||
+      t === 'c_i' ||
+      t === 'c_i_' ||
+      t.startsWith('ci_') ||
+      t.endsWith('_ci')
+    ) {
+      if (!t.includes('residencia') && !t.includes('provincia') && !t.includes('domicilio')) {
+        colMap['cedula'] = col;
+      }
+    }
+    // 2. Nombre y Apellido del trabajador
+    else if (
+      t.includes('apellidos_y_nombres') ||
+      t.includes('nombres_y_apellidos') ||
+      t.includes('apellido_y_nombre') ||
+      t.includes('nombre_y_apellido') ||
+      t.includes('apellidos') ||
+      t.includes('trabajador') ||
+      t.includes('colaborador') ||
+      t.includes('empleado_nombre')
+    ) {
+      colMap['nombre'] = col;
+    }
+    // 3. Empresa
+    else if (t.includes('empresa') || t.includes('razon_social') || t.includes('compañia')) {
+      colMap['empresaNombre'] = col;
+    }
+    // 4. Tipo de Nómina
+    else if (t.includes('nomina') || t.includes('nómina')) {
+      colMap['nombreNomina'] = col;
+    }
+    // 5. Situación (código de situación)
+    else if (t.includes('situacion') || t.includes('situación')) {
+      colMap['codigoSituacion'] = col;
+    }
+    // 6. Código de Empleado (Ficha)
+    else if (t.includes('codigo_empleado') || t.includes('cod_empleado') || t === 'codigo' || t === 'cod' || t.includes('ficha')) {
+      colMap['codigoEmpleado'] = col;
+    }
+    // 7. Cargo
+    else if (t.includes('cargo') || t.includes('puesto') || t.includes('ocupacion') || t.includes('ocupación')) {
+      colMap['cargo'] = col;
+    }
+    // 8. Departamento
+    else if (t.includes('departamento') || t.includes('depto') || t.includes('gerencia') || t.includes('area') || t.includes('área')) {
+      colMap['departamento'] = col;
+    }
+    // 9. Sucursal / Sede / Localidad
+    else if (t.includes('sucursal') || t.includes('sede') || t.includes('planta') || t.includes('localidad')) {
+      colMap['sucursal'] = col;
+    }
+    // 10. Sexo / Género
+    else if (t === 'sexo' || t === 'genero' || t === 'género') {
+      colMap['sexo'] = col;
+    }
+    // 11. Fecha Nacimiento
+    else if (t.includes('nacimiento') || t.includes('fecha_nac')) {
+      colMap['fechaNacimiento'] = col;
+    }
+    // 12. Fecha Ingreso
+    else if (t.includes('fecha_de_ingreso') || t.includes('fecha_ingreso') || t === 'ingreso') {
+      colMap['fechaIngreso'] = col;
+    }
+    // 13. Antigüedad
+    else if (t.includes('antiguedad_anos') || t.includes('antiguedad_años') || t.includes('antiguedad_ano')) {
+      colMap['antiguedadAnos'] = col;
+    }
+    else if (t.includes('antiguedad_meses') || t.includes('antiguedad_mes')) {
+      colMap['antiguedadMeses'] = col;
+    }
+    else if (t.includes('antiguedad_dias') || t.includes('antiguedad_dia')) {
+      colMap['antiguedadDias'] = col;
+    }
+    // 14. Centros de Costos
+    else if (t.includes('numero_centro_de_costos') || t.includes('numero_centro_costo') || t.includes('num_centro_costo') || t.includes('centro_costo_num')) {
+      colMap['numeroCentroCostos'] = col;
+    }
+    else if (t.includes('centro_costos_descripcion') || t.includes('centro_costo_desc') || t.includes('desc_centro_costo')) {
+      colMap['centroCostosDescripcion'] = col;
+    }
+    else if (t.includes('tipo_centro_de_costo') || t.includes('tipo_centro_costo')) {
+      colMap['tipoCentroCosto'] = col;
+    }
+    // 15. Vencimiento Contrato
+    else if (t.includes('vencimiento_contrato') || t.includes('vencimiento')) {
+      colMap['fechaVencimientoContrato'] = col;
+    }
+    // 16. Residencia
+    else if (t.includes('direccion_residencia') || (t.includes('direccion') && t.includes('residencia'))) {
+      colMap['direccionResidencia'] = col;
+    }
+    else if (t.includes('ciudad_residencia') || (t.includes('ciudad') && t.includes('residencia'))) {
+      colMap['ciudadResidencia'] = col;
+    }
+    else if (t.includes('estado_residencia') || (t.includes('estado') && t.includes('residencia'))) {
+      colMap['estadoResidencia'] = col;
+    }
+    // 17. Tallas si vienen en la nómina
+    else if (t.includes('talla_calzado') || t.includes('calzado') || t.includes('botas')) {
+      colMap['tallaCalzado'] = col;
+    }
+    else if (t.includes('talla_camisa') || t.includes('camisa') || t.includes('franela') || t.includes('chemise')) {
+      colMap['tallaCamisa'] = col;
+    }
+    else if (t.includes('talla_pantalon') || t.includes('pantalon') || t.includes('pantalón')) {
+      colMap['tallaPantalon'] = col;
+    }
+    // Fallback genéricos
+    else if (t === 'nombre' && colMap['nombre'] === undefined) {
+      colMap['nombre'] = col;
+    }
+    else if (t === 'direccion' && colMap['direccionResidencia'] === undefined) {
+      colMap['direccionResidencia'] = col;
+    }
+    else if (t === 'ciudad' && colMap['ciudadResidencia'] === undefined) {
+      colMap['ciudadResidencia'] = col;
+    }
+    else if (t === 'estado' && colMap['estadoResidencia'] === undefined) {
+      colMap['estadoResidencia'] = col;
+    }
+    else if (t.includes('telefono') || t.includes('celular') || t.includes('movil')) {
+      colMap['telefono'] = col;
+    }
+    else if (t.includes('correo') || t.includes('email')) {
+      colMap['email'] = col;
+    }
+  });
+
+  return colMap;
 }
 
 /**
@@ -81,39 +227,36 @@ function parseExcelFile(buffer: ArrayBuffer, fileName: string): ParsedWorkerResu
       };
     }
 
-    // Identificar fila de encabezados
+    // Identificar fila de encabezados con el mapeador avanzado de 22 columnas
     let headerIdx = -1;
     let colMap: Record<string, number> = {};
 
     for (let r = 0; r < Math.min(10, rawMatrix.length); r++) {
       const row = rawMatrix[r] || [];
-      const rowText = row.map(c => String(c || '').toLowerCase().trim());
-      
-      const hasCedula = rowText.some(t => t.includes('cedula') || t.includes('cédula') || t.includes('ci') || t.includes('identificacion') || t.includes('documento'));
-      const hasNombre = rowText.some(t => t.includes('nombre') || t.includes('trabajador') || t.includes('empleado') || t.includes('colaborador') || t.includes('apellido'));
-
-      if (hasCedula || hasNombre) {
+      const testMap = identifyWorkerColumns(row);
+      if (testMap['cedula'] !== undefined && testMap['nombre'] !== undefined) {
         headerIdx = r;
-        rowText.forEach((t, col) => {
-          if (t.includes('cedula') || t.includes('cédula') || t.includes('ci') || t.includes('identificacion')) colMap['cedula'] = col;
-          else if (t.includes('nombre') || t.includes('trabajador') || t.includes('colaborador') || t.includes('empleado')) colMap['nombre'] = col;
-          else if (t.includes('cargo') || t.includes('puesto') || t.includes('ocupacion')) colMap['cargo'] = col;
-          else if (t.includes('departamento') || t.includes('area') || t.includes('área') || t.includes('gerencia')) colMap['departamento'] = col;
-          else if (t.includes('empresa') || t.includes('razon') || t.includes('compañia')) colMap['empresaNombre'] = col;
-          else if (t.includes('sede') || t.includes('establecimiento') || t.includes('localidad') || t.includes('sucursal')) colMap['sedeNombre'] = col;
-          else if (t.includes('ingreso') || t.includes('fecha ingreso')) colMap['fechaIngreso'] = col;
-          else if (t.includes('vacaciones') || t.includes('disfrute') || t.includes('descanso')) colMap['ultimoDisfruteVacacional'] = col;
-          else if (t.includes('telefono') || t.includes('celular') || t.includes('movil')) colMap['telefono'] = col;
-          else if (t.includes('correo') || t.includes('email')) colMap['email'] = col;
-          else if (t.includes('genero') || t.includes('sexo')) colMap['genero'] = col;
-        });
+        colMap = testMap;
         break;
+      }
+    }
+
+    // Fallback si no encontró ambas columnas explícitas en una sola fila
+    if (headerIdx === -1) {
+      for (let r = 0; r < Math.min(10, rawMatrix.length); r++) {
+        const row = rawMatrix[r] || [];
+        const testMap = identifyWorkerColumns(row);
+        if (testMap['cedula'] !== undefined || testMap['nombre'] !== undefined) {
+          headerIdx = r;
+          colMap = testMap;
+          break;
+        }
       }
     }
 
     if (headerIdx === -1) {
       headerIdx = 0; // Default a primera fila
-      colMap = { cedula: 0, nombre: 1, cargo: 2, departamento: 3, empresaNombre: 4, sedeNombre: 5 };
+      colMap = { empresaNombre: 0, nombreNomina: 1, codigoEmpleado: 2, cedula: 3, nombre: 6, cargo: 7, departamento: 14, sucursal: 17 };
     }
 
     const validRows: Partial<Empleado>[] = [];
@@ -125,10 +268,10 @@ function parseExcelFile(buffer: ArrayBuffer, fileName: string): ParsedWorkerResu
         continue;
       }
 
-      const rawCedula = colMap['cedula'] !== undefined ? row[colMap['cedula']] : row[0];
+      const rawCedula = colMap['cedula'] !== undefined ? row[colMap['cedula']] : row[3];
       const cedula = normalizeCedula(rawCedula);
 
-      const rawNombre = colMap['nombre'] !== undefined ? row[colMap['nombre']] : row[1];
+      const rawNombre = colMap['nombre'] !== undefined ? row[colMap['nombre']] : row[6] || row[1];
       const nombre = String(rawNombre || '').trim();
 
       if (!cedula) {
@@ -143,12 +286,34 @@ function parseExcelFile(buffer: ArrayBuffer, fileName: string): ParsedWorkerResu
 
       const cargo = (colMap['cargo'] !== undefined ? String(row[colMap['cargo']] || '') : 'Operador').trim() || 'Operador';
       const departamento = (colMap['departamento'] !== undefined ? String(row[colMap['departamento']] || '') : 'Operaciones').trim() || 'Operaciones';
-      const empresaNombre = (colMap['empresaNombre'] !== undefined ? String(row[colMap['empresaNombre']] || '') : 'Distribuidora Duncan, C.A.').trim() || 'Distribuidora Duncan, C.A.';
-      const sedeNombre = colMap['sedeNombre'] !== undefined ? String(row[colMap['sedeNombre']] || '').trim() : undefined;
+      const empresaNombre = (colMap['empresaNombre'] !== undefined ? String(row[colMap['empresaNombre']] || '') : 'Acumuladores Duncan, C.A.').trim() || 'Acumuladores Duncan, C.A.';
+      const sucursal = colMap['sucursal'] !== undefined ? String(row[colMap['sucursal']] || '').trim() : undefined;
+      const nombreNomina = colMap['nombreNomina'] !== undefined ? String(row[colMap['nombreNomina']] || '').trim() : undefined;
+      const codigoEmpleado = colMap['codigoEmpleado'] !== undefined ? String(row[colMap['codigoEmpleado']] || '').trim() : undefined;
+      const tipoCentroCosto = colMap['tipoCentroCosto'] !== undefined ? String(row[colMap['tipoCentroCosto']] || '').trim() : undefined;
+      const codigoSituacion = colMap['codigoSituacion'] !== undefined ? String(row[colMap['codigoSituacion']] || '').trim() : undefined;
+      const numeroCentroCostos = colMap['numeroCentroCostos'] !== undefined ? String(row[colMap['numeroCentroCostos']] || '').trim() : undefined;
+      const centroCostosDescripcion = colMap['centroCostosDescripcion'] !== undefined ? String(row[colMap['centroCostosDescripcion']] || '').trim() : undefined;
+      const fechaVencimientoContrato = colMap['fechaVencimientoContrato'] !== undefined ? formatRawDate(row[colMap['fechaVencimientoContrato']]) : undefined;
+      const direccionResidencia = colMap['direccionResidencia'] !== undefined ? String(row[colMap['direccionResidencia']] || '').trim() : undefined;
+      const ciudadResidencia = colMap['ciudadResidencia'] !== undefined ? String(row[colMap['ciudadResidencia']] || '').trim() : undefined;
+      const estadoResidencia = colMap['estadoResidencia'] !== undefined ? String(row[colMap['estadoResidencia']] || '').trim() : undefined;
+
+      const rawSexo = colMap['sexo'] !== undefined ? String(row[colMap['sexo']] || '').trim().toUpperCase() : '';
+      const genero = rawSexo.startsWith('F') ? 'F' : rawSexo.startsWith('M') ? 'M' : undefined;
+
+      const fechaNacimiento = colMap['fechaNacimiento'] !== undefined ? formatRawDate(row[colMap['fechaNacimiento']]) : undefined;
+      const fechaIngreso = colMap['fechaIngreso'] !== undefined ? formatRawDate(row[colMap['fechaIngreso']]) : undefined;
+
+      const antiguedadAnos = colMap['antiguedadAnos'] !== undefined && row[colMap['antiguedadAnos']] !== undefined ? Number(row[colMap['antiguedadAnos']]) || 0 : undefined;
+      const antiguedadMeses = colMap['antiguedadMeses'] !== undefined && row[colMap['antiguedadMeses']] !== undefined ? Number(row[colMap['antiguedadMeses']]) || 0 : undefined;
+      const antiguedadDias = colMap['antiguedadDias'] !== undefined && row[colMap['antiguedadDias']] !== undefined ? Number(row[colMap['antiguedadDias']]) || 0 : undefined;
+
       const telefono = colMap['telefono'] !== undefined ? String(row[colMap['telefono']] || '').trim() : undefined;
       const email = colMap['email'] !== undefined ? String(row[colMap['email']] || '').trim() : undefined;
-      const fechaIngreso = colMap['fechaIngreso'] !== undefined ? formatRawDate(row[colMap['fechaIngreso']]) : undefined;
-      const ultimoDisfruteVacacional = colMap['ultimoDisfruteVacacional'] !== undefined ? formatRawDate(row[colMap['ultimoDisfruteVacacional']]) : undefined;
+      const tallaCalzado = colMap['tallaCalzado'] !== undefined ? String(row[colMap['tallaCalzado']] || '').trim() : undefined;
+      const tallaCamisa = colMap['tallaCamisa'] !== undefined ? String(row[colMap['tallaCamisa']] || '').trim() : undefined;
+      const tallaPantalon = colMap['tallaPantalon'] !== undefined ? String(row[colMap['tallaPantalon']] || '').trim() : undefined;
 
       validRows.push({
         cedula,
@@ -156,11 +321,31 @@ function parseExcelFile(buffer: ArrayBuffer, fileName: string): ParsedWorkerResu
         cargo,
         departamento,
         empresaNombre,
-        sedeNombre,
+        sucursal,
+        sedeNombre: sucursal,
+        nombreNomina,
+        codigoEmpleado,
+        codigo: codigoEmpleado,
+        tipoCentroCosto,
+        codigoSituacion,
+        numeroCentroCostos,
+        centroCostosDescripcion,
+        fechaVencimientoContrato,
+        direccionResidencia,
+        direccion: direccionResidencia,
+        ciudadResidencia,
+        estadoResidencia,
+        genero,
+        fechaNacimiento,
+        fechaIngreso,
+        antiguedadAnos,
+        antiguedadMeses,
+        antiguedadDias,
         telefono,
         email,
-        fechaIngreso,
-        ultimoDisfruteVacacional,
+        tallaCalzado,
+        tallaCamisa,
+        tallaPantalon,
         activo: true
       });
     }

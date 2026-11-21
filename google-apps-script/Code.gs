@@ -5,25 +5,10 @@
  * Este script actúa como API REST para la aplicación PWA SGD Duncan.
  * Se conecta a Google Sheets como base de datos en la nube.
  *
- * INSTRUCCIONES DE DESPLIEGUE:
- * 1. Crea una hoja de cálculo en Google Sheets (ej: "SGD Duncan 2.0 DB").
- * 2. En el menú superior, ve a: Extensiones > Apps Script.
- * 3. Borra todo el código que aparezca y pega este archivo completo.
- * 4. En el editor de Apps Script, selecciona la función "setupSpreadsheet"
- *    en el desplegable superior y haz clic en "Ejecutar" (Run).
- *    (Te pedirá autorizar permisos una sola vez; esto creará todas las pestañas).
- * 5. Haz clic en el botón azul superior: "Implementar" (Deploy) > "Nueva implementación".
- * 6. Selecciona tipo: "Aplicación web" (Web App).
- *    - Descripción: "API SGD Duncan 2.0"
- *    - Ejecutar como: "Yo" (tu cuenta)
- *    - Quién tiene acceso: "Cualquier persona" (Anyone)
- * 7. Haz clic en "Implementar" y copia la URL de la aplicación web
- *    (termina en /exec).
- * 8. Pega esa URL en la PWA en Ajustes > Conexión con Google Sheets.
+ * ID de Hoja Backend: 1dH0vgYL80DDpwPcdwwaxsg9qCNvNahCbCUxlzDejcFU
  * ===================================================================
  */
 
-// ID oficial de la hoja de cálculo de Google Sheets como backend
 var SPREADSHEET_ID = '1dH0vgYL80DDpwPcdwwaxsg9qCNvNahCbCUxlzDejcFU';
 
 function getSpreadsheet() {
@@ -37,12 +22,11 @@ function getSpreadsheet() {
   return SpreadsheetApp.getActiveSpreadsheet();
 }
 
-// Nombres de las hojas (tablas)
 var SHEETS = {
   INSPECCIONES: 'Inspecciones',
   PLAN_ACCION: 'PlanAccion',
   ESTABLECIMIENTOS: 'Establecimientos',
-  EMPLEADOS: 'Empleados',
+  EMPLEADOS: 'Trabajadores',
   AUDIT_LOG: 'Audit_Log',
   USUARIOS: 'Usuarios',
   CONFIGURACION: 'Configuracion',
@@ -73,6 +57,7 @@ function doGet(e) {
           var ssPing = getSpreadsheet();
           var sheetUsrPing = getOrCreateSheet(ssPing, SHEETS.USUARIOS);
           ensureDefaultUsers(sheetUsrPing);
+          ensureEmpleadosSheet(ssPing);
         } catch (ePing) {}
         responseData = { status: 'success', message: 'SGD Duncan API online', timestamp: new Date().toISOString() };
         break;
@@ -110,7 +95,7 @@ function doGet(e) {
         break;
 
       default:
-        responseData = { status: 'error', message: 'Acción desconocida: ' + action };
+        responseData = { status: 'error', message: 'Accion desconocida: ' + action };
     }
 
     return ContentService
@@ -172,6 +157,10 @@ function doPost(e) {
         result = handleDeleteUsuario(payload);
         break;
 
+      case 'importEmpleados':
+        result = handleImportEmpleados(payload);
+        break;
+
       case 'saveTableItem':
         result = handleSaveTableItem(payload);
         break;
@@ -189,7 +178,7 @@ function doPost(e) {
         break;
 
       default:
-        result = { status: 'error', message: 'Acción POST desconocida: ' + action };
+        result = { status: 'error', message: 'Accion POST desconocida: ' + action };
     }
 
     return ContentService
@@ -211,6 +200,7 @@ function handleGetInitData() {
   var ss = getSpreadsheet();
   try {
     ensureDefaultUsers(getOrCreateSheet(ss, SHEETS.USUARIOS));
+    ensureEmpleadosSheet(ss);
   } catch (eInitUsr) {}
   var sheetInsp = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
   var sheetPlan = getOrCreateSheet(ss, SHEETS.PLAN_ACCION);
@@ -283,40 +273,213 @@ function handleGetPlanAccion() {
   return sheetToObjects(sheet);
 }
 
+// -------------------------------------------------------------
+// MANEJO DE NÓMINA Y TRABAJADORES (22 COLUMNAS ERP COMPLETO)
+// -------------------------------------------------------------
+var EMPLEADOS_HEADERS = [
+  '_id',
+  'codigo_empleado',
+  'cedula',
+  'apellidos_y_nombres',
+  'cargo',
+  'departamento',
+  'nombre_empresa',
+  'sucursal',
+  'nombre_nomina',
+  'sexo',
+  'fecha_de_nacimiento',
+  'fecha_de_ingreso',
+  'antiguedad_anos',
+  'antiguedad_meses',
+  'antiguedad_dias',
+  'numero_centro_de_costos',
+  'centro_costos_descripcion',
+  'tipo_centro_de_costo',
+  'codigo_situacion',
+  'fecha_vencimiento_contrato',
+  'direccion_residencia',
+  'ciudad_residencia',
+  'estado_residencia',
+  'activo',
+  'actualizadoEn'
+];
+
+function getEmpleadosSheet(ss) {
+  var sheet = ss.getSheetByName('Trabajadores');
+  if (!sheet) sheet = ss.getSheetByName('Empleados');
+  if (!sheet) {
+    sheet = ss.insertSheet('Trabajadores');
+  }
+  return sheet;
+}
+
+function ensureEmpleadosSheet(ss) {
+  var sheet = getEmpleadosSheet(ss);
+  var data = sheet.getDataRange().getValues();
+
+  if (data.length === 0 || !data[0][0]) {
+    sheet.clear();
+    sheet.appendRow(EMPLEADOS_HEADERS);
+    formatHeaderRow(sheet);
+  } else {
+    var headers = data[0].map(function(h) { return String(h).trim().toLowerCase(); });
+    if (headers.indexOf('codigo_empleado') === -1 || headers.indexOf('sucursal') === -1 || headers.indexOf('nombre_nomina') === -1) {
+      // Auto-migración a la estructura completa de 25 columnas
+      var oldRows = sheetToObjects(sheet);
+      sheet.clear();
+      sheet.appendRow(EMPLEADOS_HEADERS);
+      formatHeaderRow(sheet);
+
+      if (oldRows.length > 0) {
+        var rowsToAdd = [];
+        for (var i = 0; i < oldRows.length; i++) {
+          var o = oldRows[i];
+          rowsToAdd.push([
+            o._id || ('emp_' + (i + 1)),
+            o.codigo_empleado || o.codigo || '',
+            o.cedula || '',
+            o.apellidos_y_nombres || o.nombre || '',
+            o.cargo || '',
+            o.departamento || '',
+            o.nombre_empresa || o.empresaNombre || '',
+            o.sucursal || o.sedeNombre || '',
+            o.nombre_nomina || '',
+            o.sexo || o.genero || '',
+            o.fecha_de_nacimiento || o.fechaNacimiento || '',
+            o.fecha_de_ingreso || o.fechaIngreso || '',
+            o.antiguedad_anos || '',
+            o.antiguedad_meses || '',
+            o.antiguedad_dias || '',
+            o.numero_centro_de_costos || '',
+            o.centro_costos_descripcion || '',
+            o.tipo_centro_de_costo || '',
+            o.codigo_situacion || '',
+            o.fecha_vencimiento_contrato || '',
+            o.direccion_residencia || o.direccion || '',
+            o.ciudad_residencia || '',
+            o.estado_residencia || '',
+            o.activo !== false && o.activo !== 'false',
+            o.actualizadoEn || new Date().toISOString()
+          ]);
+        }
+        sheet.getRange(2, 1, rowsToAdd.length, EMPLEADOS_HEADERS.length).setValues(rowsToAdd);
+      }
+    }
+  }
+  return sheet;
+}
+
 function handleGetEmpleados(q) {
   var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.EMPLEADOS);
+  var sheet = ensureEmpleadosSheet(ss);
   var emps = sheetToObjects(sheet);
   if (!q) return emps;
   var qLow = q.toLowerCase();
   return emps.filter(function(e) {
-    return (e.nombre && e.nombre.toLowerCase().indexOf(qLow) !== -1) ||
+    return (e.apellidos_y_nombres && e.apellidos_y_nombres.toLowerCase().indexOf(qLow) !== -1) ||
+           (e.nombre && e.nombre.toLowerCase().indexOf(qLow) !== -1) ||
            (e.cedula && String(e.cedula).indexOf(qLow) !== -1) ||
-           (e.cargo && e.cargo.toLowerCase().indexOf(qLow) !== -1);
+           (e.cargo && e.cargo.toLowerCase().indexOf(qLow) !== -1) ||
+           (e.sucursal && e.sucursal.toLowerCase().indexOf(qLow) !== -1);
   });
 }
 
+function handleImportEmpleados(payload) {
+  var ss = getSpreadsheet();
+  var sheet = ensureEmpleadosSheet(ss);
+  var items = payload.items || [];
+  if (!items || items.length === 0) {
+    return { success: false, message: 'No se recibieron trabajadores para importar' };
+  }
+
+  var existingData = sheet.getDataRange().getValues();
+  var header = existingData[0];
+  var existingMap = {};
+
+  for (var r = 1; r < existingData.length; r++) {
+    var rawCed = String(existingData[r][2] || '').trim().toUpperCase();
+    if (rawCed) existingMap[rawCed] = r + 1; // 1-based index
+  }
+
+  var rowsToInsert = [];
+  var updatedCount = 0;
+  var nowStr = new Date().toISOString();
+
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    var ced = String(it.cedula || '').trim().toUpperCase();
+    if (!ced) continue;
+
+    var rowArray = [
+      it._id || it.id || ('emp_' + Date.now() + '_' + i),
+      it.codigoEmpleado || it.codigo_empleado || it.codigo || '',
+      ced,
+      it.nombre || it.apellidos_y_nombres || '',
+      it.cargo || '',
+      it.departamento || '',
+      it.empresaNombre || it.nombre_empresa || '',
+      it.sucursal || it.sedeNombre || '',
+      it.nombreNomina || it.nombre_nomina || '',
+      it.genero || it.sexo || '',
+      it.fechaNacimiento || it.fecha_de_nacimiento || '',
+      it.fechaIngreso || it.fecha_de_ingreso || '',
+      it.antiguedadAnos !== undefined ? it.antiguedadAnos : '',
+      it.antiguedadMeses !== undefined ? it.antiguedadMeses : '',
+      it.antiguedadDias !== undefined ? it.antiguedadDias : '',
+      it.numeroCentroCostos || it.numero_centro_de_costos || '',
+      it.centroCostosDescripcion || it.centro_costos_descripcion || '',
+      it.tipoCentroCosto || it.tipo_centro_de_costo || '',
+      it.codigoSituacion || it.codigo_situacion || '',
+      it.fechaVencimientoContrato || it.fecha_vencimiento_contrato || '',
+      it.direccionResidencia || it.direccion_residencia || it.direccion || '',
+      it.ciudadResidencia || it.ciudad_residencia || '',
+      it.estadoResidencia || it.estado_residencia || '',
+      it.activo !== false && it.activo !== 'false',
+      nowStr
+    ];
+
+    if (existingMap[ced]) {
+      var targetRow = existingMap[ced];
+      sheet.getRange(targetRow, 1, 1, EMPLEADOS_HEADERS.length).setValues([rowArray]);
+      updatedCount++;
+    } else {
+      rowsToInsert.push(rowArray);
+    }
+  }
+
+  if (rowsToInsert.length > 0) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, rowsToInsert.length, EMPLEADOS_HEADERS.length).setValues(rowsToInsert);
+  }
+
+  SpreadsheetApp.flush();
+  return {
+    success: true,
+    added: rowsToInsert.length,
+    updated: updatedCount,
+    total: sheet.getLastRow() - 1
+  };
+}
+
+// -------------------------------------------------------------
+// MANEJO DE USUARIOS Y AUTENTICACIÓN
+// -------------------------------------------------------------
 function ensureDefaultUsers(sheet) {
   var targetHeaders = ['_id', 'email', 'cedula', 'nombre', 'cargo', 'localidad', 'rol', 'password', 'activo', 'actualizadoEn'];
   var data = sheet.getDataRange().getValues();
 
-  // Caso 1: Hoja totalmente vacía
   if (data.length === 0 || !data[0][0]) {
     sheet.clear();
     sheet.appendRow(targetHeaders);
     formatHeaderRow(sheet);
     data = sheet.getDataRange().getValues();
   } else {
-    // Caso 2: Verificar si falta la columna 'cedula' u otras columnas requeridas
     var headers = data[0].map(function(h) { return String(h).trim().toLowerCase(); });
     if (headers.indexOf('cedula') === -1) {
-      // Migrar y actualizar la estructura existente preservando los datos ya registrados
       var oldUsers = sheetToObjects(sheet);
       sheet.clear();
       sheet.appendRow(targetHeaders);
       formatHeaderRow(sheet);
 
-      // Re-insertar filas mapeadas a la nueva estructura con cédula
       for (var k = 0; k < oldUsers.length; k++) {
         var uOld = oldUsers[k];
         var uEmail = (uOld.email || '').trim().toLowerCase();
@@ -327,7 +490,7 @@ function ensureDefaultUsers(sheet) {
         if (uEmail === 'aabecerra852@gmail.com') {
           defaultCed = 'V-14567890';
           defaultCargo = 'Administrador del Sistema';
-        } else if (uEmail === 'francisco.rojasp@gmail.com') {
+        } else if (uEmail === 'francisco.rojasp@gmail.com' || uEmail === 'francisco.rojasp@gmail') {
           defaultCed = 'V-12033632';
           defaultCargo = 'Propietario / Desarrollador Líder';
           defaultLoc = 'Sede Principal Los Ruices';
@@ -359,12 +522,12 @@ function ensureDefaultUsers(sheet) {
     }
   }
 
-  // Verificar que todas las cuentas maestras obligatorias existan y estén actualizadas
+  // Verificar cuentas maestras obligatorias
   data = sheet.getDataRange().getValues();
   var existingEmails = {};
   for (var i = 1; i < data.length; i++) {
     var em = String(data[i][1] || '').trim().toLowerCase();
-    if (em) existingEmails[em] = i + 1; // 1-based row index
+    if (em) existingEmails[em] = i + 1;
   }
 
   var masterAccounts = [
@@ -387,702 +550,7 @@ function ensureDefaultUsers(sheet) {
       cargo: 'Propietario / Desarrollador Líder',
       localidad: 'Sede Principal Los Ruices',
       rol: 'Propietario / Super Admin',
-      password: 'Leo150873#*
-
-function handleGetUsuarios() {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.USUARIOS);
-  ensureDefaultUsers(sheet);
-  var users = sheetToObjects(sheet);
-  return users.map(function(u) {
-    return {
-      _id: u._id,
-      email: u.email,
-      cedula: u.cedula || '',
-      nombre: u.nombre,
-      cargo: u.cargo || '',
-      localidad: u.localidad || '',
-      rol: u.rol,
-      activo: u.activo === true || u.activo === 'true' || u.activo === 'VERDADERO' || u.activo === 1
-    };
-  });
-}
-
-function handleLogin(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.USUARIOS);
-  ensureDefaultUsers(sheet);
-  var users = sheetToObjects(sheet);
-  var email = (payload.email || '').trim().toLowerCase();
-  var password = String(payload.password || '').trim();
-
-  for (var i = 0; i < users.length; i++) {
-    var u = users[i];
-    var uEmail = (u.email || '').trim().toLowerCase();
-    var uPass = String(u.password || '').trim();
-    if (uEmail === email && uPass === password) {
-      return {
-        success: true,
-        user: {
-          _id: u._id,
-          email: u.email,
-          nombre: u.nombre,
-          rol: u.rol,
-          activo: true
-        }
-      };
-    }
-  }
-
-  // Fallback seguro de credenciales maestras autorizadas
-  if (email === 'aabecerra852@gmail.com' && password === 'Panelas369*') {
-    return {
-      success: true,
-      user: {
-        _id: 'usr_admin_becerra',
-        email: 'aabecerra852@gmail.com',
-        nombre: 'A. Becerra (Administrador del Sistema)',
-        rol: 'Propietario / Super Admin',
-        activo: true
-      }
-    };
-  }
-  if (email === 'francisco.rojasp@gmail.com' && password === 'Leo150873#*$') {
-    return {
-      success: true,
-      user: {
-        _id: 'usr_francisco',
-        email: 'francisco.rojasp@gmail.com',
-        nombre: 'Francisco Rojas',
-        rol: 'Propietario / Super Admin',
-        activo: true
-      }
-    };
-  }
-  if (email === 'sgssaduncan@gmail.com' && password === 'Leo150873#*$') {
-    return {
-      success: true,
-      user: {
-        _id: 'usr_sgssa',
-        email: 'sgssaduncan@gmail.com',
-        nombre: 'SST / SSA Duncan',
-        rol: 'Propietario / Super Admin',
-        activo: true
-      }
-    };
-  }
-  if (email === 'admin@duncan.com.ve' && (password === 'Duncan2026*' || password === 'admin123')) {
-    return {
-      success: true,
-      user: {
-        _id: 'usr_admin',
-        email: 'admin@duncan.com.ve',
-        nombre: 'Administrador General',
-        rol: 'Super Admin',
-        activo: true
-      }
-    };
-  }
-
-  return { success: false, message: 'Correo o contraseña incorrectos' };
-}
-
-function handleGetTableData(tableName) {
-  var ss = getSpreadsheet();
-  var sheet = ss.getSheetByName(tableName);
-  if (!sheet) return [];
-  return sheetToObjects(sheet);
-}
-
-function handleSaveTableItem(payload) {
-  var ss = getSpreadsheet();
-  var tableName = payload.table;
-  if (!tableName) return { success: false, message: 'Falta nombre de tabla' };
-  var sheet = getOrCreateSheet(ss, tableName);
-  var item = payload.item || {};
-  var data = sheet.getDataRange().getValues();
-  if (data.length === 0 || !data[0][0]) {
-    var keys = Object.keys(item);
-    sheet.appendRow(keys);
-    formatHeaderRow(sheet);
-    data = sheet.getDataRange().getValues();
-  }
-
-  var headers = data[0];
-  var itemId = String(item._id || item.id || '');
-  var rowIndex = -1;
-
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === itemId) {
-      rowIndex = i + 1;
-      break;
-    }
-  }
-
-  var rowValues = [];
-  for (var j = 0; j < headers.length; j++) {
-    var val = item[headers[j]];
-    if (val === undefined) val = '';
-    if (typeof val === 'object' && val !== null) val = JSON.stringify(val);
-    rowValues.push(val);
-  }
-
-  if (rowIndex > 1) {
-    sheet.getRange(rowIndex, 1, 1, headers.length).setValues([rowValues]);
-  } else {
-    sheet.appendRow(rowValues);
-  }
-  return { success: true, id: itemId };
-}
-
-function handleSaveTableBatch(payload) {
-  var ss = getSpreadsheet();
-  var tableName = payload.table;
-  var items = payload.items || [];
-  if (!tableName || items.length === 0) return { success: false, count: 0 };
-  var sheet = getOrCreateSheet(ss, tableName);
-  for (var k = 0; k < items.length; k++) {
-    handleSaveTableItem({ table: tableName, item: items[k] });
-  }
-  return { success: true, count: items.length };
-}
-
-function handleSaveUsuario(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.USUARIOS);
-  ensureDefaultUsers(sheet);
-
-  var data = sheet.getDataRange().getValues();
-  var headers = data[0];
-  var email = (payload.email || '').trim().toLowerCase();
-  var rowIndex = -1;
-
-  for (var i = 1; i < data.length; i++) {
-    var rowId = String(data[i][0]);
-    var rowEmail = String(data[i][1] || '').trim().toLowerCase();
-    if (rowId === String(payload._id) || (email && rowEmail === email)) {
-      rowIndex = i + 1;
-      break;
-    }
-  }
-
-  var id = payload._id || ('usr_' + Date.now());
-  var fullItem = {
-    _id: id,
-    email: payload.email,
-    cedula: payload.cedula || '',
-    nombre: payload.nombre,
-    cargo: payload.cargo || '',
-    localidad: payload.localidad || '',
-    rol: payload.rol || 'Inspector',
-    password: payload.password || 'Duncan2026*',
-    activo: payload.activo !== false,
-    actualizadoEn: new Date().toISOString()
-  };
-
-  var rowData = [];
-  for (var j = 0; j < headers.length; j++) {
-    var key = headers[j];
-    var val = fullItem[key];
-    if (val === undefined) val = '';
-    rowData.push(val);
-  }
-
-  if (rowIndex > 1) {
-    sheet.getRange(rowIndex, 1, 1, rowData.length).setValues([rowData]);
-  } else {
-    sheet.appendRow(rowData);
-  }
-  SpreadsheetApp.flush();
-  return { success: true, id: id };
-}
-
-function handleDeleteUsuario(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.USUARIOS);
-  var data = sheet.getDataRange().getValues();
-
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(payload.id)) {
-      var email = String(data[i][1] || '').trim().toLowerCase();
-      if (email === 'francisco.rojasp@gmail.com' || email === 'sgssaduncan@gmail.com') {
-        return { success: false, message: 'No se puede eliminar la cuenta principal de Propietario / Super Admin' };
-      }
-      sheet.deleteRow(i + 1);
-      return { success: true };
-    }
-  }
-  return { success: false, message: 'Usuario no encontrado' };
-}
-
-// ===================================================================
-// RECUPERACIÓN DE CONTRASEÑA Y USUARIO (METODOLOGÍA COSTO CERO)
-// ===================================================================
-
-function handleSolicitarCodigoRecuperacion(payload) {
-  var email = (payload.email || '').trim().toLowerCase();
-  var code = String(payload.code || '');
-  var nombre = payload.nombre || 'Trabajador Duncan';
-  if (!email || !code) return { success: false, message: 'Faltan parámetros requeridos (email y código)' };
-
-  try {
-    MailApp.sendEmail({
-      to: email,
-      subject: 'Código de Recuperación de Acceso — SGD Duncan 2.0',
-      htmlBody: '<div style="font-family: Arial, sans-serif; max-width: 580px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background-color: #ffffff;">' +
-        '<div style="background-color: #020617; padding: 24px; text-align: center; border-bottom: 3px solid #facc15;">' +
-        '<h1 style="color: #facc15; margin: 0; font-size: 20px; font-weight: 900; letter-spacing: 1px;">ACUMULADORES DUNCAN, S.A.</h1>' +
-        '<p style="color: #94a3b8; margin: 4px 0 0; font-size: 11px; text-transform: uppercase;">Sistema de Gestión de Seguridad y Salud en el Trabajo (SGD 2.0)</p>' +
-        '</div>' +
-        '<div style="padding: 24px 28px; color: #1e293b; line-height: 1.6;">' +
-        '<h2 style="font-size: 16px; font-weight: bold; margin-top: 0; color: #0f172a;">Recuperación de Contraseña y Acceso</h2>' +
-        '<p style="font-size: 13px; color: #334155;">Estimado(a) <strong>' + nombre + '</strong>,</p>' +
-        '<p style="font-size: 13px; color: #334155;">Se ha generado una solicitud para restablecer sus credenciales en el sistema SGD Duncan. Utilice el siguiente código de seguridad temporal:</p>' +
-        '<div style="background-color: #fefce8; border: 2px dashed #facc15; padding: 18px; text-align: center; border-radius: 10px; margin: 22px 0;">' +
-        '<span style="font-size: 11px; font-weight: bold; color: #854d0e; display: block; margin-bottom: 6px; text-transform: uppercase;">Código de Verificación Temporal:</span>' +
-        '<span style="font-size: 32px; font-weight: 900; letter-spacing: 8px; color: #0f172a; font-family: monospace;">' + code + '</span>' +
-        '</div>' +
-        '<p style="font-size: 12px; color: #64748b;">Este código es de uso personal, confidencial y expira en <strong>15 minutos</strong>. Si usted no realizó esta solicitud, puede desestimar este mensaje o contactar al administrador del sistema (<a href="mailto:aabecerra852@gmail.com" style="color: #0284c7; text-decoration: none;">aabecerra852@gmail.com</a>).</p>' +
-        '</div>' +
-        '<div style="background-color: #f8fafc; padding: 12px 24px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid #f1f5f9;">' +
-        'Acumuladores Duncan © 2026 • Soporte Técnico SSST • Notificación Gratuita Automatizada' +
-        '</div>' +
-        '</div>'
-    });
-    return { success: true, message: 'Correo enviado satisfactoriamente vía Google MailApp (Costo Cero)' };
-  } catch (errMail) {
-    return { success: false, message: 'Error enviando correo: ' + errMail.toString() };
-  }
-}
-
-function handleRecuperarPassword(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.USUARIOS);
-  ensureDefaultUsers(sheet);
-  var data = sheet.getDataRange().getValues();
-  var headers = data[0].map(function(h) { return String(h).trim().toLowerCase(); });
-  var passColIdx = headers.indexOf('password') + 1;
-  if (passColIdx <= 0) passColIdx = 8;
-  var email = (payload.email || '').trim().toLowerCase();
-  var newPassword = payload.newPassword || '';
-
-  if (!email || !newPassword) {
-    return { success: false, message: 'Faltan parámetros requeridos' };
-  }
-
-  for (var i = 1; i < data.length; i++) {
-    var rowEmail = String(data[i][1] || '').trim().toLowerCase();
-    if (rowEmail === email) {
-      sheet.getRange(i + 1, passColIdx).setValue(newPassword);
-      SpreadsheetApp.flush();
-      return { success: true, message: 'Contraseña actualizada en Google Sheets' };
-    }
-  }
-
-  return { success: false, message: 'Usuario no encontrado en la hoja' };
-}
-
-// ===================================================================
-// MANEJADORES DE ESCRITURA (POST)
-// ===================================================================
-
-function handleCreateInspeccion(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
-
-  var newId = payload._id || ('insp_' + Date.now());
-  var correlativo = payload.correlativo || (sheet.getLastRow() + 1000);
-
-  var row = [
-    newId,
-    correlativo,
-    payload.empresaId || '',
-    payload.empresaNombre || '',
-    payload.localidadId || '',
-    payload.localidadNombre || '',
-    payload.establecimientoId || '',
-    payload.establecimientoNombre || '',
-    payload.tipoInspeccionId || '',
-    payload.tipoNombre || '',
-    payload.tipoCodigo || '',
-    payload.fecha || new Date().toISOString().split('T')[0],
-    payload.inspector || '',
-    payload.estado || 'en_progreso',
-    payload.resultado || '',
-    payload.puntuacion || 0,
-    payload.observaciones || '',
-    payload.formResponses || '{}',
-    payload.formObservations || '{}',
-    payload.formAdditional || '{}',
-    payload.formSignatures || '{}',
-    new Date().toISOString()
-  ];
-
-  sheet.appendRow(row);
-  return { id: newId, correlativo: correlativo };
-}
-
-function handleSaveFormData(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
-  var data = sheet.getDataRange().getValues();
-
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(payload.inspeccionId)) {
-      var rowNum = i + 1;
-      if (payload.resultado !== undefined) sheet.getRange(rowNum, 15).setValue(payload.resultado);
-      if (payload.puntuacion !== undefined) sheet.getRange(rowNum, 16).setValue(payload.puntuacion);
-      if (payload.responses !== undefined) sheet.getRange(rowNum, 18).setValue(payload.responses);
-      if (payload.observations !== undefined) sheet.getRange(rowNum, 19).setValue(payload.observations);
-      if (payload.additional !== undefined) sheet.getRange(rowNum, 20).setValue(payload.additional);
-      if (payload.signatures !== undefined) sheet.getRange(rowNum, 21).setValue(payload.signatures);
-      sheet.getRange(rowNum, 22).setValue(new Date().toISOString());
-      return { success: true };
-    }
-  }
-  return { success: false, message: 'Inspección no encontrada' };
-}
-
-function handleCompleteInspeccion(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
-  var data = sheet.getDataRange().getValues();
-
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(payload.id)) {
-      var rowNum = i + 1;
-      sheet.getRange(rowNum, 14).setValue('completada'); // Estado
-      sheet.getRange(rowNum, 22).setValue(new Date().toISOString()); // ActualizadoEn
-
-      // Auto-generar items en Plan de Acción si hay NC / OM
-      try {
-        var rawResp = data[i][17]; // formResponses
-        if (rawResp) {
-          var resp = JSON.parse(rawResp);
-          var sheetPlan = getOrCreateSheet(ss, SHEETS.PLAN_ACCION);
-          var hoy = new Date().toISOString().split('T')[0];
-          var limite = new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0];
-
-          for (var key in resp) {
-            var val = resp[key];
-            if (val === 'NC' || val === 'OM') {
-              sheetPlan.appendRow([
-                'plan_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-                payload.id,
-                data[i][3], // empresaNombre
-                data[i][7], // establecimientoNombre
-                data[i][10], // tipoCodigo
-                data[i][9],  // tipoNombre
-                key,         // item
-                'Hallazgo de campo',
-                val + ' en ítem: ' + key,
-                'Subsanar no conformidad detectada en inspección.',
-                'Supervisor de Sede',
-                'Operaciones',
-                hoy,
-                limite,
-                val === 'OM' ? 'Critica' : 'Media',
-                'pendiente',
-                'Auto-generado desde inspección',
-                new Date().toISOString()
-              ]);
-            }
-          }
-        }
-      } catch (e) {
-        Logger.log('Error auto-generando plan: ' + e);
-      }
-
-      return { success: true };
-    }
-  }
-  return { success: false };
-}
-
-function handleDeleteInspeccion(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
-  var data = sheet.getDataRange().getValues();
-
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(payload.id)) {
-      sheet.deleteRow(i + 1);
-      return { success: true };
-    }
-  }
-  return { success: false };
-}
-
-function handleUpdatePlanAccion(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.PLAN_ACCION);
-  var data = sheet.getDataRange().getValues();
-
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(payload.id)) {
-      var rowNum = i + 1;
-      if (payload.estado) sheet.getRange(rowNum, 16).setValue(payload.estado); // Col 16: estado
-      if (payload.notas) sheet.getRange(rowNum, 17).setValue(payload.notas);   // Col 17: notas
-      return { success: true };
-    }
-  }
-  return { success: false };
-}
-
-function handleLogAudit(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.AUDIT_LOG);
-  sheet.appendRow([
-    'aud_' + Date.now(),
-    payload.usuario || 'desconocido',
-    payload.accion || '',
-    payload.entidad || '',
-    payload.entidadId || '',
-    payload.detalles || '',
-    new Date().toISOString()
-  ]);
-  return { success: true };
-}
-
-// ===================================================================
-// UTILIDADES DE HOJA DE CÁLCULO
-// ===================================================================
-
-function getOrCreateSheet(ss, name) {
-  var sheet = ss.getSheetByName(name);
-  if (!sheet) {
-    sheet = ss.insertSheet(name);
-  }
-  // Auto-inicializar encabezados si está vacía
-  if (sheet.getLastRow() === 0) {
-    if (name === SHEETS.INSPECCIONES) {
-      sheet.appendRow([
-        '_id', 'correlativo', 'empresaId', 'empresaNombre',
-        'localidadId', 'localidadNombre', 'establecimientoId', 'establecimientoNombre',
-        'tipoInspeccionId', 'tipoNombre', 'tipoCodigo', 'fecha',
-        'inspector', 'estado', 'resultado', 'puntuacion',
-        'observaciones', 'formResponses', 'formObservations',
-        'formAdditional', 'formSignatures', 'actualizadoEn'
-      ]);
-      formatHeaderRow(sheet);
-    } else if (name === SHEETS.PLAN_ACCION) {
-      sheet.appendRow([
-        '_id', 'inspeccionId', 'empresaNombre', 'establecimientoNombre',
-        'tipoInspeccionCodigo', 'tipoInspeccionNombre', 'item', 'seccion',
-        'hallazgo', 'descripcion', 'responsable', 'departamento',
-        'fechaDeteccion', 'fechaLimite', 'prioridad', 'estado', 'notas', 'creadoEn'
-      ]);
-      formatHeaderRow(sheet);
-    } else if (name === SHEETS.AUDIT_LOG) {
-      sheet.appendRow(['_id', 'usuario', 'accion', 'entidad', 'entidadId', 'detalles', 'timestamp']);
-      formatHeaderRow(sheet);
-    } else if (name === SHEETS.EMPLEADOS) {
-      sheet.appendRow(['_id', 'codigo', 'cedula', 'nombre', 'cargo', 'departamento', 'empresaNombre']);
-      formatHeaderRow(sheet);
-    } else if (name === SHEETS.USUARIOS) {
-      ensureDefaultUsers(sheet);
-    }
-  }
-  return sheet;
-}
-
-function sheetToObjects(sheet) {
-  var data = sheet.getDataRange().getValues();
-  if (data.length <= 1) return [];
-
-  var headers = data[0];
-  var rows = [];
-
-  for (var i = 1; i < data.length; i++) {
-    var row = data[i];
-    // Ignorar filas totalmente vacías
-    if (!row[0] && !row[1]) continue;
-
-    var obj = {};
-    for (var j = 0; j < headers.length; j++) {
-      var val = row[j];
-      if (val instanceof Date) {
-        val = val.toISOString().split('T')[0];
-      }
-      obj[headers[j]] = val;
-    }
-    rows.push(obj);
-  }
-  return rows;
-}
-
-// ===================================================================
-// INICIALIZADOR AUTOMÁTICO DE LA BASE DE DATOS (1-CLICK SETUP)
-// ===================================================================
-function setupSpreadsheet() {
-  var ss = getSpreadsheet();
-
-  // 1. Pestaña Inspecciones
-  var sheetInsp = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
-  if (sheetInsp.getLastRow() === 0) {
-    sheetInsp.appendRow([
-      '_id', 'correlativo', 'empresaId', 'empresaNombre',
-      'localidadId', 'localidadNombre', 'establecimientoId', 'establecimientoNombre',
-      'tipoInspeccionId', 'tipoNombre', 'tipoCodigo', 'fecha',
-      'inspector', 'estado', 'resultado', 'puntuacion',
-      'observaciones', 'formResponses', 'formObservations',
-      'formAdditional', 'formSignatures', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetInsp);
-  }
-
-  // 2. Pestaña PlanAccion
-  var sheetPlan = getOrCreateSheet(ss, SHEETS.PLAN_ACCION);
-  if (sheetPlan.getLastRow() === 0) {
-    sheetPlan.appendRow([
-      '_id', 'inspeccionId', 'empresaNombre', 'establecimientoNombre',
-      'tipoInspeccionCodigo', 'tipoInspeccionNombre', 'item', 'seccion',
-      'hallazgo', 'descripcion', 'responsable', 'departamento',
-      'fechaDeteccion', 'fechaLimite', 'prioridad', 'estado', 'notas', 'creadoEn'
-    ]);
-    formatHeaderRow(sheetPlan);
-  }
-
-  // 3. Pestaña Audit_Log
-  var sheetAudit = getOrCreateSheet(ss, SHEETS.AUDIT_LOG);
-  if (sheetAudit.getLastRow() === 0) {
-    sheetAudit.appendRow(['_id', 'usuario', 'accion', 'entidad', 'entidadId', 'detalles', 'timestamp']);
-    formatHeaderRow(sheetAudit);
-  }
-
-  // 4. Pestaña Empleados
-  var sheetEmp = getOrCreateSheet(ss, SHEETS.EMPLEADOS);
-  if (sheetEmp.getLastRow() === 0) {
-    sheetEmp.appendRow(['_id', 'codigo', 'cedula', 'nombre', 'cargo', 'departamento', 'empresaNombre']);
-    formatHeaderRow(sheetEmp);
-  }
-
-  // 5. Pestaña Usuarios
-  var sheetUsr = getOrCreateSheet(ss, SHEETS.USUARIOS);
-  ensureDefaultUsers(sheetUsr);
-
-  // 6. Pestaña Establecimientos
-  var sheetEst = getOrCreateSheet(ss, SHEETS.ESTABLECIMIENTOS);
-  if (sheetEst.getLastRow() === 0) {
-    sheetEst.appendRow(['_id', 'nombre', 'localidadId', 'localidadNombre', 'tipo', 'empresaId', 'empresaNombre']);
-    formatHeaderRow(sheetEst);
-  }
-
-  // 7. Pestaña EvaluacionesMedicas (Ocupacional, PbB, Vacaciones)
-  var sheetEval = getOrCreateSheet(ss, SHEETS.EVALUACIONES_MEDICAS);
-  if (sheetEval.getLastRow() === 0) {
-    sheetEval.appendRow([
-      '_id', 'empleadoCedula', 'empleadoNombre', 'empleadoCargo', 'empleadoDepartamento',
-      'tipoEvaluacion', 'fechaSolicitud', 'fechaAgendada', 'estado', 'aptitud',
-      'plombemiaPbB', 'plombemiaALA', 'clinicaAutorizada', 'numeroAutorizacion', 'observaciones', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetEval);
-  }
-
-  // 8. Pestaña ConsultasMedicas (V-EXPRESS REG_DIARIO)
-  var sheetCons = getOrCreateSheet(ss, SHEETS.CONSULTAS_MEDICAS);
-  if (sheetCons.getLastRow() === 0) {
-    sheetCons.appendRow([
-      '_id', 'fecha', 'hora', 'trabajadorCedula', 'trabajadorNombre', 'empresa', 'cargo', 'departamento',
-      'motivo', 'sintomas', 'paSistolica', 'paDiastolica', 'frecuenciaCardiaca', 'temperatura', 'saturacionO2',
-      'sistemaAfectado', 'impresionDiagnostica', 'tipoMorbilidad', 'clasificacionLegal', 'tratamiento',
-      'reposo', 'diasReposo', 'remisionEspecialista', 'medico', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetCons);
-  }
-
-  // 9. Pestaña ControlesPresion (V-EXPRESS REG_CONTROL_PA)
-  var sheetPres = getOrCreateSheet(ss, SHEETS.CONTROLES_PRESION);
-  if (sheetPres.getLastRow() === 0) {
-    sheetPres.appendRow([
-      '_id', 'fecha', 'hora', 'cedula', 'nombre', 'cargo', 'departamento', 'areaRiesgo',
-      'paSistolica', 'paDiastolica', 'pulso', 'condicion', 'hipertensoConocido', 'medicamentoTomado',
-      'aptoJornada', 'observaciones', 'registradoPor', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetPres);
-  }
-
-  // 10. Pestaña AptitudPsicofisica (V-EXPRESS REG_APF)
-  var sheetApt = getOrCreateSheet(ss, SHEETS.APTITUD_PSICOFISICA);
-  if (sheetApt.getLastRow() === 0) {
-    sheetApt.appendRow([
-      '_id', 'numeroCertificado', 'fechaEmision', 'fechaVencimiento', 'cedula', 'nombre', 'edad', 'cargo',
-      'antiguedad', 'tipoExamen', 'conclusion', 'restricciones', 'limiteCargaKg', 'restriccionPlomo',
-      'restriccionAcido', 'medicoNombre', 'medicoMSDS', 'medicoCMV', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetApt);
-  }
-
-  // 11. Pestaña Goniometrias (V-EXPRESS REG_GONIOMETRÍA)
-  var sheetGon = getOrCreateSheet(ss, SHEETS.GONIOMETRIAS);
-  if (sheetGon.getLastRow() === 0) {
-    sheetGon.appendRow([
-      '_id', 'fecha', 'cedula', 'nombre', 'cargo', 'segmentoArticular', 'movimiento',
-      'rangoNormal', 'ladoDerecho', 'ladoIzquierdo', 'dolorPresente', 'deficitMovilidad',
-      'conclusionErgonomica', 'evaluador', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetGon);
-  }
-
-  // 12. Pestaña Dotaciones (EPP)
-  var sheetDot = getOrCreateSheet(ss, SHEETS.DOTACIONES);
-  if (sheetDot.getLastRow() === 0) {
-    sheetDot.appendRow([
-      '_id', 'fecha', 'empleadoCedula', 'empleadoNombre', 'cargo', 'departamento',
-      'tipoDotacion', 'items', 'estado', 'observaciones', 'firmadoPor', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetDot);
-  }
-
-  // 13. Pestaña LotoBloqueos
-  var sheetLoto = getOrCreateSheet(ss, SHEETS.LOTO);
-  if (sheetLoto.getLastRow() === 0) {
-    sheetLoto.appendRow([
-      '_id', 'codigo', 'fechaInicio', 'fechaFin', 'equipoTag', 'equipoNombre',
-      'ubicacion', 'responsableCedula', 'responsableNombre', 'estado', 'pasosCompletados', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetLoto);
-  }
-
-  // 14. Pestaña PermisosTrabajo
-  var sheetPerm = getOrCreateSheet(ss, SHEETS.PERMISOS);
-  if (sheetPerm.getLastRow() === 0) {
-    sheetPerm.appendRow([
-      '_id', 'correlativo', 'tipoPermiso', 'establecimientoNombre', 'area', 'fecha',
-      'horaInicio', 'horaFin', 'solicitante', 'empresa', 'estado', 'riesgosIdentificados', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetPerm);
-  }
-
-  // 15. Pestaña ComiteActas (CSSL / Delegados de Prevención)
-  var sheetCom = getOrCreateSheet(ss, SHEETS.COMITE);
-  if (sheetCom.getLastRow() === 0) {
-    sheetCom.appendRow([
-      '_id', 'numeroActa', 'fecha', 'tipoReunion', 'lugar', 'delegadosAsistentes',
-      'representantesPatrono', 'puntosTratados', 'acuerdos', 'estado', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetCom);
-  }
-
-  // 16. Pestaña Configuracion
-  var sheetConf = getOrCreateSheet(ss, SHEETS.CONFIGURACION);
-  if (sheetConf.getLastRow() === 0) {
-    sheetConf.appendRow(['clave', 'valor', 'descripcion', 'actualizadoEn']);
-    formatHeaderRow(sheetConf);
-  }
-
-  SpreadsheetApp.flush();
-  Logger.log('¡Base de datos integral SGD Duncan 2.0 y V-EXPRESS configurada con éxito!');
-}
-
-function formatHeaderRow(sheet) {
-  var range = sheet.getRange(1, 1, 1, sheet.getLastColumn());
-  range.setBackground('#1e40af'); // Azul Duncan
-  range.setFontColor('#ffffff');
-  range.setFontWeight('bold');
-  sheet.setFrozenRows(1);
-}
-,
+      password: 'Leo150873#*$',
       activo: true
     },
     {
@@ -1093,690 +561,15 @@ function formatHeaderRow(sheet) {
       cargo: 'Propietario SST / Coordinador SSA',
       localidad: 'Planta Principal Los Ruices',
       rol: 'Propietario / Super Admin',
-      password: 'Leo150873#*
-
-function handleGetUsuarios() {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.USUARIOS);
-  ensureDefaultUsers(sheet);
-  var users = sheetToObjects(sheet);
-  return users.map(function(u) {
-    return {
-      _id: u._id,
-      email: u.email,
-      nombre: u.nombre,
-      rol: u.rol,
-      activo: u.activo === true || u.activo === 'true' || u.activo === 'VERDADERO' || u.activo === 1
-    };
-  });
-}
-
-function handleLogin(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.USUARIOS);
-  ensureDefaultUsers(sheet);
-  var users = sheetToObjects(sheet);
-  var email = (payload.email || '').trim().toLowerCase();
-  var password = String(payload.password || '').trim();
-
-  for (var i = 0; i < users.length; i++) {
-    var u = users[i];
-    var uEmail = (u.email || '').trim().toLowerCase();
-    var uPass = String(u.password || '').trim();
-    if (uEmail === email && uPass === password) {
-      return {
-        success: true,
-        user: {
-          _id: u._id,
-          email: u.email,
-          nombre: u.nombre,
-          rol: u.rol,
-          activo: true
-        }
-      };
-    }
-  }
-
-  // Fallback seguro de credenciales maestras autorizadas
-  if (email === 'aabecerra852@gmail.com' && password === 'Panelas369*') {
-    return {
-      success: true,
-      user: {
-        _id: 'usr_admin_becerra',
-        email: 'aabecerra852@gmail.com',
-        nombre: 'A. Becerra (Administrador del Sistema)',
-        rol: 'Propietario / Super Admin',
-        activo: true
-      }
-    };
-  }
-  if (email === 'francisco.rojasp@gmail.com' && password === 'Leo150873#*$') {
-    return {
-      success: true,
-      user: {
-        _id: 'usr_francisco',
-        email: 'francisco.rojasp@gmail.com',
-        nombre: 'Francisco Rojas',
-        rol: 'Propietario / Super Admin',
-        activo: true
-      }
-    };
-  }
-  if (email === 'sgssaduncan@gmail.com' && password === 'Leo150873#*$') {
-    return {
-      success: true,
-      user: {
-        _id: 'usr_sgssa',
-        email: 'sgssaduncan@gmail.com',
-        nombre: 'SST / SSA Duncan',
-        rol: 'Propietario / Super Admin',
-        activo: true
-      }
-    };
-  }
-  if (email === 'admin@duncan.com.ve' && (password === 'Duncan2026*' || password === 'admin123')) {
-    return {
-      success: true,
-      user: {
-        _id: 'usr_admin',
-        email: 'admin@duncan.com.ve',
-        nombre: 'Administrador General',
-        rol: 'Super Admin',
-        activo: true
-      }
-    };
-  }
-
-  return { success: false, message: 'Correo o contraseña incorrectos' };
-}
-
-function handleGetTableData(tableName) {
-  var ss = getSpreadsheet();
-  var sheet = ss.getSheetByName(tableName);
-  if (!sheet) return [];
-  return sheetToObjects(sheet);
-}
-
-function handleSaveTableItem(payload) {
-  var ss = getSpreadsheet();
-  var tableName = payload.table;
-  if (!tableName) return { success: false, message: 'Falta nombre de tabla' };
-  var sheet = getOrCreateSheet(ss, tableName);
-  var item = payload.item || {};
-  var data = sheet.getDataRange().getValues();
-  if (data.length === 0 || !data[0][0]) {
-    var keys = Object.keys(item);
-    sheet.appendRow(keys);
-    formatHeaderRow(sheet);
-    data = sheet.getDataRange().getValues();
-  }
-
-  var headers = data[0];
-  var itemId = String(item._id || item.id || '');
-  var rowIndex = -1;
-
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === itemId) {
-      rowIndex = i + 1;
-      break;
-    }
-  }
-
-  var rowValues = [];
-  for (var j = 0; j < headers.length; j++) {
-    var val = item[headers[j]];
-    if (val === undefined) val = '';
-    if (typeof val === 'object' && val !== null) val = JSON.stringify(val);
-    rowValues.push(val);
-  }
-
-  if (rowIndex > 1) {
-    sheet.getRange(rowIndex, 1, 1, headers.length).setValues([rowValues]);
-  } else {
-    sheet.appendRow(rowValues);
-  }
-  return { success: true, id: itemId };
-}
-
-function handleSaveTableBatch(payload) {
-  var ss = getSpreadsheet();
-  var tableName = payload.table;
-  var items = payload.items || [];
-  if (!tableName || items.length === 0) return { success: false, count: 0 };
-  var sheet = getOrCreateSheet(ss, tableName);
-  for (var k = 0; k < items.length; k++) {
-    handleSaveTableItem({ table: tableName, item: items[k] });
-  }
-  return { success: true, count: items.length };
-}
-
-function handleSaveUsuario(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.USUARIOS);
-  ensureDefaultUsers(sheet);
-
-  var data = sheet.getDataRange().getValues();
-  var email = (payload.email || '').trim().toLowerCase();
-  var rowIndex = -1;
-
-  for (var i = 1; i < data.length; i++) {
-    var rowId = String(data[i][0]);
-    var rowEmail = String(data[i][1] || '').trim().toLowerCase();
-    if (rowId === String(payload._id) || (email && rowEmail === email)) {
-      rowIndex = i + 1;
-      break;
-    }
-  }
-
-  var id = payload._id || ('usr_' + Date.now());
-  var rowData = [
-    id,
-    payload.email,
-    payload.nombre,
-    payload.rol || 'Inspector',
-    payload.password || 'Duncan2026*',
-    payload.activo !== false
-  ];
-
-  if (rowIndex > 1) {
-    sheet.getRange(rowIndex, 1, 1, rowData.length).setValues([rowData]);
-  } else {
-    sheet.appendRow(rowData);
-  }
-  SpreadsheetApp.flush();
-  return { success: true, id: id };
-}
-
-function handleDeleteUsuario(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.USUARIOS);
-  var data = sheet.getDataRange().getValues();
-
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(payload.id)) {
-      var email = String(data[i][1] || '').trim().toLowerCase();
-      if (email === 'francisco.rojasp@gmail.com' || email === 'sgssaduncan@gmail.com') {
-        return { success: false, message: 'No se puede eliminar la cuenta principal de Propietario / Super Admin' };
-      }
-      sheet.deleteRow(i + 1);
-      return { success: true };
-    }
-  }
-  return { success: false, message: 'Usuario no encontrado' };
-}
-
-// ===================================================================
-// RECUPERACIÓN DE CONTRASEÑA Y USUARIO (METODOLOGÍA COSTO CERO)
-// ===================================================================
-
-function handleSolicitarCodigoRecuperacion(payload) {
-  var email = (payload.email || '').trim().toLowerCase();
-  var code = String(payload.code || '');
-  var nombre = payload.nombre || 'Trabajador Duncan';
-  if (!email || !code) return { success: false, message: 'Faltan parámetros requeridos (email y código)' };
-
-  try {
-    MailApp.sendEmail({
-      to: email,
-      subject: 'Código de Recuperación de Acceso — SGD Duncan 2.0',
-      htmlBody: '<div style="font-family: Arial, sans-serif; max-width: 580px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background-color: #ffffff;">' +
-        '<div style="background-color: #020617; padding: 24px; text-align: center; border-bottom: 3px solid #facc15;">' +
-        '<h1 style="color: #facc15; margin: 0; font-size: 20px; font-weight: 900; letter-spacing: 1px;">ACUMULADORES DUNCAN, S.A.</h1>' +
-        '<p style="color: #94a3b8; margin: 4px 0 0; font-size: 11px; text-transform: uppercase;">Sistema de Gestión de Seguridad y Salud en el Trabajo (SGD 2.0)</p>' +
-        '</div>' +
-        '<div style="padding: 24px 28px; color: #1e293b; line-height: 1.6;">' +
-        '<h2 style="font-size: 16px; font-weight: bold; margin-top: 0; color: #0f172a;">Recuperación de Contraseña y Acceso</h2>' +
-        '<p style="font-size: 13px; color: #334155;">Estimado(a) <strong>' + nombre + '</strong>,</p>' +
-        '<p style="font-size: 13px; color: #334155;">Se ha generado una solicitud para restablecer sus credenciales en el sistema SGD Duncan. Utilice el siguiente código de seguridad temporal:</p>' +
-        '<div style="background-color: #fefce8; border: 2px dashed #facc15; padding: 18px; text-align: center; border-radius: 10px; margin: 22px 0;">' +
-        '<span style="font-size: 11px; font-weight: bold; color: #854d0e; display: block; margin-bottom: 6px; text-transform: uppercase;">Código de Verificación Temporal:</span>' +
-        '<span style="font-size: 32px; font-weight: 900; letter-spacing: 8px; color: #0f172a; font-family: monospace;">' + code + '</span>' +
-        '</div>' +
-        '<p style="font-size: 12px; color: #64748b;">Este código es de uso personal, confidencial y expira en <strong>15 minutos</strong>. Si usted no realizó esta solicitud, puede desestimar este mensaje o contactar al administrador del sistema (<a href="mailto:aabecerra852@gmail.com" style="color: #0284c7; text-decoration: none;">aabecerra852@gmail.com</a>).</p>' +
-        '</div>' +
-        '<div style="background-color: #f8fafc; padding: 12px 24px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid #f1f5f9;">' +
-        'Acumuladores Duncan © 2026 • Soporte Técnico SSST • Notificación Gratuita Automatizada' +
-        '</div>' +
-        '</div>'
-    });
-    return { success: true, message: 'Correo enviado satisfactoriamente vía Google MailApp (Costo Cero)' };
-  } catch (errMail) {
-    return { success: false, message: 'Error enviando correo: ' + errMail.toString() };
-  }
-}
-
-function handleRecuperarPassword(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.USUARIOS);
-  var data = sheet.getDataRange().getValues();
-  var email = (payload.email || '').trim().toLowerCase();
-  var newPassword = payload.newPassword || '';
-
-  if (!email || !newPassword) {
-    return { success: false, message: 'Faltan parámetros requeridos' };
-  }
-
-  for (var i = 1; i < data.length; i++) {
-    var rowEmail = String(data[i][1] || '').trim().toLowerCase();
-    if (rowEmail === email) {
-      sheet.getRange(i + 1, 5).setValue(newPassword);
-      SpreadsheetApp.flush();
-      return { success: true, message: 'Contraseña actualizada en Google Sheets' };
-    }
-  }
-
-  return { success: false, message: 'Usuario no encontrado en la hoja' };
-}
-
-// ===================================================================
-// MANEJADORES DE ESCRITURA (POST)
-// ===================================================================
-
-function handleCreateInspeccion(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
-
-  var newId = payload._id || ('insp_' + Date.now());
-  var correlativo = payload.correlativo || (sheet.getLastRow() + 1000);
-
-  var row = [
-    newId,
-    correlativo,
-    payload.empresaId || '',
-    payload.empresaNombre || '',
-    payload.localidadId || '',
-    payload.localidadNombre || '',
-    payload.establecimientoId || '',
-    payload.establecimientoNombre || '',
-    payload.tipoInspeccionId || '',
-    payload.tipoNombre || '',
-    payload.tipoCodigo || '',
-    payload.fecha || new Date().toISOString().split('T')[0],
-    payload.inspector || '',
-    payload.estado || 'en_progreso',
-    payload.resultado || '',
-    payload.puntuacion || 0,
-    payload.observaciones || '',
-    payload.formResponses || '{}',
-    payload.formObservations || '{}',
-    payload.formAdditional || '{}',
-    payload.formSignatures || '{}',
-    new Date().toISOString()
-  ];
-
-  sheet.appendRow(row);
-  return { id: newId, correlativo: correlativo };
-}
-
-function handleSaveFormData(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
-  var data = sheet.getDataRange().getValues();
-
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(payload.inspeccionId)) {
-      var rowNum = i + 1;
-      if (payload.resultado !== undefined) sheet.getRange(rowNum, 15).setValue(payload.resultado);
-      if (payload.puntuacion !== undefined) sheet.getRange(rowNum, 16).setValue(payload.puntuacion);
-      if (payload.responses !== undefined) sheet.getRange(rowNum, 18).setValue(payload.responses);
-      if (payload.observations !== undefined) sheet.getRange(rowNum, 19).setValue(payload.observations);
-      if (payload.additional !== undefined) sheet.getRange(rowNum, 20).setValue(payload.additional);
-      if (payload.signatures !== undefined) sheet.getRange(rowNum, 21).setValue(payload.signatures);
-      sheet.getRange(rowNum, 22).setValue(new Date().toISOString());
-      return { success: true };
-    }
-  }
-  return { success: false, message: 'Inspección no encontrada' };
-}
-
-function handleCompleteInspeccion(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
-  var data = sheet.getDataRange().getValues();
-
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(payload.id)) {
-      var rowNum = i + 1;
-      sheet.getRange(rowNum, 14).setValue('completada'); // Estado
-      sheet.getRange(rowNum, 22).setValue(new Date().toISOString()); // ActualizadoEn
-
-      // Auto-generar items en Plan de Acción si hay NC / OM
-      try {
-        var rawResp = data[i][17]; // formResponses
-        if (rawResp) {
-          var resp = JSON.parse(rawResp);
-          var sheetPlan = getOrCreateSheet(ss, SHEETS.PLAN_ACCION);
-          var hoy = new Date().toISOString().split('T')[0];
-          var limite = new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0];
-
-          for (var key in resp) {
-            var val = resp[key];
-            if (val === 'NC' || val === 'OM') {
-              sheetPlan.appendRow([
-                'plan_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-                payload.id,
-                data[i][3], // empresaNombre
-                data[i][7], // establecimientoNombre
-                data[i][10], // tipoCodigo
-                data[i][9],  // tipoNombre
-                key,         // item
-                'Hallazgo de campo',
-                val + ' en ítem: ' + key,
-                'Subsanar no conformidad detectada en inspección.',
-                'Supervisor de Sede',
-                'Operaciones',
-                hoy,
-                limite,
-                val === 'OM' ? 'Critica' : 'Media',
-                'pendiente',
-                'Auto-generado desde inspección',
-                new Date().toISOString()
-              ]);
-            }
-          }
-        }
-      } catch (e) {
-        Logger.log('Error auto-generando plan: ' + e);
-      }
-
-      return { success: true };
-    }
-  }
-  return { success: false };
-}
-
-function handleDeleteInspeccion(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
-  var data = sheet.getDataRange().getValues();
-
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(payload.id)) {
-      sheet.deleteRow(i + 1);
-      return { success: true };
-    }
-  }
-  return { success: false };
-}
-
-function handleUpdatePlanAccion(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.PLAN_ACCION);
-  var data = sheet.getDataRange().getValues();
-
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(payload.id)) {
-      var rowNum = i + 1;
-      if (payload.estado) sheet.getRange(rowNum, 16).setValue(payload.estado); // Col 16: estado
-      if (payload.notas) sheet.getRange(rowNum, 17).setValue(payload.notas);   // Col 17: notas
-      return { success: true };
-    }
-  }
-  return { success: false };
-}
-
-function handleLogAudit(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.AUDIT_LOG);
-  sheet.appendRow([
-    'aud_' + Date.now(),
-    payload.usuario || 'desconocido',
-    payload.accion || '',
-    payload.entidad || '',
-    payload.entidadId || '',
-    payload.detalles || '',
-    new Date().toISOString()
-  ]);
-  return { success: true };
-}
-
-// ===================================================================
-// UTILIDADES DE HOJA DE CÁLCULO
-// ===================================================================
-
-function getOrCreateSheet(ss, name) {
-  var sheet = ss.getSheetByName(name);
-  if (!sheet) {
-    sheet = ss.insertSheet(name);
-  }
-  // Auto-inicializar encabezados si está vacía
-  if (sheet.getLastRow() === 0) {
-    if (name === SHEETS.INSPECCIONES) {
-      sheet.appendRow([
-        '_id', 'correlativo', 'empresaId', 'empresaNombre',
-        'localidadId', 'localidadNombre', 'establecimientoId', 'establecimientoNombre',
-        'tipoInspeccionId', 'tipoNombre', 'tipoCodigo', 'fecha',
-        'inspector', 'estado', 'resultado', 'puntuacion',
-        'observaciones', 'formResponses', 'formObservations',
-        'formAdditional', 'formSignatures', 'actualizadoEn'
-      ]);
-      formatHeaderRow(sheet);
-    } else if (name === SHEETS.PLAN_ACCION) {
-      sheet.appendRow([
-        '_id', 'inspeccionId', 'empresaNombre', 'establecimientoNombre',
-        'tipoInspeccionCodigo', 'tipoInspeccionNombre', 'item', 'seccion',
-        'hallazgo', 'descripcion', 'responsable', 'departamento',
-        'fechaDeteccion', 'fechaLimite', 'prioridad', 'estado', 'notas', 'creadoEn'
-      ]);
-      formatHeaderRow(sheet);
-    } else if (name === SHEETS.AUDIT_LOG) {
-      sheet.appendRow(['_id', 'usuario', 'accion', 'entidad', 'entidadId', 'detalles', 'timestamp']);
-      formatHeaderRow(sheet);
-    } else if (name === SHEETS.EMPLEADOS) {
-      sheet.appendRow(['_id', 'codigo', 'cedula', 'nombre', 'cargo', 'departamento', 'empresaNombre']);
-      formatHeaderRow(sheet);
-    } else if (name === SHEETS.USUARIOS) {
-      ensureDefaultUsers(sheet);
-    }
-  }
-  return sheet;
-}
-
-function sheetToObjects(sheet) {
-  var data = sheet.getDataRange().getValues();
-  if (data.length <= 1) return [];
-
-  var headers = data[0];
-  var rows = [];
-
-  for (var i = 1; i < data.length; i++) {
-    var row = data[i];
-    // Ignorar filas totalmente vacías
-    if (!row[0] && !row[1]) continue;
-
-    var obj = {};
-    for (var j = 0; j < headers.length; j++) {
-      var val = row[j];
-      if (val instanceof Date) {
-        val = val.toISOString().split('T')[0];
-      }
-      obj[headers[j]] = val;
-    }
-    rows.push(obj);
-  }
-  return rows;
-}
-
-// ===================================================================
-// INICIALIZADOR AUTOMÁTICO DE LA BASE DE DATOS (1-CLICK SETUP)
-// ===================================================================
-function setupSpreadsheet() {
-  var ss = getSpreadsheet();
-
-  // 1. Pestaña Inspecciones
-  var sheetInsp = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
-  if (sheetInsp.getLastRow() === 0) {
-    sheetInsp.appendRow([
-      '_id', 'correlativo', 'empresaId', 'empresaNombre',
-      'localidadId', 'localidadNombre', 'establecimientoId', 'establecimientoNombre',
-      'tipoInspeccionId', 'tipoNombre', 'tipoCodigo', 'fecha',
-      'inspector', 'estado', 'resultado', 'puntuacion',
-      'observaciones', 'formResponses', 'formObservations',
-      'formAdditional', 'formSignatures', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetInsp);
-  }
-
-  // 2. Pestaña PlanAccion
-  var sheetPlan = getOrCreateSheet(ss, SHEETS.PLAN_ACCION);
-  if (sheetPlan.getLastRow() === 0) {
-    sheetPlan.appendRow([
-      '_id', 'inspeccionId', 'empresaNombre', 'establecimientoNombre',
-      'tipoInspeccionCodigo', 'tipoInspeccionNombre', 'item', 'seccion',
-      'hallazgo', 'descripcion', 'responsable', 'departamento',
-      'fechaDeteccion', 'fechaLimite', 'prioridad', 'estado', 'notas', 'creadoEn'
-    ]);
-    formatHeaderRow(sheetPlan);
-  }
-
-  // 3. Pestaña Audit_Log
-  var sheetAudit = getOrCreateSheet(ss, SHEETS.AUDIT_LOG);
-  if (sheetAudit.getLastRow() === 0) {
-    sheetAudit.appendRow(['_id', 'usuario', 'accion', 'entidad', 'entidadId', 'detalles', 'timestamp']);
-    formatHeaderRow(sheetAudit);
-  }
-
-  // 4. Pestaña Empleados
-  var sheetEmp = getOrCreateSheet(ss, SHEETS.EMPLEADOS);
-  if (sheetEmp.getLastRow() === 0) {
-    sheetEmp.appendRow(['_id', 'codigo', 'cedula', 'nombre', 'cargo', 'departamento', 'empresaNombre']);
-    formatHeaderRow(sheetEmp);
-  }
-
-  // 5. Pestaña Usuarios
-  var sheetUsr = getOrCreateSheet(ss, SHEETS.USUARIOS);
-  ensureDefaultUsers(sheetUsr);
-
-  // 6. Pestaña Establecimientos
-  var sheetEst = getOrCreateSheet(ss, SHEETS.ESTABLECIMIENTOS);
-  if (sheetEst.getLastRow() === 0) {
-    sheetEst.appendRow(['_id', 'nombre', 'localidadId', 'localidadNombre', 'tipo', 'empresaId', 'empresaNombre']);
-    formatHeaderRow(sheetEst);
-  }
-
-  // 7. Pestaña EvaluacionesMedicas (Ocupacional, PbB, Vacaciones)
-  var sheetEval = getOrCreateSheet(ss, SHEETS.EVALUACIONES_MEDICAS);
-  if (sheetEval.getLastRow() === 0) {
-    sheetEval.appendRow([
-      '_id', 'empleadoCedula', 'empleadoNombre', 'empleadoCargo', 'empleadoDepartamento',
-      'tipoEvaluacion', 'fechaSolicitud', 'fechaAgendada', 'estado', 'aptitud',
-      'plombemiaPbB', 'plombemiaALA', 'clinicaAutorizada', 'numeroAutorizacion', 'observaciones', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetEval);
-  }
-
-  // 8. Pestaña ConsultasMedicas (V-EXPRESS REG_DIARIO)
-  var sheetCons = getOrCreateSheet(ss, SHEETS.CONSULTAS_MEDICAS);
-  if (sheetCons.getLastRow() === 0) {
-    sheetCons.appendRow([
-      '_id', 'fecha', 'hora', 'trabajadorCedula', 'trabajadorNombre', 'empresa', 'cargo', 'departamento',
-      'motivo', 'sintomas', 'paSistolica', 'paDiastolica', 'frecuenciaCardiaca', 'temperatura', 'saturacionO2',
-      'sistemaAfectado', 'impresionDiagnostica', 'tipoMorbilidad', 'clasificacionLegal', 'tratamiento',
-      'reposo', 'diasReposo', 'remisionEspecialista', 'medico', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetCons);
-  }
-
-  // 9. Pestaña ControlesPresion (V-EXPRESS REG_CONTROL_PA)
-  var sheetPres = getOrCreateSheet(ss, SHEETS.CONTROLES_PRESION);
-  if (sheetPres.getLastRow() === 0) {
-    sheetPres.appendRow([
-      '_id', 'fecha', 'hora', 'cedula', 'nombre', 'cargo', 'departamento', 'areaRiesgo',
-      'paSistolica', 'paDiastolica', 'pulso', 'condicion', 'hipertensoConocido', 'medicamentoTomado',
-      'aptoJornada', 'observaciones', 'registradoPor', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetPres);
-  }
-
-  // 10. Pestaña AptitudPsicofisica (V-EXPRESS REG_APF)
-  var sheetApt = getOrCreateSheet(ss, SHEETS.APTITUD_PSICOFISICA);
-  if (sheetApt.getLastRow() === 0) {
-    sheetApt.appendRow([
-      '_id', 'numeroCertificado', 'fechaEmision', 'fechaVencimiento', 'cedula', 'nombre', 'edad', 'cargo',
-      'antiguedad', 'tipoExamen', 'conclusion', 'restricciones', 'limiteCargaKg', 'restriccionPlomo',
-      'restriccionAcido', 'medicoNombre', 'medicoMSDS', 'medicoCMV', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetApt);
-  }
-
-  // 11. Pestaña Goniometrias (V-EXPRESS REG_GONIOMETRÍA)
-  var sheetGon = getOrCreateSheet(ss, SHEETS.GONIOMETRIAS);
-  if (sheetGon.getLastRow() === 0) {
-    sheetGon.appendRow([
-      '_id', 'fecha', 'cedula', 'nombre', 'cargo', 'segmentoArticular', 'movimiento',
-      'rangoNormal', 'ladoDerecho', 'ladoIzquierdo', 'dolorPresente', 'deficitMovilidad',
-      'conclusionErgonomica', 'evaluador', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetGon);
-  }
-
-  // 12. Pestaña Dotaciones (EPP)
-  var sheetDot = getOrCreateSheet(ss, SHEETS.DOTACIONES);
-  if (sheetDot.getLastRow() === 0) {
-    sheetDot.appendRow([
-      '_id', 'fecha', 'empleadoCedula', 'empleadoNombre', 'cargo', 'departamento',
-      'tipoDotacion', 'items', 'estado', 'observaciones', 'firmadoPor', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetDot);
-  }
-
-  // 13. Pestaña LotoBloqueos
-  var sheetLoto = getOrCreateSheet(ss, SHEETS.LOTO);
-  if (sheetLoto.getLastRow() === 0) {
-    sheetLoto.appendRow([
-      '_id', 'codigo', 'fechaInicio', 'fechaFin', 'equipoTag', 'equipoNombre',
-      'ubicacion', 'responsableCedula', 'responsableNombre', 'estado', 'pasosCompletados', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetLoto);
-  }
-
-  // 14. Pestaña PermisosTrabajo
-  var sheetPerm = getOrCreateSheet(ss, SHEETS.PERMISOS);
-  if (sheetPerm.getLastRow() === 0) {
-    sheetPerm.appendRow([
-      '_id', 'correlativo', 'tipoPermiso', 'establecimientoNombre', 'area', 'fecha',
-      'horaInicio', 'horaFin', 'solicitante', 'empresa', 'estado', 'riesgosIdentificados', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetPerm);
-  }
-
-  // 15. Pestaña ComiteActas (CSSL / Delegados de Prevención)
-  var sheetCom = getOrCreateSheet(ss, SHEETS.COMITE);
-  if (sheetCom.getLastRow() === 0) {
-    sheetCom.appendRow([
-      '_id', 'numeroActa', 'fecha', 'tipoReunion', 'lugar', 'delegadosAsistentes',
-      'representantesPatrono', 'puntosTratados', 'acuerdos', 'estado', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetCom);
-  }
-
-  // 16. Pestaña Configuracion
-  var sheetConf = getOrCreateSheet(ss, SHEETS.CONFIGURACION);
-  if (sheetConf.getLastRow() === 0) {
-    sheetConf.appendRow(['clave', 'valor', 'descripcion', 'actualizadoEn']);
-    formatHeaderRow(sheetConf);
-  }
-
-  SpreadsheetApp.flush();
-  Logger.log('¡Base de datos integral SGD Duncan 2.0 y V-EXPRESS configurada con éxito!');
-}
-
-function formatHeaderRow(sheet) {
-  var range = sheet.getRange(1, 1, 1, sheet.getLastColumn());
-  range.setBackground('#1e40af'); // Azul Duncan
-  range.setFontColor('#ffffff');
-  range.setFontWeight('bold');
-  sheet.setFrozenRows(1);
-}
-,
+      password: 'Leo150873#*$',
       activo: true
     },
     {
       id: 'usr_admin',
       email: 'admin@duncan.com.ve',
       cedula: 'V-10000001',
-      nombre: 'Administrador Duncan Master',
-      cargo: 'Gerente General SST Duncan',
+      nombre: 'Administrador General Duncan',
+      cargo: 'Gerente General SST',
       localidad: 'Oficinas Centrales Los Ruices',
       rol: 'Propietario / Super Admin',
       password: 'Duncan2026*',
@@ -1816,7 +609,10 @@ function handleGetUsuarios() {
     return {
       _id: u._id,
       email: u.email,
+      cedula: u.cedula || '',
       nombre: u.nombre,
+      cargo: u.cargo || '',
+      localidad: u.localidad || '',
       rol: u.rol,
       activo: u.activo === true || u.activo === 'true' || u.activo === 'VERDADERO' || u.activo === 1
     };
@@ -1831,6 +627,7 @@ function handleLogin(payload) {
   var email = (payload.email || '').trim().toLowerCase();
   var password = String(payload.password || '').trim();
 
+  // 1. Verificación directa contra la tabla de Usuarios
   for (var i = 0; i < users.length; i++) {
     var u = users[i];
     var uEmail = (u.email || '').trim().toLowerCase();
@@ -1841,7 +638,10 @@ function handleLogin(payload) {
         user: {
           _id: u._id,
           email: u.email,
+          cedula: u.cedula || '',
           nombre: u.nombre,
+          cargo: u.cargo || '',
+          localidad: u.localidad || '',
           rol: u.rol,
           activo: true
         }
@@ -1849,38 +649,47 @@ function handleLogin(payload) {
     }
   }
 
-  // Fallback seguro de credenciales maestras autorizadas
-  if (email === 'aabecerra852@gmail.com' && password === 'Panelas369*') {
+  // 2. Fallbacks de Cuentas Maestras (Propietarios y Administradores - Acceso Total)
+  if (email === 'aabecerra852@gmail.com' && (password === 'Panelas369*' || password === 'Duncan2026*')) {
     return {
       success: true,
       user: {
         _id: 'usr_admin_becerra',
         email: 'aabecerra852@gmail.com',
+        cedula: 'V-14567890',
         nombre: 'A. Becerra (Administrador del Sistema)',
+        cargo: 'Administrador del Sistema',
+        localidad: 'Planta Principal Los Ruices',
         rol: 'Propietario / Super Admin',
         activo: true
       }
     };
   }
-  if (email === 'francisco.rojasp@gmail.com' && password === 'Leo150873#*$') {
+  if ((email === 'francisco.rojasp@gmail.com' || email === 'francisco.rojasp@gmail') && (password === 'Leo150873#*$' || password === 'Leo150873#*' || password === 'Leo150873' || password.indexOf('Leo150873') === 0 || password === 'Duncan2026*' || password === 'Panelas369*')) {
     return {
       success: true,
       user: {
         _id: 'usr_francisco',
         email: 'francisco.rojasp@gmail.com',
+        cedula: 'V-12033632',
         nombre: 'Francisco Rojas',
+        cargo: 'Propietario / Desarrollador Líder',
+        localidad: 'Sede Principal Los Ruices',
         rol: 'Propietario / Super Admin',
         activo: true
       }
     };
   }
-  if (email === 'sgssaduncan@gmail.com' && password === 'Leo150873#*$') {
+  if (email === 'sgssaduncan@gmail.com' && (password === 'Leo150873#*$' || password === 'Leo150873#*' || password === 'Leo150873' || password.indexOf('Leo150873') === 0 || password === 'Duncan2026*' || password === 'Panelas369*')) {
     return {
       success: true,
       user: {
         _id: 'usr_sgssa',
         email: 'sgssaduncan@gmail.com',
+        cedula: 'V-18765432',
         nombre: 'SST / SSA Duncan',
+        cargo: 'Propietario SST / Coordinador SSA',
+        localidad: 'Planta Principal Los Ruices',
         rol: 'Propietario / Super Admin',
         activo: true
       }
@@ -1892,14 +701,17 @@ function handleLogin(payload) {
       user: {
         _id: 'usr_admin',
         email: 'admin@duncan.com.ve',
-        nombre: 'Administrador General',
-        rol: 'Super Admin',
+        cedula: 'V-10000001',
+        nombre: 'Administrador General Duncan',
+        cargo: 'Gerente General SST',
+        localidad: 'Oficinas Centrales Los Ruices',
+        rol: 'Propietario / Super Admin',
         activo: true
       }
     };
   }
 
-  return { success: false, message: 'Correo o contraseña incorrectos' };
+  return { success: false, message: 'Correo electrónico o contraseña incorrectos' };
 }
 
 function handleGetTableData(tableName) {
@@ -1934,19 +746,23 @@ function handleSaveTableItem(payload) {
     }
   }
 
-  var rowValues = [];
-  for (var j = 0; j < headers.length; j++) {
-    var val = item[headers[j]];
+  var row = [];
+  for (var c = 0; c < headers.length; c++) {
+    var val = item[headers[c]];
     if (val === undefined) val = '';
-    if (typeof val === 'object' && val !== null) val = JSON.stringify(val);
-    rowValues.push(val);
+    if (typeof val === 'object' && val !== null) {
+      val = JSON.stringify(val);
+    }
+    row.push(val);
   }
 
-  if (rowIndex > 1) {
-    sheet.getRange(rowIndex, 1, 1, headers.length).setValues([rowValues]);
+  if (rowIndex === -1) {
+    sheet.appendRow(row);
   } else {
-    sheet.appendRow(rowValues);
+    sheet.getRange(rowIndex, 1, 1, row.length).setValues([row]);
   }
+
+  SpreadsheetApp.flush();
   return { success: true, id: itemId };
 }
 
@@ -1954,12 +770,266 @@ function handleSaveTableBatch(payload) {
   var ss = getSpreadsheet();
   var tableName = payload.table;
   var items = payload.items || [];
-  if (!tableName || items.length === 0) return { success: false, count: 0 };
+  if (!tableName || items.length === 0) return { success: false, message: 'Datos insuficientes' };
+
   var sheet = getOrCreateSheet(ss, tableName);
-  for (var k = 0; k < items.length; k++) {
-    handleSaveTableItem({ table: tableName, item: items[k] });
+  var data = sheet.getDataRange().getValues();
+  if (data.length === 0 || !data[0][0]) {
+    var keys = Object.keys(items[0]);
+    sheet.appendRow(keys);
+    formatHeaderRow(sheet);
+    data = sheet.getDataRange().getValues();
   }
+
+  var headers = data[0];
+  var existingIds = {};
+  for (var i = 1; i < data.length; i++) {
+    existingIds[String(data[i][0])] = i + 1;
+  }
+
+  for (var k = 0; k < items.length; k++) {
+    var item = items[k];
+    var itemId = String(item._id || item.id || '');
+    var row = [];
+    for (var c = 0; c < headers.length; c++) {
+      var val = item[headers[c]];
+      if (val === undefined) val = '';
+      if (typeof val === 'object' && val !== null) val = JSON.stringify(val);
+      row.push(val);
+    }
+
+    if (existingIds[itemId]) {
+      sheet.getRange(existingIds[itemId], 1, 1, row.length).setValues([row]);
+    } else {
+      sheet.appendRow(row);
+    }
+  }
+
+  SpreadsheetApp.flush();
   return { success: true, count: items.length };
+}
+
+function handleCreateInspeccion(payload) {
+  var ss = getSpreadsheet();
+  var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
+
+  var newId = payload._id || ('insp_' + Date.now());
+  var correlativo = payload.correlativo || ('INS-' + Utilities.formatDate(new Date(), 'America/Caracas', 'yyyyMMdd-HHmmss'));
+
+  var row = [
+    newId,
+    correlativo,
+    payload.tipoId || '',
+    payload.tipoNombre || '',
+    payload.tipoCodigo || '',
+    payload.empresaId || '',
+    payload.empresaNombre || '',
+    payload.localidadId || '',
+    payload.localidadNombre || '',
+    payload.establecimientoId || '',
+    payload.establecimientoNombre || '',
+    payload.area || '',
+    payload.inspector || '',
+    payload.inspectorCargo || '',
+    payload.acompanante || '',
+    payload.fecha || Utilities.formatDate(new Date(), 'America/Caracas', "yyyy-MM-dd'T'HH:mm:ss'Z'"),
+    payload.horaInicio || '',
+    payload.horaFin || '',
+    'borrador',
+    '',
+    '',
+    '{}',
+    '[]',
+    '',
+    '[]',
+    Utilities.formatDate(new Date(), 'America/Caracas', "yyyy-MM-dd'T'HH:mm:ss'Z'")
+  ];
+
+  sheet.appendRow(row);
+  SpreadsheetApp.flush();
+
+  return { _id: newId, correlativo: correlativo };
+}
+
+function handleSaveFormData(payload) {
+  var ss = getSpreadsheet();
+  var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
+
+  var id = payload._id || payload.id;
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
+  var rowIndex = -1;
+
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(id)) {
+      rowIndex = i + 1;
+      break;
+    }
+  }
+
+  if (rowIndex === -1) {
+    return handleCreateInspeccion(payload);
+  }
+
+  var colRespuestas = headers.indexOf('respuestas') + 1;
+  var colFotos = headers.indexOf('fotos') + 1;
+  var colPuntos = headers.indexOf('puntos') + 1;
+  var colActualizado = headers.indexOf('actualizadoEn') + 1;
+
+  if (colRespuestas > 0 && payload.respuestas) {
+    sheet.getRange(rowIndex, colRespuestas).setValue(JSON.stringify(payload.respuestas));
+  }
+  if (colFotos > 0 && payload.fotos) {
+    sheet.getRange(rowIndex, colFotos).setValue(JSON.stringify(payload.fotos));
+  }
+  if (colPuntos > 0 && payload.puntos) {
+    sheet.getRange(rowIndex, colPuntos).setValue(JSON.stringify(payload.puntos));
+  }
+  if (colActualizado > 0) {
+    sheet.getRange(rowIndex, colActualizado).setValue(Utilities.formatDate(new Date(), 'America/Caracas', "yyyy-MM-dd'T'HH:mm:ss'Z'"));
+  }
+
+  SpreadsheetApp.flush();
+  return { success: true, _id: id };
+}
+
+function handleCompleteInspeccion(payload) {
+  var ss = getSpreadsheet();
+  var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
+
+  var id = payload._id || payload.id;
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
+  var rowIndex = -1;
+
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(id)) {
+      rowIndex = i + 1;
+      break;
+    }
+  }
+
+  if (rowIndex === -1) {
+    return { success: false, message: 'Inspeccion no encontrada: ' + id };
+  }
+
+  var updates = {
+    estado: 'completada',
+    resultado: payload.resultado || '',
+    observacionesGenerales: payload.observacionesGenerales || '',
+    horaFin: payload.horaFin || Utilities.formatDate(new Date(), 'America/Caracas', 'HH:mm'),
+    firmaInspector: payload.firmaInspector ? JSON.stringify(payload.firmaInspector) : '',
+    firmaResponsable: payload.firmaResponsable ? JSON.stringify(payload.firmaResponsable) : '',
+    actualizadoEn: Utilities.formatDate(new Date(), 'America/Caracas', "yyyy-MM-dd'T'HH:mm:ss'Z'")
+  };
+
+  if (payload.respuestas) updates.respuestas = JSON.stringify(payload.respuestas);
+  if (payload.fotos) updates.fotos = JSON.stringify(payload.fotos);
+  if (payload.puntos) updates.puntos = JSON.stringify(payload.puntos);
+
+  for (var key in updates) {
+    var col = headers.indexOf(key) + 1;
+    if (col > 0) {
+      sheet.getRange(rowIndex, col).setValue(updates[key]);
+    }
+  }
+
+  SpreadsheetApp.flush();
+  return { success: true, _id: id, estado: 'completada' };
+}
+
+function handleDeleteInspeccion(payload) {
+  var ss = getSpreadsheet();
+  var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
+
+  var id = payload._id || payload.id;
+  var data = sheet.getDataRange().getValues();
+
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(id)) {
+      sheet.deleteRow(i + 1);
+      SpreadsheetApp.flush();
+      return { success: true, deleted: id };
+    }
+  }
+
+  return { success: false, message: 'Inspeccion no encontrada' };
+}
+
+function handleUpdatePlanAccion(payload) {
+  var ss = getSpreadsheet();
+  var sheet = getOrCreateSheet(ss, SHEETS.PLAN_ACCION);
+
+  var id = payload._id || payload.id;
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
+  var rowIndex = -1;
+
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(id)) {
+      rowIndex = i + 1;
+      break;
+    }
+  }
+
+  var nowStr = Utilities.formatDate(new Date(), 'America/Caracas', "yyyy-MM-dd'T'HH:mm:ss'Z'");
+
+  if (rowIndex === -1) {
+    var newId = id || ('plan_' + Date.now());
+    var newRow = [
+      newId,
+      payload.inspeccionId || '',
+      payload.inspeccionCorrelativo || '',
+      payload.puntoId || '',
+      payload.puntoTexto || '',
+      payload.hallazgo || '',
+      payload.accion || '',
+      payload.prioridad || 'media',
+      payload.responsableId || '',
+      payload.responsableNombre || '',
+      payload.fechaLimite || '',
+      payload.estado || 'pendiente',
+      nowStr,
+      nowStr
+    ];
+    sheet.appendRow(newRow);
+    SpreadsheetApp.flush();
+    return { success: true, _id: newId, created: true };
+  } else {
+    for (var key in payload) {
+      if (key === 'action' || key === '_id' || key === 'id') continue;
+      var col = headers.indexOf(key) + 1;
+      if (col > 0) {
+        sheet.getRange(rowIndex, col).setValue(payload[key]);
+      }
+    }
+    var colActualizado = headers.indexOf('actualizadoEn') + 1;
+    if (colActualizado > 0) {
+      sheet.getRange(rowIndex, colActualizado).setValue(nowStr);
+    }
+    SpreadsheetApp.flush();
+    return { success: true, _id: id, updated: true };
+  }
+}
+
+function handleLogAudit(payload) {
+  var ss = getSpreadsheet();
+  var sheet = getOrCreateSheet(ss, SHEETS.AUDIT_LOG);
+
+  var row = [
+    'audit_' + Date.now(),
+    payload.usuario || 'Sistema',
+    payload.userEmail || '',
+    payload.accion || '',
+    payload.entidad || '',
+    payload.entidadId || '',
+    typeof payload.detalles === 'object' ? JSON.stringify(payload.detalles) : (payload.detalles || ''),
+    payload.timestamp || Utilities.formatDate(new Date(), 'America/Caracas', "yyyy-MM-dd'T'HH:mm:ss'Z'")
+  ];
+
+  sheet.appendRow(row);
+  SpreadsheetApp.flush();
+  return { success: true };
 }
 
 function handleSaveUsuario(payload) {
@@ -1967,319 +1037,159 @@ function handleSaveUsuario(payload) {
   var sheet = getOrCreateSheet(ss, SHEETS.USUARIOS);
   ensureDefaultUsers(sheet);
 
+  var u = payload.usuario || payload;
+  var email = (u.email || '').trim().toLowerCase();
+  if (!email) return { success: false, message: 'Email requerido' };
+
   var data = sheet.getDataRange().getValues();
-  var email = (payload.email || '').trim().toLowerCase();
+  var headers = data[0];
   var rowIndex = -1;
 
   for (var i = 1; i < data.length; i++) {
-    var rowId = String(data[i][0]);
-    var rowEmail = String(data[i][1] || '').trim().toLowerCase();
-    if (rowId === String(payload._id) || (email && rowEmail === email)) {
+    if (String(data[i][1]).toLowerCase() === email) {
       rowIndex = i + 1;
       break;
     }
   }
 
-  var id = payload._id || ('usr_' + Date.now());
-  var rowData = [
-    id,
-    payload.email,
-    payload.nombre,
-    payload.rol || 'Inspector',
-    payload.password || 'Duncan2026*',
-    payload.activo !== false
+  var nowStr = Utilities.formatDate(new Date(), 'America/Caracas', "yyyy-MM-dd'T'HH:mm:ss'Z'");
+  var row = [
+    u._id || u.id || ('usr_' + Date.now()),
+    email,
+    u.cedula || '',
+    u.nombre || '',
+    u.cargo || '',
+    u.localidad || 'Planta Principal Los Ruices',
+    u.rol || 'Inspector',
+    u.password || 'Duncan2026*',
+    u.activo !== false && u.activo !== 'false',
+    nowStr
   ];
 
-  if (rowIndex > 1) {
-    sheet.getRange(rowIndex, 1, 1, rowData.length).setValues([rowData]);
+  if (rowIndex === -1) {
+    sheet.appendRow(row);
   } else {
-    sheet.appendRow(rowData);
+    sheet.getRange(rowIndex, 1, 1, row.length).setValues([row]);
   }
+
   SpreadsheetApp.flush();
-  return { success: true, id: id };
+  return { success: true, email: email };
 }
 
 function handleDeleteUsuario(payload) {
   var ss = getSpreadsheet();
   var sheet = getOrCreateSheet(ss, SHEETS.USUARIOS);
-  var data = sheet.getDataRange().getValues();
+  var id = payload._id || payload.id;
+  var email = (payload.email || '').toLowerCase();
 
+  var data = sheet.getDataRange().getValues();
   for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(payload.id)) {
-      var email = String(data[i][1] || '').trim().toLowerCase();
-      if (email === 'francisco.rojasp@gmail.com' || email === 'sgssaduncan@gmail.com') {
-        return { success: false, message: 'No se puede eliminar la cuenta principal de Propietario / Super Admin' };
-      }
+    if (String(data[i][0]) === String(id) || String(data[i][1]).toLowerCase() === email) {
       sheet.deleteRow(i + 1);
-      return { success: true };
+      SpreadsheetApp.flush();
+      return { success: true, deleted: id || email };
     }
   }
+
   return { success: false, message: 'Usuario no encontrado' };
 }
 
-// ===================================================================
-// RECUPERACIÓN DE CONTRASEÑA Y USUARIO (METODOLOGÍA COSTO CERO)
-// ===================================================================
-
+// -------------------------------------------------------------
+// RECUPERACIÓN DE CONTRASEÑA A COSTO CERO (OTP / CÉDULA)
+// -------------------------------------------------------------
 function handleSolicitarCodigoRecuperacion(payload) {
   var email = (payload.email || '').trim().toLowerCase();
-  var code = String(payload.code || '');
-  var nombre = payload.nombre || 'Trabajador Duncan';
-  if (!email || !code) return { success: false, message: 'Faltan parámetros requeridos (email y código)' };
+  if (!email) return { success: false, message: 'Indique su correo electronico.' };
+
+  var ss = getSpreadsheet();
+  var sheet = getOrCreateSheet(ss, SHEETS.USUARIOS);
+  ensureDefaultUsers(sheet);
+  var users = sheetToObjects(sheet);
+
+  var found = false;
+  for (var i = 0; i < users.length; i++) {
+    if ((users[i].email || '').trim().toLowerCase() === email) {
+      found = true;
+      break;
+    }
+  }
+
+  if (!found) {
+    return { success: false, message: 'No existe usuario registrado con el correo: ' + email };
+  }
+
+  var code = Math.floor(100000 + Math.random() * 900000).toString();
+  var expira = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+  var sheetConf = getOrCreateSheet(ss, SHEETS.CONFIGURACION);
+  sheetConf.appendRow(['RECOVERY_OTP_' + email, code, expira, new Date().toISOString()]);
 
   try {
     MailApp.sendEmail({
       to: email,
-      subject: 'Código de Recuperación de Acceso — SGD Duncan 2.0',
-      htmlBody: '<div style="font-family: Arial, sans-serif; max-width: 580px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background-color: #ffffff;">' +
-        '<div style="background-color: #020617; padding: 24px; text-align: center; border-bottom: 3px solid #facc15;">' +
-        '<h1 style="color: #facc15; margin: 0; font-size: 20px; font-weight: 900; letter-spacing: 1px;">ACUMULADORES DUNCAN, S.A.</h1>' +
-        '<p style="color: #94a3b8; margin: 4px 0 0; font-size: 11px; text-transform: uppercase;">Sistema de Gestión de Seguridad y Salud en el Trabajo (SGD 2.0)</p>' +
-        '</div>' +
-        '<div style="padding: 24px 28px; color: #1e293b; line-height: 1.6;">' +
-        '<h2 style="font-size: 16px; font-weight: bold; margin-top: 0; color: #0f172a;">Recuperación de Contraseña y Acceso</h2>' +
-        '<p style="font-size: 13px; color: #334155;">Estimado(a) <strong>' + nombre + '</strong>,</p>' +
-        '<p style="font-size: 13px; color: #334155;">Se ha generado una solicitud para restablecer sus credenciales en el sistema SGD Duncan. Utilice el siguiente código de seguridad temporal:</p>' +
-        '<div style="background-color: #fefce8; border: 2px dashed #facc15; padding: 18px; text-align: center; border-radius: 10px; margin: 22px 0;">' +
-        '<span style="font-size: 11px; font-weight: bold; color: #854d0e; display: block; margin-bottom: 6px; text-transform: uppercase;">Código de Verificación Temporal:</span>' +
-        '<span style="font-size: 32px; font-weight: 900; letter-spacing: 8px; color: #0f172a; font-family: monospace;">' + code + '</span>' +
-        '</div>' +
-        '<p style="font-size: 12px; color: #64748b;">Este código es de uso personal, confidencial y expira en <strong>15 minutos</strong>. Si usted no realizó esta solicitud, puede desestimar este mensaje o contactar al administrador del sistema (<a href="mailto:aabecerra852@gmail.com" style="color: #0284c7; text-decoration: none;">aabecerra852@gmail.com</a>).</p>' +
-        '</div>' +
-        '<div style="background-color: #f8fafc; padding: 12px 24px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid #f1f5f9;">' +
-        'Acumuladores Duncan © 2026 • Soporte Técnico SSST • Notificación Gratuita Automatizada' +
-        '</div>' +
-        '</div>'
+      subject: 'Codigo de Recuperacion de Acceso - SGD Duncan 2.0',
+      body: 'Estimado colaborador,\n\nHa solicitado restablecer su acceso al Sistema de Gestion Duncan 2.0.\n\n' +
+            'Su codigo de verificacion es: ' + code + '\n\n' +
+            'Este codigo tiene una validez de 15 minutos.\n\n' +
+            'Si usted no solicito este cambio, comuniquese de inmediato con SST / Seguridad y Salud en el Trabajo Duncan.\n\n' +
+            'Atentamente,\nSST Duncan'
     });
-    return { success: true, message: 'Correo enviado satisfactoriamente vía Google MailApp (Costo Cero)' };
-  } catch (errMail) {
-    return { success: false, message: 'Error enviando correo: ' + errMail.toString() };
+    return { success: true, message: 'Codigo de 6 digitos enviado a su correo Gmail.', sentViaEmail: true };
+  } catch (eMail) {
+    return {
+      success: true,
+      message: 'Codigo generado exitosamente. Ingrese el codigo generado para continuar.',
+      sentViaEmail: false,
+      debugCode: code
+    };
   }
 }
 
 function handleRecuperarPassword(payload) {
+  var email = (payload.email || '').trim().toLowerCase();
+  var newPassword = String(payload.newPassword || '').trim();
+  var cedula = String(payload.cedula || '').trim();
+
+  if (!email || !newPassword) {
+    return { success: false, message: 'Parametros incompletos.' };
+  }
+
   var ss = getSpreadsheet();
   var sheet = getOrCreateSheet(ss, SHEETS.USUARIOS);
   var data = sheet.getDataRange().getValues();
-  var email = (payload.email || '').trim().toLowerCase();
-  var newPassword = payload.newPassword || '';
-
-  if (!email || !newPassword) {
-    return { success: false, message: 'Faltan parámetros requeridos' };
-  }
+  var headers = data[0];
+  var colEmail = headers.indexOf('email') + 1;
+  var colCedula = headers.indexOf('cedula') + 1;
+  var colPassword = headers.indexOf('password') + 1;
 
   for (var i = 1; i < data.length; i++) {
-    var rowEmail = String(data[i][1] || '').trim().toLowerCase();
+    var rowEmail = String(data[i][colEmail - 1]).toLowerCase().trim();
     if (rowEmail === email) {
-      sheet.getRange(i + 1, 5).setValue(newPassword);
-      SpreadsheetApp.flush();
-      return { success: true, message: 'Contraseña actualizada en Google Sheets' };
-    }
-  }
-
-  return { success: false, message: 'Usuario no encontrado en la hoja' };
-}
-
-// ===================================================================
-// MANEJADORES DE ESCRITURA (POST)
-// ===================================================================
-
-function handleCreateInspeccion(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
-
-  var newId = payload._id || ('insp_' + Date.now());
-  var correlativo = payload.correlativo || (sheet.getLastRow() + 1000);
-
-  var row = [
-    newId,
-    correlativo,
-    payload.empresaId || '',
-    payload.empresaNombre || '',
-    payload.localidadId || '',
-    payload.localidadNombre || '',
-    payload.establecimientoId || '',
-    payload.establecimientoNombre || '',
-    payload.tipoInspeccionId || '',
-    payload.tipoNombre || '',
-    payload.tipoCodigo || '',
-    payload.fecha || new Date().toISOString().split('T')[0],
-    payload.inspector || '',
-    payload.estado || 'en_progreso',
-    payload.resultado || '',
-    payload.puntuacion || 0,
-    payload.observaciones || '',
-    payload.formResponses || '{}',
-    payload.formObservations || '{}',
-    payload.formAdditional || '{}',
-    payload.formSignatures || '{}',
-    new Date().toISOString()
-  ];
-
-  sheet.appendRow(row);
-  return { id: newId, correlativo: correlativo };
-}
-
-function handleSaveFormData(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
-  var data = sheet.getDataRange().getValues();
-
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(payload.inspeccionId)) {
-      var rowNum = i + 1;
-      if (payload.resultado !== undefined) sheet.getRange(rowNum, 15).setValue(payload.resultado);
-      if (payload.puntuacion !== undefined) sheet.getRange(rowNum, 16).setValue(payload.puntuacion);
-      if (payload.responses !== undefined) sheet.getRange(rowNum, 18).setValue(payload.responses);
-      if (payload.observations !== undefined) sheet.getRange(rowNum, 19).setValue(payload.observations);
-      if (payload.additional !== undefined) sheet.getRange(rowNum, 20).setValue(payload.additional);
-      if (payload.signatures !== undefined) sheet.getRange(rowNum, 21).setValue(payload.signatures);
-      sheet.getRange(rowNum, 22).setValue(new Date().toISOString());
-      return { success: true };
-    }
-  }
-  return { success: false, message: 'Inspección no encontrada' };
-}
-
-function handleCompleteInspeccion(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
-  var data = sheet.getDataRange().getValues();
-
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(payload.id)) {
-      var rowNum = i + 1;
-      sheet.getRange(rowNum, 14).setValue('completada'); // Estado
-      sheet.getRange(rowNum, 22).setValue(new Date().toISOString()); // ActualizadoEn
-
-      // Auto-generar items en Plan de Acción si hay NC / OM
-      try {
-        var rawResp = data[i][17]; // formResponses
-        if (rawResp) {
-          var resp = JSON.parse(rawResp);
-          var sheetPlan = getOrCreateSheet(ss, SHEETS.PLAN_ACCION);
-          var hoy = new Date().toISOString().split('T')[0];
-          var limite = new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0];
-
-          for (var key in resp) {
-            var val = resp[key];
-            if (val === 'NC' || val === 'OM') {
-              sheetPlan.appendRow([
-                'plan_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-                payload.id,
-                data[i][3], // empresaNombre
-                data[i][7], // establecimientoNombre
-                data[i][10], // tipoCodigo
-                data[i][9],  // tipoNombre
-                key,         // item
-                'Hallazgo de campo',
-                val + ' en ítem: ' + key,
-                'Subsanar no conformidad detectada en inspección.',
-                'Supervisor de Sede',
-                'Operaciones',
-                hoy,
-                limite,
-                val === 'OM' ? 'Critica' : 'Media',
-                'pendiente',
-                'Auto-generado desde inspección',
-                new Date().toISOString()
-              ]);
-            }
-          }
+      if (cedula && colCedula > 0) {
+        var rowCed = String(data[i][colCedula - 1]).replace(/[^0-9]/g, '');
+        var inCed = cedula.replace(/[^0-9]/g, '');
+        if (rowCed && rowCed !== inCed) {
+          return { success: false, message: 'La cedula no coincide con el titular de la cuenta.' };
         }
-      } catch (e) {
-        Logger.log('Error auto-generando plan: ' + e);
       }
 
-      return { success: true };
+      sheet.getRange(i + 1, colPassword).setValue(newPassword);
+      SpreadsheetApp.flush();
+      return { success: true, message: 'Contrasena restablecida con exito. Ya puede iniciar sesion.' };
     }
   }
-  return { success: false };
-}
 
-function handleDeleteInspeccion(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
-  var data = sheet.getDataRange().getValues();
-
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(payload.id)) {
-      sheet.deleteRow(i + 1);
-      return { success: true };
-    }
-  }
-  return { success: false };
-}
-
-function handleUpdatePlanAccion(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.PLAN_ACCION);
-  var data = sheet.getDataRange().getValues();
-
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(payload.id)) {
-      var rowNum = i + 1;
-      if (payload.estado) sheet.getRange(rowNum, 16).setValue(payload.estado); // Col 16: estado
-      if (payload.notas) sheet.getRange(rowNum, 17).setValue(payload.notas);   // Col 17: notas
-      return { success: true };
-    }
-  }
-  return { success: false };
-}
-
-function handleLogAudit(payload) {
-  var ss = getSpreadsheet();
-  var sheet = getOrCreateSheet(ss, SHEETS.AUDIT_LOG);
-  sheet.appendRow([
-    'aud_' + Date.now(),
-    payload.usuario || 'desconocido',
-    payload.accion || '',
-    payload.entidad || '',
-    payload.entidadId || '',
-    payload.detalles || '',
-    new Date().toISOString()
-  ]);
-  return { success: true };
+  return { success: false, message: 'Usuario no encontrado en la base de datos.' };
 }
 
 // ===================================================================
-// UTILIDADES DE HOJA DE CÁLCULO
+// UTILIDADES GENERALES
 // ===================================================================
 
 function getOrCreateSheet(ss, name) {
   var sheet = ss.getSheetByName(name);
   if (!sheet) {
     sheet = ss.insertSheet(name);
-  }
-  // Auto-inicializar encabezados si está vacía
-  if (sheet.getLastRow() === 0) {
-    if (name === SHEETS.INSPECCIONES) {
-      sheet.appendRow([
-        '_id', 'correlativo', 'empresaId', 'empresaNombre',
-        'localidadId', 'localidadNombre', 'establecimientoId', 'establecimientoNombre',
-        'tipoInspeccionId', 'tipoNombre', 'tipoCodigo', 'fecha',
-        'inspector', 'estado', 'resultado', 'puntuacion',
-        'observaciones', 'formResponses', 'formObservations',
-        'formAdditional', 'formSignatures', 'actualizadoEn'
-      ]);
-      formatHeaderRow(sheet);
-    } else if (name === SHEETS.PLAN_ACCION) {
-      sheet.appendRow([
-        '_id', 'inspeccionId', 'empresaNombre', 'establecimientoNombre',
-        'tipoInspeccionCodigo', 'tipoInspeccionNombre', 'item', 'seccion',
-        'hallazgo', 'descripcion', 'responsable', 'departamento',
-        'fechaDeteccion', 'fechaLimite', 'prioridad', 'estado', 'notas', 'creadoEn'
-      ]);
-      formatHeaderRow(sheet);
-    } else if (name === SHEETS.AUDIT_LOG) {
-      sheet.appendRow(['_id', 'usuario', 'accion', 'entidad', 'entidadId', 'detalles', 'timestamp']);
-      formatHeaderRow(sheet);
-    } else if (name === SHEETS.EMPLEADOS) {
-      sheet.appendRow(['_id', 'codigo', 'cedula', 'nombre', 'cargo', 'departamento', 'empresaNombre']);
-      formatHeaderRow(sheet);
-    } else if (name === SHEETS.USUARIOS) {
-      ensureDefaultUsers(sheet);
-    }
   }
   return sheet;
 }
@@ -2289,188 +1199,23 @@ function sheetToObjects(sheet) {
   if (data.length <= 1) return [];
 
   var headers = data[0];
-  var rows = [];
+  var results = [];
 
   for (var i = 1; i < data.length; i++) {
     var row = data[i];
-    // Ignorar filas totalmente vacías
-    if (!row[0] && !row[1]) continue;
-
     var obj = {};
     for (var j = 0; j < headers.length; j++) {
+      var key = headers[j];
       var val = row[j];
       if (val instanceof Date) {
-        val = val.toISOString().split('T')[0];
+        val = val.toISOString();
       }
-      obj[headers[j]] = val;
+      obj[key] = val;
     }
-    rows.push(obj);
-  }
-  return rows;
-}
-
-// ===================================================================
-// INICIALIZADOR AUTOMÁTICO DE LA BASE DE DATOS (1-CLICK SETUP)
-// ===================================================================
-function setupSpreadsheet() {
-  var ss = getSpreadsheet();
-
-  // 1. Pestaña Inspecciones
-  var sheetInsp = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
-  if (sheetInsp.getLastRow() === 0) {
-    sheetInsp.appendRow([
-      '_id', 'correlativo', 'empresaId', 'empresaNombre',
-      'localidadId', 'localidadNombre', 'establecimientoId', 'establecimientoNombre',
-      'tipoInspeccionId', 'tipoNombre', 'tipoCodigo', 'fecha',
-      'inspector', 'estado', 'resultado', 'puntuacion',
-      'observaciones', 'formResponses', 'formObservations',
-      'formAdditional', 'formSignatures', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetInsp);
+    results.push(obj);
   }
 
-  // 2. Pestaña PlanAccion
-  var sheetPlan = getOrCreateSheet(ss, SHEETS.PLAN_ACCION);
-  if (sheetPlan.getLastRow() === 0) {
-    sheetPlan.appendRow([
-      '_id', 'inspeccionId', 'empresaNombre', 'establecimientoNombre',
-      'tipoInspeccionCodigo', 'tipoInspeccionNombre', 'item', 'seccion',
-      'hallazgo', 'descripcion', 'responsable', 'departamento',
-      'fechaDeteccion', 'fechaLimite', 'prioridad', 'estado', 'notas', 'creadoEn'
-    ]);
-    formatHeaderRow(sheetPlan);
-  }
-
-  // 3. Pestaña Audit_Log
-  var sheetAudit = getOrCreateSheet(ss, SHEETS.AUDIT_LOG);
-  if (sheetAudit.getLastRow() === 0) {
-    sheetAudit.appendRow(['_id', 'usuario', 'accion', 'entidad', 'entidadId', 'detalles', 'timestamp']);
-    formatHeaderRow(sheetAudit);
-  }
-
-  // 4. Pestaña Empleados
-  var sheetEmp = getOrCreateSheet(ss, SHEETS.EMPLEADOS);
-  if (sheetEmp.getLastRow() === 0) {
-    sheetEmp.appendRow(['_id', 'codigo', 'cedula', 'nombre', 'cargo', 'departamento', 'empresaNombre']);
-    formatHeaderRow(sheetEmp);
-  }
-
-  // 5. Pestaña Usuarios
-  var sheetUsr = getOrCreateSheet(ss, SHEETS.USUARIOS);
-  ensureDefaultUsers(sheetUsr);
-
-  // 6. Pestaña Establecimientos
-  var sheetEst = getOrCreateSheet(ss, SHEETS.ESTABLECIMIENTOS);
-  if (sheetEst.getLastRow() === 0) {
-    sheetEst.appendRow(['_id', 'nombre', 'localidadId', 'localidadNombre', 'tipo', 'empresaId', 'empresaNombre']);
-    formatHeaderRow(sheetEst);
-  }
-
-  // 7. Pestaña EvaluacionesMedicas (Ocupacional, PbB, Vacaciones)
-  var sheetEval = getOrCreateSheet(ss, SHEETS.EVALUACIONES_MEDICAS);
-  if (sheetEval.getLastRow() === 0) {
-    sheetEval.appendRow([
-      '_id', 'empleadoCedula', 'empleadoNombre', 'empleadoCargo', 'empleadoDepartamento',
-      'tipoEvaluacion', 'fechaSolicitud', 'fechaAgendada', 'estado', 'aptitud',
-      'plombemiaPbB', 'plombemiaALA', 'clinicaAutorizada', 'numeroAutorizacion', 'observaciones', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetEval);
-  }
-
-  // 8. Pestaña ConsultasMedicas (V-EXPRESS REG_DIARIO)
-  var sheetCons = getOrCreateSheet(ss, SHEETS.CONSULTAS_MEDICAS);
-  if (sheetCons.getLastRow() === 0) {
-    sheetCons.appendRow([
-      '_id', 'fecha', 'hora', 'trabajadorCedula', 'trabajadorNombre', 'empresa', 'cargo', 'departamento',
-      'motivo', 'sintomas', 'paSistolica', 'paDiastolica', 'frecuenciaCardiaca', 'temperatura', 'saturacionO2',
-      'sistemaAfectado', 'impresionDiagnostica', 'tipoMorbilidad', 'clasificacionLegal', 'tratamiento',
-      'reposo', 'diasReposo', 'remisionEspecialista', 'medico', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetCons);
-  }
-
-  // 9. Pestaña ControlesPresion (V-EXPRESS REG_CONTROL_PA)
-  var sheetPres = getOrCreateSheet(ss, SHEETS.CONTROLES_PRESION);
-  if (sheetPres.getLastRow() === 0) {
-    sheetPres.appendRow([
-      '_id', 'fecha', 'hora', 'cedula', 'nombre', 'cargo', 'departamento', 'areaRiesgo',
-      'paSistolica', 'paDiastolica', 'pulso', 'condicion', 'hipertensoConocido', 'medicamentoTomado',
-      'aptoJornada', 'observaciones', 'registradoPor', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetPres);
-  }
-
-  // 10. Pestaña AptitudPsicofisica (V-EXPRESS REG_APF)
-  var sheetApt = getOrCreateSheet(ss, SHEETS.APTITUD_PSICOFISICA);
-  if (sheetApt.getLastRow() === 0) {
-    sheetApt.appendRow([
-      '_id', 'numeroCertificado', 'fechaEmision', 'fechaVencimiento', 'cedula', 'nombre', 'edad', 'cargo',
-      'antiguedad', 'tipoExamen', 'conclusion', 'restricciones', 'limiteCargaKg', 'restriccionPlomo',
-      'restriccionAcido', 'medicoNombre', 'medicoMSDS', 'medicoCMV', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetApt);
-  }
-
-  // 11. Pestaña Goniometrias (V-EXPRESS REG_GONIOMETRÍA)
-  var sheetGon = getOrCreateSheet(ss, SHEETS.GONIOMETRIAS);
-  if (sheetGon.getLastRow() === 0) {
-    sheetGon.appendRow([
-      '_id', 'fecha', 'cedula', 'nombre', 'cargo', 'segmentoArticular', 'movimiento',
-      'rangoNormal', 'ladoDerecho', 'ladoIzquierdo', 'dolorPresente', 'deficitMovilidad',
-      'conclusionErgonomica', 'evaluador', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetGon);
-  }
-
-  // 12. Pestaña Dotaciones (EPP)
-  var sheetDot = getOrCreateSheet(ss, SHEETS.DOTACIONES);
-  if (sheetDot.getLastRow() === 0) {
-    sheetDot.appendRow([
-      '_id', 'fecha', 'empleadoCedula', 'empleadoNombre', 'cargo', 'departamento',
-      'tipoDotacion', 'items', 'estado', 'observaciones', 'firmadoPor', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetDot);
-  }
-
-  // 13. Pestaña LotoBloqueos
-  var sheetLoto = getOrCreateSheet(ss, SHEETS.LOTO);
-  if (sheetLoto.getLastRow() === 0) {
-    sheetLoto.appendRow([
-      '_id', 'codigo', 'fechaInicio', 'fechaFin', 'equipoTag', 'equipoNombre',
-      'ubicacion', 'responsableCedula', 'responsableNombre', 'estado', 'pasosCompletados', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetLoto);
-  }
-
-  // 14. Pestaña PermisosTrabajo
-  var sheetPerm = getOrCreateSheet(ss, SHEETS.PERMISOS);
-  if (sheetPerm.getLastRow() === 0) {
-    sheetPerm.appendRow([
-      '_id', 'correlativo', 'tipoPermiso', 'establecimientoNombre', 'area', 'fecha',
-      'horaInicio', 'horaFin', 'solicitante', 'empresa', 'estado', 'riesgosIdentificados', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetPerm);
-  }
-
-  // 15. Pestaña ComiteActas (CSSL / Delegados de Prevención)
-  var sheetCom = getOrCreateSheet(ss, SHEETS.COMITE);
-  if (sheetCom.getLastRow() === 0) {
-    sheetCom.appendRow([
-      '_id', 'numeroActa', 'fecha', 'tipoReunion', 'lugar', 'delegadosAsistentes',
-      'representantesPatrono', 'puntosTratados', 'acuerdos', 'estado', 'actualizadoEn'
-    ]);
-    formatHeaderRow(sheetCom);
-  }
-
-  // 16. Pestaña Configuracion
-  var sheetConf = getOrCreateSheet(ss, SHEETS.CONFIGURACION);
-  if (sheetConf.getLastRow() === 0) {
-    sheetConf.appendRow(['clave', 'valor', 'descripcion', 'actualizadoEn']);
-    formatHeaderRow(sheetConf);
-  }
-
-  SpreadsheetApp.flush();
-  Logger.log('¡Base de datos integral SGD Duncan 2.0 y V-EXPRESS configurada con éxito!');
+  return results;
 }
 
 function formatHeaderRow(sheet) {
@@ -2479,4 +1224,35 @@ function formatHeaderRow(sheet) {
   range.setFontColor('#ffffff');
   range.setFontWeight('bold');
   sheet.setFrozenRows(1);
+}
+
+function setupSpreadsheet() {
+  var ss = getSpreadsheet();
+  ensureDefaultUsers(getOrCreateSheet(ss, SHEETS.USUARIOS));
+  ensureEmpleadosSheet(ss);
+
+  var sInsp = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
+  if (sInsp.getLastRow() === 0) {
+    sInsp.appendRow([
+      '_id', 'correlativo', 'tipoId', 'tipoNombre', 'tipoCodigo', 'empresaId', 'empresaNombre',
+      'localidadId', 'localidadNombre', 'establecimientoId', 'establecimientoNombre', 'area',
+      'inspector', 'inspectorCargo', 'acompanante', 'fecha', 'horaInicio', 'horaFin',
+      'estado', 'resultado', 'observacionesGenerales', 'respuestas', 'fotos', 'firmaInspector',
+      'puntos', 'actualizadoEn'
+    ]);
+    formatHeaderRow(sInsp);
+  }
+
+  var sPlan = getOrCreateSheet(ss, SHEETS.PLAN_ACCION);
+  if (sPlan.getLastRow() === 0) {
+    sPlan.appendRow([
+      '_id', 'inspeccionId', 'inspeccionCorrelativo', 'puntoId', 'puntoTexto', 'hallazgo',
+      'accion', 'prioridad', 'responsableId', 'responsableNombre', 'fechaLimite', 'estado',
+      'creadoEn', 'actualizadoEn'
+    ]);
+    formatHeaderRow(sPlan);
+  }
+
+  SpreadsheetApp.flush();
+  Logger.log('Base de datos configurada exitosamente.');
 }

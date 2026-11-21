@@ -361,6 +361,12 @@ export const dbService = {
 
     setLocal(SK.EMPLEADOS, list);
     await this.logAction('BATCH_IMPORT', 'empleados', undefined, `Importación masiva: ${added} nuevos trabajadores, ${updated} actualizados`);
+
+    // Sincronización masiva con Google Sheets en segundo plano
+    postGAS('importEmpleados', { items: list, replaceExisting: true }).catch(err => {
+      console.warn('[DB] Fallo sincronizando trabajadores con Google Sheets:', err);
+    });
+
     return { added, updated, total: list.length };
   },
 
@@ -773,7 +779,9 @@ export const dbService = {
       // Auto-sanitizar: Si algún artículo existente tiene stock vacío o sin tallas, poblarlo automáticamente
       let sanitized = false;
       list = list.map(i => {
-        let currentStock = Array.isArray(i.stock) ? i.stock.filter(s => s && s.talla && s.talla.trim() !== '') : [];
+        let currentStock = Array.isArray(i.stock)
+          ? i.stock.filter(s => s && s.talla !== undefined && String(s.talla).trim() !== '')
+          : [];
         if (currentStock.length === 0) {
           sanitized = true;
           const tipo = detectarTipoImplemento(i.nombre, i.categoria);
@@ -782,6 +790,8 @@ export const dbService = {
         }
         return {
           ...i,
+          id: String(i.id || (i as any)._id || genId('epp')),
+          _id: String((i as any)._id || i.id || genId('epp')),
           stock: currentStock
         };
       });
@@ -793,7 +803,14 @@ export const dbService = {
 
     return (list || []).map(i => ({
       ...i,
-      stock: Array.isArray(i.stock) ? i.stock : []
+      id: String(i.id || (i as any)._id || genId('epp')),
+      _id: String((i as any)._id || i.id || genId('epp')),
+      stock: Array.isArray(i.stock)
+        ? i.stock.map(s => ({
+            talla: String(s?.talla !== undefined && s?.talla !== null ? s.talla : 'UNICA'),
+            cantidad: Number(s?.cantidad) || 0
+          }))
+        : []
     }));
   },
   async addInventarioItem(data: any): Promise<string> {

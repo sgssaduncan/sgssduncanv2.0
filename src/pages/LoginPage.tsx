@@ -97,20 +97,43 @@ export default function LoginPage() {
   const [showRecPassword, setShowRecPassword] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
 
-  // Pre-cargar cuentas maestras autorizadas (Propietarios y Desarrolladores)
-  const loadMasterAccount = (type: 'becerra' | 'francisco' | 'sgssa') => {
+  // Pre-cargar cuentas maestras autorizadas (Propietarios y Desarrolladores) con 1-clic Auto-Login
+  const loadMasterAccount = async (type: 'becerra' | 'francisco' | 'sgssa') => {
+    let email = '';
+    let pass = '';
+    let roleDesc = '';
     if (type === 'becerra') {
-      setLoginEmail('aabecerra852@gmail.com');
-      setLoginPassword('Panelas369*');
-      toast.success('Credenciales de A. Becerra (Super Admin) cargadas');
+      email = 'aabecerra852@gmail.com';
+      pass = 'Panelas369*';
+      roleDesc = 'A. Becerra (Super Admin Duncan)';
     } else if (type === 'francisco') {
-      setLoginEmail('francisco.rojasp@gmail.com');
-      setLoginPassword('Leo150873#*$');
-      toast.success('Credenciales de Francisco Rojas (Propietario/Desarrollador) cargadas');
+      email = 'francisco.rojasp@gmail.com';
+      pass = 'Leo150873#*$';
+      roleDesc = 'Francisco Rojas (Propietario / Desarrollador)';
     } else if (type === 'sgssa') {
-      setLoginEmail('sgssaduncan@gmail.com');
-      setLoginPassword('Leo150873#*$');
-      toast.success('Credenciales de SST / SSA Duncan (Propietario/Desarrollador) cargadas');
+      email = 'sgssaduncan@gmail.com';
+      pass = 'Leo150873#*$';
+      roleDesc = 'SST / SSA Duncan (Propietario SST / Dev)';
+    }
+
+    setLoginEmail(email);
+    setLoginPassword(pass);
+    setIsLoggingIn(true);
+    const toastId = toast.loading(`Iniciando sesión automática como ${roleDesc}...`);
+    try {
+      const res = await login(email, pass);
+      toast.dismiss(toastId);
+      if (res.success && res.user) {
+        toast.success(`¡Acceso maestro concedido: ${res.user.nombre || email}!`);
+        navigate(from, { replace: true });
+      } else {
+        toast.error(res.message || 'Error al iniciar sesión con cuenta maestra.');
+      }
+    } catch (e: any) {
+      toast.dismiss(toastId);
+      toast.error(e.message || 'Error al autenticar cuenta maestra.');
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 

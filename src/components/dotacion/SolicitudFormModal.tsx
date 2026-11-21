@@ -26,6 +26,9 @@ import {
   detectarTipoImplemento,
   requiereTalla
 } from '../../lib/tallasCatalog';
+import { RUBRICA_TEST_PNG } from '../../lib/rubricSignature';
+
+export const getItemId = (i: any): string => String(i?.id || i?._id || '');
 
 interface SolicitudFormModalProps {
   empleados: Empleado[];
@@ -213,13 +216,15 @@ export default function SolicitudFormModal({
     setItems(currentItems =>
       currentItems.map(it => {
         if (!it.itemId) return it;
-        const inv = (inventario || []).find(i => i.id === it.itemId);
+        const inv = (inventario || []).find(i => getItemId(i) === it.itemId);
         const necesita = requiereTalla(inv);
         if (!necesita) {
           return { ...it, talla: 'N/A' };
         }
-        if (!it.talla || it.talla.trim() === '' || it.talla === 'N/A') {
-          const sugerida = obtenerTallaSugerida(inv, selectedEmpleado);
+        const currentTalla = String(it.talla || '').trim();
+        if (!currentTalla || currentTalla === 'N/A') {
+          const tipo = detectarTipoImplemento(inv?.nombre || '', inv?.categoria || '', selectedEmpleado?.genero);
+          const sugerida = obtenerTallaSugerida(inv, selectedEmpleado) || getDefaultSizeForType(tipo);
           return { ...it, talla: sugerida || it.talla };
         }
         return it;
@@ -229,7 +234,7 @@ export default function SolicitudFormModal({
 
   // Dynamic detection of lumbar girdle item in active selection
   const contieneFajaLumbar = (items || []).some(it => {
-    const inv = (inventario || []).find(i => i.id === it.itemId);
+    const inv = (inventario || []).find(i => getItemId(i) === it.itemId);
     if (!inv) return false;
     return (
       inv.esFajaLumbar === true ||
@@ -247,18 +252,18 @@ export default function SolicitudFormModal({
   };
 
   const handleItemChange = (idx: number, newItemId: string) => {
-    const inv = (inventario || []).find(i => i.id === newItemId);
+    const inv = (inventario || []).find(i => getItemId(i) === newItemId);
     const necesita = requiereTalla(inv);
     const tipo = detectarTipoImplemento(inv?.nombre || '', inv?.categoria || '', selectedEmpleado?.genero);
     let sugerida = necesita ? obtenerTallaSugerida(inv, selectedEmpleado) : 'N/A';
-    if (necesita && (!sugerida || sugerida.trim() === '')) {
+    if (necesita && (!sugerida || String(sugerida).trim() === '')) {
       sugerida = getDefaultSizeForType(tipo);
     }
     const newItems = [...items];
     newItems[idx] = {
       ...newItems[idx],
       itemId: newItemId,
-      talla: sugerida || (necesita ? getDefaultSizeForType(tipo) : 'N/A'),
+      talla: sugerida || (necesita ? (getDefaultSizeForType(tipo) || '41') : 'N/A'),
       esCustom: false
     };
     setItems(newItems);
@@ -315,20 +320,21 @@ export default function SolicitudFormModal({
 
     // Notification of items without immediate stock
     const outOfStockItems = itemsList.filter(it => {
-      const inv = (inventario || []).find(i => i.id === it.itemId);
+      const inv = (inventario || []).find(i => getItemId(i) === it.itemId);
       if (!inv) return false;
       const necesita = requiereTalla(inv);
       if (!necesita) {
-        const totalStock = (inv.stock || []).reduce((acc, s) => acc + (s.cantidad || 0), 0);
+        const totalStock = (inv.stock || []).reduce((acc, s) => acc + (Number(s.cantidad) || 0), 0);
         return totalStock < it.cantidad;
       }
-      const stockItem = (inv.stock || []).find(s => s.talla.toUpperCase() === (it.talla || '').toUpperCase());
-      return !stockItem || stockItem.cantidad < it.cantidad;
+      const itemTallaStr = String(it.talla || '').trim().toUpperCase();
+      const stockItem = (inv.stock || []).find(s => String(s?.talla || '').trim().toUpperCase() === itemTallaStr);
+      return !stockItem || Number(stockItem.cantidad) < it.cantidad;
     });
 
     if (outOfStockItems.length > 0) {
       const nombresFaltantes = outOfStockItems.map(it => {
-        const inv = (inventario || []).find(i => i.id === it.itemId);
+        const inv = (inventario || []).find(i => getItemId(i) === it.itemId);
         return `• ${inv?.nombre || 'Artículo'} (Talla: ${it.talla || 'Única'})`;
       }).join('\n');
 
@@ -358,12 +364,13 @@ export default function SolicitudFormModal({
         fechaSolicitud: new Date().toISOString().split('T')[0],
         estado: estadoInicial,
         items: items.map(i => {
-          const inv = (inventario || []).find(x => x.id === i.itemId);
+          const inv = (inventario || []).find(x => getItemId(x) === i.itemId);
           const necesita = requiereTalla(inv);
+          const rawTalla = String(i.talla || '').trim();
           return {
             itemId: i.itemId,
-            cantidad: i.cantidad,
-            talla: necesita ? (i.talla.trim() || 'N/A') : (i.talla.trim() || 'N/A')
+            cantidad: Number(i.cantidad) || 1,
+            talla: necesita ? (rawTalla || 'N/A') : (rawTalla || 'N/A')
           };
         }),
         motivo,
@@ -632,14 +639,15 @@ export default function SolicitudFormModal({
 
               <div className="space-y-3">
                 {items.map((it, idx) => {
-                  const selectedInv = (inventario || []).find(i => i.id === it.itemId);
+                  const selectedInv = (inventario || []).find(i => getItemId(i) === it.itemId);
                   const necesitaTalla = requiereTalla(selectedInv);
                   const opcionesTallas = obtenerOpcionesTalla(selectedInv, selectedEmpleado);
                   const tipoDetectado = selectedInv ? detectarTipoImplemento(selectedInv.nombre, selectedInv.categoria, selectedEmpleado?.genero) : null;
                   
-                  const stockTotal = (selectedInv?.stock || []).reduce((acc, s) => acc + (s.cantidad || 0), 0);
+                  const stockTotal = (selectedInv?.stock || []).reduce((acc, s) => acc + (Number(s.cantidad) || 0), 0);
+                  const itTallaStr = String(it.talla || '').trim().toUpperCase();
                   const stockSeleccionado = (selectedInv?.stock || []).find(
-                    s => s.talla.toUpperCase() === (it.talla || '').toUpperCase()
+                    s => String(s?.talla || '').trim().toUpperCase() === itTallaStr
                   )?.cantidad ?? 0;
 
                   const isSinStock = selectedInv
@@ -667,7 +675,7 @@ export default function SolicitudFormModal({
                           >
                             <option value="">Seleccione un implemento del catálogo...</option>
                             {(inventario || []).map(inv => (
-                              <option key={inv.id} value={inv.id}>
+                              <option key={getItemId(inv)} value={getItemId(inv)}>
                                 {inv.nombre} ({inv.codigo}) — Cat: {inv.categoria}
                               </option>
                             ))}
@@ -715,7 +723,7 @@ export default function SolicitudFormModal({
                               )}
                             >
                               <option value="">
-                                {`Seleccione Talla (${opcionesTallas.length} opciones)...`}
+                                {opcionesTallas.length > 0 ? `Seleccione Talla (${opcionesTallas.length} opciones)...` : 'Seleccione Talla...'}
                               </option>
                               {opcionesTallas.map(opt => (
                                 <option key={opt.talla} value={opt.talla}>
@@ -899,7 +907,8 @@ export default function SolicitudFormModal({
                               </div>
                               <div className="flex flex-wrap gap-1.5 items-center">
                                 {(QUICK_SIZES_MAP[tipoDetectado || ''] || []).map(q => {
-                                  const isSelected = it.talla === q.value || (it.talla && it.talla.startsWith(q.value));
+                                  const curTalla = String(it?.talla || '');
+                                  const isSelected = curTalla === q.value || (curTalla && curTalla.startsWith(q.value));
                                   return (
                                     <button
                                       key={q.value}
@@ -1037,10 +1046,9 @@ export default function SolicitudFormModal({
                       <button
                         type="button"
                         onClick={() => {
-                          const firmaTest = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="60"><path d="M 10 40 Q 60 10 110 35 T 190 20" fill="none" stroke="%230f172a" stroke-width="2.5"/></svg>';
-                          setFirmaSolicitanteUrl(firmaTest);
+                          setFirmaSolicitanteUrl(RUBRICA_TEST_PNG);
                           if (!solicitanteCedula) setSolicitanteCedula('V-12033632');
-                          toast.success('Rúbrica de prueba cargada (Modo Desarrollador / Propietario)');
+                          toast.success('Rúbrica oficial PNG cargada (Modo Desarrollador / Propietario)');
                         }}
                         className="text-[10px] text-yellow-800 bg-yellow-100 hover:bg-yellow-200 border border-yellow-300 font-bold px-2 py-0.5 rounded flex items-center gap-1 transition-colors"
                       >

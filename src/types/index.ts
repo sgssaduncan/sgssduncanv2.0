@@ -216,9 +216,25 @@ export interface Empleado {
   telefono?: string;
   email?: string;
   genero?: 'M' | 'F';
+  sexo?: string;
   fechaNacimiento?: string;
   edad?: number;
   direccion?: string;
+  // Campos Nómina Duncan (ERP 22 columnas)
+  nombreNomina?: string;
+  codigoEmpleado?: string;
+  tipoCentroCosto?: string;
+  codigoSituacion?: string;
+  antiguedadAnos?: number;
+  antiguedadMeses?: number;
+  antiguedadDias?: number;
+  numeroCentroCostos?: string;
+  centroCostosDescripcion?: string;
+  sucursal?: string;
+  fechaVencimientoContrato?: string;
+  direccionResidencia?: string;
+  ciudadResidencia?: string;
+  estadoResidencia?: string;
   tallaCamisa?: string;
   tallaPantalon?: string;
   tallaCalzado?: string;

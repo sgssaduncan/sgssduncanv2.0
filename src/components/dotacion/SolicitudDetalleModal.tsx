@@ -25,6 +25,7 @@ import { cn } from '../../lib/utils';
 import type { SolicitudEPP, EntregaEPP, Empleado, InventarioItem, FirmaActor, EstadoSolicitudEPP } from '../../types';
 import toast from 'react-hot-toast';
 import { generarActaDotacionPDF, formatDateString } from './generarActaDotacionPDF';
+import { RUBRICA_TEST_PNG } from '../../lib/rubricSignature';
 
 interface SolicitudDetalleModalProps {
   solicitud: SolicitudEPP;
@@ -79,7 +80,7 @@ export default function SolicitudDetalleModal({
     setSaving(true);
     try {
       const fechaNow = new Date().toISOString();
-      const firmaGenerica = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="60"><path d="M 10 40 Q 60 10 110 35 T 190 20" fill="none" stroke="%230f172a" stroke-width="2.5"/></svg>';
+      const firmaGenerica = RUBRICA_TEST_PNG;
 
       const fSupervisor: FirmaActor = solicitud.firmaSupervisor || {
         nombre: 'Ing. Supervisor de Área',
@@ -525,7 +526,7 @@ export default function SolicitudDetalleModal({
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {(solicitud.items || []).map((it, idx) => {
-                    const inv = (inventario || []).find(i => i.id === it.itemId);
+                    const inv = (inventario || []).find(i => String(i?.id || (i as any)?._id || '') === it.itemId);
                     return (
                       <tr key={idx} className="hover:bg-slate-50">
                         <td className="px-3 py-2 font-mono text-slate-500">{inv?.codigo || 'S/C'}</td>

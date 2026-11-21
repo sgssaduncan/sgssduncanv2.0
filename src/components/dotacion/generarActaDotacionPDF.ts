@@ -581,12 +581,17 @@ function renderFirmaBox(
     doc.text('[PENDIENTE]', x + width - 18, y + 3.8);
   }
 
-  // Incrustar rúbrica digital si existe
-  if (isFirmado && firma.firmaUrl && firma.firmaUrl.startsWith('data:image')) {
-    try {
-      doc.addImage(firma.firmaUrl, 'PNG', x + (width - 36) / 2, y + 6.5, 36, 17);
-    } catch (e) {
-      console.warn('Error incrustando firma en PDF', e);
+  // Incrustar rúbrica digital si existe (solo PNG o JPEG para compatibilidad nativa con jsPDF)
+  if (isFirmado && firma.firmaUrl) {
+    const url = firma.firmaUrl;
+    const isPng = url.startsWith('data:image/png');
+    const isJpeg = url.startsWith('data:image/jpeg') || url.startsWith('data:image/jpg');
+    if (isPng || isJpeg) {
+      try {
+        doc.addImage(url, isJpeg ? 'JPEG' : 'PNG', x + (width - 36) / 2, y + 6.5, 36, 17);
+      } catch (e) {
+        console.warn('Error incrustando firma en PDF:', e);
+      }
     }
   }
 

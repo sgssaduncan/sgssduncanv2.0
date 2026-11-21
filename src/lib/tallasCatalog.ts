@@ -299,9 +299,11 @@ export function obtenerOpcionesTalla(
   // Mapa de stock registrado en inventario
   const stockMap = new Map<string, number>();
   (item.stock || []).forEach(s => {
-    if (s && s.talla) {
-      const normalizada = s.talla.trim();
-      stockMap.set(normalizada.toUpperCase(), s.cantidad || 0);
+    if (s && s.talla !== undefined && s.talla !== null) {
+      const normalizada = String(s.talla).trim();
+      if (normalizada) {
+        stockMap.set(normalizada.toUpperCase(), Number(s.cantidad) || 0);
+      }
     }
   });
 
@@ -309,9 +311,9 @@ export function obtenerOpcionesTalla(
   let tallaTrabajador = '';
   if (empleado) {
     if (tipo === 'CALZADO') {
-      tallaTrabajador = (empleado.tallaCalzado || '').trim().toUpperCase();
+      tallaTrabajador = String(empleado.tallaCalzado || '').trim().toUpperCase();
     } else if (tipo === 'PANTALON_DAMAS' || tipo === 'PANTALON_CABALLEROS' || tipo === 'BRAGAS') {
-      tallaTrabajador = (empleado.tallaPantalon || '').trim().toUpperCase();
+      tallaTrabajador = String(empleado.tallaPantalon || '').trim().toUpperCase();
     } else if (
       tipo === 'CAMISAS' ||
       tipo === 'FRANELAS' ||
@@ -320,7 +322,7 @@ export function obtenerOpcionesTalla(
       tipo === 'CHAQUETAS' ||
       tipo === 'PROTECCION_GENERAL'
     ) {
-      tallaTrabajador = (empleado.tallaCamisa || '').trim().toUpperCase();
+      tallaTrabajador = String(empleado.tallaCamisa || '').trim().toUpperCase();
     }
   }
 
@@ -391,10 +393,10 @@ export function obtenerTallaSugerida(item?: InventarioItem, empleado?: Empleado)
   const tipo = detectarTipoImplemento(item.nombre, item.categoria, empleado.genero);
 
   if (tipo === 'CALZADO' && empleado.tallaCalzado) {
-    return empleado.tallaCalzado.trim();
+    return String(empleado.tallaCalzado).trim();
   }
   if ((tipo === 'PANTALON_DAMAS' || tipo === 'PANTALON_CABALLEROS' || tipo === 'BRAGAS') && empleado.tallaPantalon) {
-    return empleado.tallaPantalon.trim();
+    return String(empleado.tallaPantalon).trim();
   }
   if (
     (tipo === 'CAMISAS' ||
@@ -404,13 +406,13 @@ export function obtenerTallaSugerida(item?: InventarioItem, empleado?: Empleado)
       tipo === 'CHAQUETAS') &&
     empleado.tallaCamisa
   ) {
-    return empleado.tallaCamisa.trim();
+    return String(empleado.tallaCamisa).trim();
   }
 
   // Si el item tiene stock disponible, tomar la primera con stock > 0
-  const stockConDisponibilidad = (item.stock || []).find(s => s && s.cantidad > 0);
-  if (stockConDisponibilidad) {
-    return stockConDisponibilidad.talla;
+  const stockConDisponibilidad = (item.stock || []).find(s => s && Number(s.cantidad) > 0);
+  if (stockConDisponibilidad && stockConDisponibilidad.talla !== undefined) {
+    return String(stockConDisponibilidad.talla).trim();
   }
 
   return '';
@@ -429,10 +431,10 @@ export function requiereTalla(item?: InventarioItem): boolean {
 
   // Si en el stock registrado sólo existe 'UNICA', 'AJUSTABLE', 'ESTÁNDAR' o 'N/A', no requiere selección de talla
   if (Array.isArray(item.stock) && item.stock.length > 0) {
-    const tallasValidas = item.stock.filter(s => s && s.talla && s.talla.trim() !== '');
+    const tallasValidas = item.stock.filter(s => s && s.talla !== undefined && s.talla !== null && String(s.talla).trim() !== '');
     if (tallasValidas.length > 0) {
       const soloTallasUnicas = tallasValidas.every(s =>
-        ['UNICA', 'ÚNICA', 'AJUSTABLE', 'ESTÁNDAR', 'ESTANDAR', 'N/A'].includes(s.talla.trim().toUpperCase())
+        ['UNICA', 'ÚNICA', 'AJUSTABLE', 'ESTÁNDAR', 'ESTANDAR', 'N/A'].includes(String(s.talla).trim().toUpperCase())
       );
       if (soloTallasUnicas) return false;
     }
@@ -455,7 +457,7 @@ export function requiereTalla(item?: InventarioItem): boolean {
     case 'RESPIRADORES': {
       // Si el item tiene tallas específicas en stock distintas de Única/Ajustable, puede requerir talla
       const hasSpecificSizes = (item.stock || []).some(
-        s => s && s.talla && !['UNICA', 'ÚNICA', 'AJUSTABLE', 'ESTÁNDAR', 'ESTANDAR', 'N/A', ''].includes(s.talla.trim().toUpperCase())
+        s => s && s.talla !== undefined && s.talla !== null && !['UNICA', 'ÚNICA', 'AJUSTABLE', 'ESTÁNDAR', 'ESTANDAR', 'N/A', ''].includes(String(s.talla).trim().toUpperCase())
       );
       return hasSpecificSizes;
     }

@@ -4,6 +4,7 @@
 // ============================================================
 
 import type { Empresa, Localidad, Establecimiento, TipoInspeccion, Empleado, Usuario } from '../types';
+import { PAYROLL_ACTIVE_WORKERS } from './seedEmpleados';
 
 export const INITIAL_EMPRESAS: Empresa[] = [
   { _id: 'emp_adca', codigo: 'ADCA', nombre: 'Acumuladores Duncan, C.A.', rif: 'J-00000350-5', direccion: 'Av. Milán, Edificio Nageben Piso 1, Los Ruices Sur, Caracas 1071' },
@@ -149,6 +150,7 @@ export const INITIAL_USUARIOS: Usuario[] = [
 export const INITIAL_INSPECCIONES: any[] = [];
 export const INITIAL_PLAN_ACCION: any[] = [];
 export const INITIAL_EMPLEADOS: Empleado[] = [
+  ...PAYROLL_ACTIVE_WORKERS,
   { 
     _id: 'emp_01', 
     cedula: 'V-15894123', 
@@ -212,14 +214,18 @@ export const INITIAL_EMPLEADOS: Empleado[] = [
 ];
 
 export const INITIAL_EPP_INVENTARIO: any[] = [
-  { _id: 'epp_01', codigo: 'EPP-CAS-01', nombre: 'Casco Dieléctrico Tipo I Clase E con Barbiquejo', categoria: 'Protección Cabeza', stockActual: 45, stockMinimo: 15, unidad: 'Und' },
-  { _id: 'epp_02', codigo: 'EPP-LEN-02', nombre: 'Lentes de Seguridad Antiempañantes Antiácido', categoria: 'Protección Ocular', stockActual: 68, stockMinimo: 20, unidad: 'Und' },
-  { _id: 'epp_03', codigo: 'EPP-RES-03', nombre: 'Respirador Media Cara con Filtros para Vapores y Nieblas Ácidas', categoria: 'Protección Respiratoria', stockActual: 18, stockMinimo: 10, unidad: 'Und' },
-  { _id: 'epp_04', codigo: 'EPP-GNT-04', nombre: 'Guantes de Nitrilo Pesado Antiácido Sulfúrico', categoria: 'Protección Manos', stockActual: 82, stockMinimo: 25, unidad: 'Par' },
-  { _id: 'epp_05', codigo: 'EPP-GNT-05', nombre: 'Guantes de Vaqueta / Carnaza para Carga y Estibado', categoria: 'Protección Manos', stockActual: 90, stockMinimo: 30, unidad: 'Par' },
-  { _id: 'epp_06', codigo: 'EPP-BOT-06', nombre: 'Botas de Seguridad con Puntera Dieléctrica y Suela Resistente a Ácidos', categoria: 'Calzado y Ropa', stockActual: 24, stockMinimo: 12, unidad: 'Par' },
-  { _id: 'epp_07', codigo: 'EPP-PET-07', nombre: 'Pechera / Delantal de PVC Antiácido de Alta Resistencia', categoria: 'Calzado y Ropa', stockActual: 32, stockMinimo: 10, unidad: 'Und' },
-  { _id: 'epp_08', codigo: 'EPP-AUD-08', nombre: 'Protector Auditivo Tipo Copa NRR 27dB', categoria: 'Protección Auditiva', stockActual: 28, stockMinimo: 10, unidad: 'Und' },
+  { id: 'epp_01', _id: 'epp_01', codigo: 'EPP-CAS-01', nombre: 'Casco Dieléctrico Tipo I Clase E con Barbiquejo', categoria: 'Protección Cabeza', stockActual: 45, stockMinimo: 15, unidad: 'Und', stock: [{ talla: 'Ajustable', cantidad: 45 }] },
+  { id: 'epp_02', _id: 'epp_02', codigo: 'EPP-LEN-02', nombre: 'Lentes de Seguridad Antiempañantes Antiácido', categoria: 'Protección Ocular', stockActual: 68, stockMinimo: 20, unidad: 'Und', stock: [{ talla: 'Única', cantidad: 68 }] },
+  { id: 'epp_03', _id: 'epp_03', codigo: 'EPP-RES-03', nombre: 'Respirador Media Cara con Filtros para Vapores y Nieblas Ácidas', categoria: 'Protección Respiratoria', stockActual: 18, stockMinimo: 10, unidad: 'Und', stock: [{ talla: 'S (Pequeño)', cantidad: 4 }, { talla: 'M (Mediano)', cantidad: 8 }, { talla: 'L (Grande)', cantidad: 6 }] },
+  { id: 'epp_04', _id: 'epp_04', codigo: 'EPP-GNT-04', nombre: 'Guantes de Nitrilo Pesado Antiácido Sulfúrico', categoria: 'Protección Manos', stockActual: 82, stockMinimo: 25, unidad: 'Par', stock: [{ talla: '7 (S)', cantidad: 12 }, { talla: '8 (M)', cantidad: 25 }, { talla: '9 (L)', cantidad: 30 }, { talla: '10 (XL)', cantidad: 15 }] },
+  { id: 'epp_05', _id: 'epp_05', codigo: 'EPP-GNT-05', nombre: 'Guantes de Vaqueta / Carnaza para Carga y Estibado', categoria: 'Protección Manos', stockActual: 90, stockMinimo: 30, unidad: 'Par', stock: [{ talla: '8 (M)', cantidad: 25 }, { talla: '9 (L)', cantidad: 40 }, { talla: '10 (XL)', cantidad: 25 }] },
+  { id: 'epp_06', _id: 'epp_06', codigo: 'EPP-BOT-06', nombre: 'Botas de Seguridad con Puntera Dieléctrica y Suela Resistente a Ácidos', categoria: 'Calzado y Ropa', stockActual: 24, stockMinimo: 12, unidad: 'Par', stock: [
+    { talla: '37', cantidad: 2 }, { talla: '38', cantidad: 3 }, { talla: '39', cantidad: 4 },
+    { talla: '40', cantidad: 5 }, { talla: '41', cantidad: 4 }, { talla: '42', cantidad: 3 },
+    { talla: '43', cantidad: 2 }, { talla: '44', cantidad: 1 }
+  ]},
+  { id: 'epp_07', _id: 'epp_07', codigo: 'EPP-PET-07', nombre: 'Pechera / Delantal de PVC Antiácido de Alta Resistencia', categoria: 'Calzado y Ropa', stockActual: 32, stockMinimo: 10, unidad: 'Und', stock: [{ talla: 'Única', cantidad: 32 }] },
+  { id: 'epp_08', _id: 'epp_08', codigo: 'EPP-AUD-08', nombre: 'Protector Auditivo Tipo Copa NRR 27dB', categoria: 'Protección Auditiva', stockActual: 28, stockMinimo: 10, unidad: 'Und', stock: [{ talla: 'Ajustable', cantidad: 28 }] },
 ];
 
 export const INITIAL_LOTO_EQUIPOS: any[] = [
