@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 
 export default function NuevaInspeccionPage() {
   const navigate = useNavigate();
-  const { createInspeccion, empresas, localidades, establecimientos, tiposInspeccion } = useSGD();
+  const { createInspeccion, empresas, localidades, establecimientos, tiposInspeccion, currentUser } = useSGD();
 
   const [form, setForm] = useState({
     empresaId: empresas[0]?._id || '',
@@ -15,7 +15,7 @@ export default function NuevaInspeccionPage() {
     establecimientoId: '',
     tipoInspeccionId: '',
     fecha: today(),
-    inspector: '',
+    inspector: currentUser?.nombre || 'Francisco Rojas',
     observaciones: '',
   });
   const [loading, setLoading] = useState(false);

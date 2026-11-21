@@ -16,6 +16,7 @@ import {
   INITIAL_TIPOS_INSPECCION,
   INITIAL_USUARIOS,
 } from '../data/seedData';
+import type { Usuario } from '../types';
 
 // ============================================================
 // CLAVES DE ALMACENAMIENTO LOCAL
@@ -29,6 +30,7 @@ const SK = {
   EMPLEADOS:         'sgd_empleados',
   ESTABLECIMIENTOS:  'sgd_establecimientos',
   USUARIOS:          'sgd_usuarios',
+  CURRENT_USER:      'sgd_current_user',
   EVALUACIONES_MED:  'sgd_evaluaciones_med',
   INVENTARIO_EPP:    'sgd_inventario_epp',
   SOLICITUDES_EPP:   'sgd_solicitudes_epp',
@@ -72,7 +74,26 @@ function initLocalStorage() {
   if (!localStorage.getItem(SK.LOTO_EQUIPOS))     localStorage.setItem(SK.LOTO_EQUIPOS, '[]');
   if (!localStorage.getItem(SK.LOTO_BLOQUEOS))    localStorage.setItem(SK.LOTO_BLOQUEOS, '[]');
   if (!localStorage.getItem(SK.ESTABLECIMIENTOS)) localStorage.setItem(SK.ESTABLECIMIENTOS, JSON.stringify(INITIAL_ESTABLECIMIENTOS));
-  if (!localStorage.getItem(SK.USUARIOS))         localStorage.setItem(SK.USUARIOS, JSON.stringify(INITIAL_USUARIOS));
+  try {
+    let existing: Usuario[] = JSON.parse(localStorage.getItem(SK.USUARIOS) || '[]');
+    // Asegurar que Francisco y Sgssa estén presentes con credenciales y rol correcto
+    INITIAL_USUARIOS.forEach(admin => {
+      const idx = existing.findIndex(u => u.email.toLowerCase() === admin.email.toLowerCase());
+      if (idx === -1) {
+        existing.push(admin);
+      } else {
+        existing[idx] = { ...existing[idx], ...admin };
+      }
+    });
+    localStorage.setItem(SK.USUARIOS, JSON.stringify(existing));
+  } catch {
+    localStorage.setItem(SK.USUARIOS, JSON.stringify(INITIAL_USUARIOS));
+  }
+
+  // Inicializar usuario activo por defecto
+  if (!localStorage.getItem(SK.CURRENT_USER)) {
+    localStorage.setItem(SK.CURRENT_USER, JSON.stringify(INITIAL_USUARIOS[0]));
+  }
 }
 initLocalStorage();
 
@@ -347,9 +368,145 @@ export const gsApi = {
     return getLocal<any>(SK.AUDIT_LOG).reverse();
   },
 
-  // ── USUARIOS ──────────────────────────────────────────────
-  getUsuarios() {
-    return getLocal<any>(SK.USUARIOS);
+  // ── USUARIOS Y AUTENTICACIÓN ──────────────────────────────
+  getUsuarios(): Usuario[] {
+    return getLocal<Usuario>(SK.USUARIOS);
+  },
+
+  async listUsuarios(): Promise<Usuario[]> {
+    const remote = await fetchGAS('getUsuarios');
+    if (remote && Array.isArray(remote) && remote.length > 0) {
+      const merged: Usuario[] = [...remote];
+      // Garantizar que los dos propietarios siempre figuren con sus credenciales maestras
+      INITIAL_USUARIOS.forEach(admin => {
+        const idx = merged.findIndex(u => u.email.toLowerCase() === admin.email.toLowerCase());
+        if (idx === -1) {
+          merged.unshift(admin);
+        } else {
+          merged[idx] = { ...merged[idx], rol: 'Propietario / Super Admin', activo: true };
+        }
+      });
+      setLocal(SK.USUARIOS, merged);
+      return merged;
+    }
+    return getLocal<Usuario>(SK.USUARIOS);
+  },
+
+  async saveUsuario(usuario: Partial<Usuario>): Promise<{ success: boolean; id: string }> {
+    const list = getLocal<Usuario>(SK.USUARIOS);
+    const email = (usuario.email || '').trim().toLowerCase();
+    const id = usuario._id || `usr_${Date.now()}`;
+    const idx = list.findIndex(u => u._id === id || (email && u.email.toLowerCase() === email));
+
+    const finalUser: Usuario = {
+      _id: id,
+      email: usuario.email || '',
+      nombre: usuario.nombre || '',
+      rol: usuario.rol || 'Inspector',
+      password: usuario.password || 'Duncan2026*',
+      activo: usuario.activo !== false,
+      empresaId: usuario.empresaId,
+    };
+
+    if (idx !== -1) {
+      list[idx] = { ...list[idx], ...finalUser };
+    } else {
+      list.push(finalUser);
+    }
+    setLocal(SK.USUARIOS, list);
+
+    // Si se modificó el usuario actualmente logueado, actualizar sesión
+    const cur = gsApi.getCurrentUser();
+    if (cur && (cur._id === id || cur.email.toLowerCase() === email)) {
+      gsApi.setCurrentUser({ ...cur, ...finalUser });
+    }
+
+    await postGAS('saveUsuario', finalUser);
+    await gsApi.logAudit({
+      usuario: gsApi.getCurrentUser()?.nombre || 'Sistema',
+      accion: idx !== -1 ? 'EDITAR_USUARIO' : 'CREAR_USUARIO',
+      entidad: 'Usuarios',
+      entidadId: id,
+      detalles: `Usuario: ${finalUser.nombre} (${finalUser.email}), Rol: ${finalUser.rol}`,
+    });
+
+    return { success: true, id };
+  },
+
+  async deleteUsuario(id: string): Promise<{ success: boolean; message?: string }> {
+    const list = getLocal<Usuario>(SK.USUARIOS);
+    const target = list.find(u => u._id === id);
+    if (!target) return { success: false, message: 'Usuario no encontrado' };
+
+    const emailLow = target.email.toLowerCase();
+    if (emailLow === 'francisco.rojasp@gmail.com' || emailLow === 'sgssaduncan@gmail.com') {
+      return { success: false, message: 'No se puede eliminar una cuenta principal de Propietario / Super Admin' };
+    }
+
+    const filtered = list.filter(u => u._id !== id);
+    setLocal(SK.USUARIOS, filtered);
+
+    await postGAS('deleteUsuario', { id });
+    await gsApi.logAudit({
+      usuario: gsApi.getCurrentUser()?.nombre || 'Sistema',
+      accion: 'ELIMINAR_USUARIO',
+      entidad: 'Usuarios',
+      entidadId: id,
+      detalles: `Usuario eliminado: ${target.nombre} (${target.email})`,
+    });
+
+    return { success: true };
+  },
+
+  async login(email: string, pass: string): Promise<{ success: boolean; user?: Usuario; message?: string }> {
+    const emailLow = email.trim().toLowerCase();
+    const cleanPass = pass.trim();
+
+    // 1. Verificación local inmediata (funciona 100% offline y con cero latencia)
+    const list = getLocal<Usuario>(SK.USUARIOS);
+    const localUser = list.find(u => u.email.toLowerCase() === emailLow && (u.password || '') === cleanPass);
+
+    if (localUser) {
+      if (localUser.activo === false) {
+        return { success: false, message: 'Esta cuenta se encuentra inactiva. Contacte al administrador.' };
+      }
+      gsApi.setCurrentUser(localUser);
+      // Intento en segundo plano de sincronizar con GAS
+      postGAS('login', { email: emailLow, password: cleanPass }).catch(() => {});
+      return { success: true, user: localUser };
+    }
+
+    // 2. Si no coincide localmente, intentar con el backend remoto si hay red
+    try {
+      const res = await postGAS('login', { email: emailLow, password: cleanPass });
+      if (res && res.data && res.data.success && res.data.user) {
+        const u = res.data.user;
+        gsApi.setCurrentUser(u);
+        return { success: true, user: u };
+      }
+    } catch {}
+
+    return { success: false, message: 'Correo o contraseña incorrectos' };
+  },
+
+  getCurrentUser(): Usuario | null {
+    try {
+      const stored = localStorage.getItem(SK.CURRENT_USER);
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return INITIAL_USUARIOS[0];
+  },
+
+  setCurrentUser(user: Usuario | null) {
+    if (user) {
+      localStorage.setItem(SK.CURRENT_USER, JSON.stringify(user));
+    } else {
+      localStorage.removeItem(SK.CURRENT_USER);
+    }
+  },
+
+  logout() {
+    localStorage.removeItem(SK.CURRENT_USER);
   },
 
   // ── EPP / DOTACIÓN ────────────────────────────────────────

@@ -100,7 +100,22 @@ export const INITIAL_TIPOS_INSPECCION: TipoInspeccion[] = [
 ];
 
 export const INITIAL_USUARIOS: Usuario[] = [
-  { _id: 'usr_admin', email: 'admin@duncan.com.ve', nombre: 'Administrador SGD', rol: 'Super Admin', activo: true },
+  {
+    _id: 'usr_francisco',
+    email: 'francisco.rojasp@gmail.com',
+    nombre: 'Francisco Rojas',
+    rol: 'Propietario / Super Admin',
+    password: 'Leo150873#*$',
+    activo: true,
+  },
+  {
+    _id: 'usr_sgssa',
+    email: 'sgssaduncan@gmail.com',
+    nombre: 'SST / SSA Duncan',
+    rol: 'Propietario / Super Admin',
+    password: 'Leo150873#*$',
+    activo: true,
+  },
 ];
 
 export const INITIAL_INSPECCIONES: any[] = [];

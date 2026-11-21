@@ -4,7 +4,7 @@ import {
   getOfflineQueueCount, syncOfflineQueue,
 } from '../lib/googleSheetsClient';
 import { INITIAL_EMPRESAS, INITIAL_LOCALIDADES, INITIAL_TIPOS_INSPECCION } from '../data/seedData';
-import type { Inspeccion, PlanAccion, Empresa, Localidad, Establecimiento, TipoInspeccion, Empleado, DashboardStats, PlanStats } from '../types';
+import type { Inspeccion, PlanAccion, Empresa, Localidad, Establecimiento, TipoInspeccion, Empleado, Usuario, DashboardStats, PlanStats } from '../types';
 
 interface SGDContextType {
   // Datos
@@ -17,6 +17,8 @@ interface SGDContextType {
   establecimientos: Establecimiento[];
   tiposInspeccion: TipoInspeccion[];
   empleados: Empleado[];
+  usuarios: Usuario[];
+  currentUser: Usuario | null;
   // Conexión
   isOnline: boolean;
   isConfigured: boolean;
@@ -34,6 +36,12 @@ interface SGDContextType {
   updatePlanAccion: (payload: any) => Promise<boolean>;
   logAudit: (payload: any) => Promise<void>;
   getInspeccionById: (id: string) => Inspeccion | undefined;
+  // Usuarios y Sesión
+  login: (email: string, pass: string) => Promise<{ success: boolean; user?: Usuario; message?: string }>;
+  logout: () => void;
+  switchUser: (u: Usuario) => void;
+  saveUsuario: (u: Partial<Usuario>) => Promise<{ success: boolean; id?: string; message?: string }>;
+  deleteUsuario: (id: string) => Promise<{ success: boolean; message?: string }>;
 }
 
 const SGDContext = createContext<SGDContextType | null>(null);
@@ -45,6 +53,8 @@ export function SGDProvider({ children }: { children: React.ReactNode }) {
   const [planStats, setPlanStats] = useState<PlanStats>({ total: 0, pendientes: 0, enEjecucion: 0, cerradas: 0, vencidas: 0 });
   const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>(gsApi.getCatalogos().establecimientos);
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
+  const [usuarios, setUsuarios] = useState<Usuario[]>(() => gsApi.getUsuarios());
+  const [currentUser, setCurrentUser] = useState<Usuario | null>(() => gsApi.getCurrentUser());
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [sheetsUrl, setSheetsUrlState] = useState(getSheetsUrl());
   const [pendingSyncCount, setPendingSyncCount] = useState(getOfflineQueueCount());
@@ -65,6 +75,10 @@ export function SGDProvider({ children }: { children: React.ReactNode }) {
       setPlanAccion(plans);
       const emps = await gsApi.listEmpleados();
       setEmpleados(emps);
+      const usrs = await gsApi.listUsuarios();
+      setUsuarios(usrs);
+      const active = gsApi.getCurrentUser();
+      if (active) setCurrentUser(active);
       setPendingSyncCount(getOfflineQueueCount());
     } catch (err) {
       console.error('Error recargando datos:', err);
@@ -140,6 +154,37 @@ export function SGDProvider({ children }: { children: React.ReactNode }) {
   const getInspeccionById = (id: string) =>
     inspecciones.find(i => String(i._id) === String(id));
 
+  const login = async (email: string, pass: string) => {
+    const res = await gsApi.login(email, pass);
+    if (res.success && res.user) {
+      setCurrentUser(res.user);
+    }
+    await refreshData();
+    return res;
+  };
+
+  const logout = () => {
+    gsApi.logout();
+    setCurrentUser(null);
+  };
+
+  const switchUser = (u: Usuario) => {
+    gsApi.setCurrentUser(u);
+    setCurrentUser(u);
+  };
+
+  const saveUsuario = async (u: Partial<Usuario>) => {
+    const res = await gsApi.saveUsuario(u);
+    await refreshData();
+    return res;
+  };
+
+  const deleteUsuario = async (id: string) => {
+    const res = await gsApi.deleteUsuario(id);
+    await refreshData();
+    return res;
+  };
+
   return (
     <SGDContext.Provider value={{
       inspecciones, planAccion, stats, planStats,
@@ -148,11 +193,14 @@ export function SGDProvider({ children }: { children: React.ReactNode }) {
       establecimientos,
       tiposInspeccion: INITIAL_TIPOS_INSPECCION,
       empleados,
+      usuarios,
+      currentUser,
       isOnline, isConfigured: isSheetsConfigured(),
       sheetsUrl, pendingSyncCount, isSyncing,
       updateSheetsUrl, syncNow, refreshData,
       createInspeccion, saveFormData, completeInspeccion,
       deleteInspeccion, updatePlanAccion, logAudit, getInspeccionById,
+      login, logout, switchUser, saveUsuario, deleteUsuario,
     }}>
       {children}
     </SGDContext.Provider>

@@ -4,7 +4,7 @@ import { useSGD } from '../contexts/SGDContext';
 import {
   LayoutDashboard, ClipboardCheck, Target, Users,
   Settings, Menu, X, Wifi, WifiOff, RefreshCw, AlertCircle,
-  ChevronRight, Package, Stethoscope, Lock, FileText
+  ChevronRight, Package, Stethoscope, Lock, FileText, Crown, User
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -22,7 +22,7 @@ const NAV_ITEMS = [
 
 export default function Layout() {
   const location = useLocation();
-  const { isOnline, pendingSyncCount, isSyncing, syncNow, sheetsUrl } = useSGD();
+  const { isOnline, pendingSyncCount, isSyncing, syncNow, sheetsUrl, currentUser } = useSGD();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const isActive = (to: string, exact?: boolean) =>
@@ -74,6 +74,37 @@ export default function Layout() {
             </span>
           )}
         </div>
+
+        {/* Tarjeta de Usuario Activo */}
+        {currentUser && (
+          <Link
+            to="/usuarios"
+            onClick={() => setSidebarOpen(false)}
+            className="mx-3 mt-2.5 p-2 bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 rounded-xl flex items-center gap-2.5 transition-all group"
+            title="Administrar usuarios y accesos"
+          >
+            <div className={`w-8 h-8 rounded-lg font-bold text-xs flex items-center justify-center flex-shrink-0 shadow ${
+              currentUser.rol?.includes('Propietario')
+                ? 'bg-amber-400 text-slate-950 font-black'
+                : 'bg-blue-600 text-white'
+            }`}>
+              {currentUser.nombre.slice(0, 2).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1">
+                <p className="text-xs font-bold text-white truncate group-hover:text-amber-300 transition-colors">
+                  {currentUser.nombre}
+                </p>
+                {currentUser.rol?.includes('Propietario') && (
+                  <Crown className="w-3 h-3 text-amber-400 flex-shrink-0" />
+                )}
+              </div>
+              <p className="text-[10px] text-amber-300/90 font-medium truncate font-mono">
+                {currentUser.email}
+              </p>
+            </div>
+          </Link>
+        )}
 
         {/* Navegación */}
         <nav className="flex-1 overflow-y-auto py-3 px-2">
@@ -141,6 +172,54 @@ export default function Layout() {
               </span>
             )}
             {!isOnline && <WifiOff className="h-4 w-4 text-amber-500" />}
+            {currentUser && (
+              <Link to="/usuarios" className="w-7 h-7 rounded-lg bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center shadow">
+                {currentUser.nombre.slice(0, 2).toUpperCase()}
+              </Link>
+            )}
+          </div>
+        </header>
+
+        {/* Header escritorio */}
+        <header className="hidden lg:flex items-center justify-between px-6 py-3 bg-white border-b border-slate-200 shadow-xs">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Sistema de Gestión SSA</span>
+            <span className="text-slate-300">•</span>
+            <span className="text-xs font-bold text-slate-700">Acumuladores Duncan, C.A.</span>
+          </div>
+          <div className="flex items-center gap-4">
+            {pendingSyncCount > 0 && isOnline && (
+              <button
+                onClick={syncNow}
+                disabled={isSyncing}
+                className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors"
+              >
+                <RefreshCw className={cn('h-3.5 w-3.5 text-amber-600', isSyncing && 'animate-spin')} />
+                <span className="font-medium">{pendingSyncCount} pendientes</span>
+              </button>
+            )}
+            {currentUser && (
+              <Link
+                to="/usuarios"
+                className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-colors"
+                title="Administrar usuarios y accesos"
+              >
+                <div className={`w-7 h-7 rounded-lg font-bold text-xs flex items-center justify-center ${
+                  currentUser.rol?.includes('Propietario')
+                    ? 'bg-amber-400 text-slate-950 font-black shadow-xs'
+                    : 'bg-blue-600 text-white'
+                }`}>
+                  {currentUser.nombre.slice(0, 2).toUpperCase()}
+                </div>
+                <div className="text-left">
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs font-bold text-slate-900 leading-none">{currentUser.nombre}</span>
+                    {currentUser.rol?.includes('Propietario') && <Crown className="w-3 h-3 text-amber-500 fill-amber-500" />}
+                  </div>
+                  <span className="text-[10px] text-slate-500 font-mono leading-none block mt-0.5">{currentUser.email}</span>
+                </div>
+              </Link>
+            )}
           </div>
         </header>
 

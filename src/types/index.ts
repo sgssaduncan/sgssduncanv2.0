@@ -2,7 +2,7 @@
 // SGD DUNCAN 2.0 — TIPOS PRINCIPALES
 // ============================================================
 
-export type Rol = 'Super Admin' | 'Admin' | 'Inspector';
+export type Rol = 'Propietario / Super Admin' | 'Super Admin' | 'Admin' | 'Inspector';
 export type EstadoInspeccion = 'en_progreso' | 'completada' | 'borrador';
 export type ResultadoInspeccion = 'C' | 'NC' | 'OM' | 'NA' | undefined;
 export type PrioridadAccion = 'Critica' | 'Alta' | 'Media' | 'Baja';
@@ -113,6 +113,7 @@ export interface Usuario {
   email: string;
   nombre: string;
   rol: Rol;
+  password?: string;
   empresaId?: string;
   activo?: boolean;
   fotoUrl?: string;
