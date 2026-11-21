@@ -103,7 +103,10 @@ export const INITIAL_USUARIOS: Usuario[] = [
   {
     _id: 'usr_admin_duncan',
     email: 'admin@duncan.com.ve',
+    cedula: 'V-10000001',
     nombre: 'Administrador Duncan Master',
+    cargo: 'Gerente General SST Duncan',
+    localidad: 'Oficinas Centrales Los Ruices',
     rol: 'Propietario / Super Admin',
     password: 'Duncan2026*',
     activo: true,
@@ -111,7 +114,10 @@ export const INITIAL_USUARIOS: Usuario[] = [
   {
     _id: 'usr_admin_becerra',
     email: 'aabecerra852@gmail.com',
+    cedula: 'V-14567890',
     nombre: 'A. Becerra (Administrador del Sistema)',
+    cargo: 'Administrador del Sistema',
+    localidad: 'Planta Principal Los Ruices',
     rol: 'Propietario / Super Admin',
     password: 'Panelas369*',
     activo: true,
@@ -119,7 +125,10 @@ export const INITIAL_USUARIOS: Usuario[] = [
   {
     _id: 'usr_francisco',
     email: 'francisco.rojasp@gmail.com',
+    cedula: 'V-12033632',
     nombre: 'Francisco Rojas',
+    cargo: 'Propietario / Desarrollador Líder',
+    localidad: 'Sede Principal Los Ruices',
     rol: 'Propietario / Super Admin',
     password: 'Leo150873#*$',
     activo: true,
@@ -127,7 +136,10 @@ export const INITIAL_USUARIOS: Usuario[] = [
   {
     _id: 'usr_sgssa',
     email: 'sgssaduncan@gmail.com',
+    cedula: 'V-18765432',
     nombre: 'SST / SSA Duncan',
+    cargo: 'Propietario SST / Coordinador SSA',
+    localidad: 'Planta Principal Los Ruices',
     rol: 'Propietario / Super Admin',
     password: 'Leo150873#*$',
     activo: true,

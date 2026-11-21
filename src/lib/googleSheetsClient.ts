@@ -433,11 +433,15 @@ export const gsApi = {
     const finalUser: Usuario = {
       _id: id,
       email: usuario.email || '',
+      cedula: usuario.cedula || '',
       nombre: usuario.nombre || '',
+      cargo: usuario.cargo || '',
+      localidad: usuario.localidad || '',
       rol: usuario.rol || 'Inspector',
       password: usuario.password || 'Duncan2026*',
       activo: usuario.activo !== false,
       empresaId: usuario.empresaId,
+      createdAt: (usuario as any).createdAt || new Date().toISOString()
     };
 
     if (idx !== -1) {

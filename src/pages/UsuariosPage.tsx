@@ -20,6 +20,9 @@ export default function UsuariosPage() {
   // Formulario modal
   const [formNombre, setFormNombre] = useState('');
   const [formEmail, setFormEmail] = useState('');
+  const [formCedula, setFormCedula] = useState('');
+  const [formCargo, setFormCargo] = useState('Inspector de Seguridad y Salud');
+  const [formLocalidad, setFormLocalidad] = useState('Planta Principal Los Ruices');
   const [formRol, setFormRol] = useState<Rol>('Inspector');
   const [formPassword, setFormPassword] = useState('');
   const [formActivo, setFormActivo] = useState(true);
@@ -74,6 +77,9 @@ export default function UsuariosPage() {
     setEditingUser(null);
     setFormNombre('');
     setFormEmail('');
+    setFormCedula('');
+    setFormCargo('Inspector de Seguridad y Salud');
+    setFormLocalidad('Planta Principal Los Ruices');
     setFormRol('Inspector');
     setFormPassword('Duncan2026*');
     setFormActivo(true);
@@ -85,6 +91,9 @@ export default function UsuariosPage() {
     setEditingUser(u);
     setFormNombre(u.nombre);
     setFormEmail(u.email);
+    setFormCedula(u.cedula || '');
+    setFormCargo(u.cargo || 'Inspector de Seguridad y Salud');
+    setFormLocalidad(u.localidad || 'Planta Principal Los Ruices');
     setFormRol(u.rol);
     setFormPassword(u.password || '');
     setFormActivo(u.activo !== false);
@@ -105,6 +114,9 @@ export default function UsuariosPage() {
         _id: editingUser ? editingUser._id : undefined,
         nombre: formNombre.trim(),
         email: formEmail.trim().toLowerCase(),
+        cedula: formCedula.trim(),
+        cargo: formCargo.trim(),
+        localidad: formLocalidad.trim(),
         rol: formRol,
         password: formPassword.trim() || 'Duncan2026*',
         activo: formActivo,
@@ -146,7 +158,8 @@ export default function UsuariosPage() {
   const filteredUsers = usuarios.filter(u => {
     const matchesSearch =
       u.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchTerm.toLowerCase());
+      u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (u.cedula && u.cedula.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesRole = roleFilter === 'todos' || u.rol === roleFilter;
     return matchesSearch && matchesRole;
   });
@@ -377,6 +390,8 @@ export default function UsuariosPage() {
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
                 <th className="py-3.5 px-4">Usuario</th>
+                <th className="py-3.5 px-4">Cédula</th>
+                <th className="py-3.5 px-4">Cargo / Sede</th>
                 <th className="py-3.5 px-4">Correo Electrónico</th>
                 <th className="py-3.5 px-4">Rol / Nivel</th>
                 <th className="py-3.5 px-4">Estado</th>
@@ -386,7 +401,7 @@ export default function UsuariosPage() {
             <tbody className="divide-y divide-slate-100">
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-400">
+                  <td colSpan={7} className="py-8 text-center text-slate-400">
                     No se encontraron usuarios coincidentes
                   </td>
                 </tr>
@@ -421,6 +436,17 @@ export default function UsuariosPage() {
                             <span className="text-xs text-slate-400 font-mono">ID: {u._id}</span>
                           </div>
                         </div>
+                      </td>
+
+                      <td className="py-3.5 px-4">
+                        <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                          {u.cedula || 'Sin Cédula'}
+                        </span>
+                      </td>
+
+                      <td className="py-3.5 px-4 text-xs">
+                        <div className="font-semibold text-slate-800">{u.cargo || 'Personal SST'}</div>
+                        <div className="text-[11px] text-slate-400">{u.localidad || 'Planta Principal'}</div>
                       </td>
 
                       <td className="py-3.5 px-4 font-mono text-xs text-slate-600">
@@ -527,6 +553,47 @@ export default function UsuariosPage() {
                   value={formNombre}
                   onChange={e => setFormNombre(e.target.value)}
                   placeholder="Ej: Juan Pérez"
+                  className="input w-full text-sm"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Cédula de Identidad *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formCedula}
+                    onChange={e => setFormCedula(e.target.value.toUpperCase())}
+                    placeholder="Ej: V-12345678"
+                    className="input w-full text-sm font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Sede / Localidad
+                  </label>
+                  <input
+                    type="text"
+                    value={formLocalidad}
+                    onChange={e => setFormLocalidad(e.target.value)}
+                    placeholder="Ej: Planta Los Ruices"
+                    className="input w-full text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Cargo / Puesto de Trabajo
+                </label>
+                <input
+                  type="text"
+                  value={formCargo}
+                  onChange={e => setFormCargo(e.target.value)}
+                  placeholder="Ej: Inspector de Seguridad y Salud"
                   className="input w-full text-sm"
                 />
               </div>
