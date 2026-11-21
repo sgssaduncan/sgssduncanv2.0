@@ -20,7 +20,7 @@ import {
   INITIAL_LOTO_EQUIPOS,
   INITIAL_EVALUACIONES_MEDICAS,
 } from '../data/seedData';
-import type { Usuario, Role, Rol } from '../types';
+import type { Usuario, Role, Rol, Empleado } from '../types';
 
 // ============================================================
 // CLAVES DE ALMACENAMIENTO LOCAL
@@ -593,6 +593,227 @@ export const gsApi = {
 
   logout() {
     this.setCurrentUser(null);
+  },
+
+  // ── RECUPERACIÓN DE USUARIO Y CONTRASEÑA (METODOLOGÍA COSTO CERO) ──
+
+  findUserByCedula(cedulaQuery: string): {
+    found: boolean;
+    user?: Usuario;
+    empleado?: Empleado;
+    message?: string;
+  } {
+    const raw = (cedulaQuery || '').trim();
+    if (!raw) {
+      return { found: false, message: 'Por favor, ingrese un número de cédula de identidad.' };
+    }
+
+    const cleanNumbers = raw.replace(/[^0-9]/g, '');
+    if (!cleanNumbers) {
+      return { found: false, message: 'Formato de cédula inválido. Ingrese solo dígitos numéricos.' };
+    }
+
+    const usuarios = getLocal<Usuario>(SK.USUARIOS);
+    const empleados = getLocal<Empleado>(SK.EMPLEADOS);
+
+    // 1. Buscar en usuarios registrados por campo cedula
+    let user = usuarios.find(u => {
+      if (u.cedula) {
+        return u.cedula.replace(/[^0-9]/g, '') === cleanNumbers;
+      }
+      return false;
+    });
+
+    // 2. Buscar en base de datos de trabajadores activos
+    const empleado = empleados.find(e => {
+      if (e.cedula) {
+        return e.cedula.replace(/[^0-9]/g, '') === cleanNumbers;
+      }
+      return false;
+    });
+
+    // Si no se encontró usuario directo con cédula, pero sí en empleados, buscar usuario por nombre
+    if (!user && empleado) {
+      const empNombreWords = empleado.nombre.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+      user = usuarios.find(u => {
+        const uNom = u.nombre.toLowerCase();
+        return empNombreWords.some(w => uNom.includes(w));
+      });
+      // Si se vinculó, actualizar la cédula del usuario en local
+      if (user && !user.cedula) {
+        user.cedula = empleado.cedula;
+        const idx = usuarios.findIndex(x => x._id === user?._id);
+        if (idx !== -1) {
+          usuarios[idx] = user;
+          setLocal(SK.USUARIOS, usuarios);
+        }
+      }
+    }
+
+    if (user) {
+      return {
+        found: true,
+        user,
+        empleado,
+        message: `Cuenta de usuario localizada para ${user.nombre}.`
+      };
+    }
+
+    if (empleado) {
+      return {
+        found: false,
+        empleado,
+        message: `El trabajador ${empleado.nombre} (C.I. ${empleado.cedula}) está en nómina activa de Duncan pero aún no ha registrado su cuenta de acceso.`
+      };
+    }
+
+    return {
+      found: false,
+      message: 'No se localizó ningún registro de usuario o trabajador con la cédula ingresada.'
+    };
+  },
+
+  findUserByEmail(emailQuery: string): Usuario | null {
+    const clean = (emailQuery || '').trim().toLowerCase();
+    if (!clean) return null;
+    const usuarios = getLocal<Usuario>(SK.USUARIOS);
+    return usuarios.find(u => u.email.toLowerCase() === clean) || null;
+  },
+
+  async resetPasswordWithIdentity(params: {
+    email: string;
+    cedula?: string;
+    newPassword: string;
+  }): Promise<{ success: boolean; user?: Usuario; message: string }> {
+    const cleanEmail = (params.email || '').trim().toLowerCase();
+    const cleanPass = (params.newPassword || '').trim();
+    const cleanCedula = (params.cedula || '').replace(/[^0-9]/g, '');
+
+    if (!cleanEmail) {
+      return { success: false, message: 'El correo electrónico es requerido.' };
+    }
+    if (!cleanPass || cleanPass.length < 6) {
+      return { success: false, message: 'La nueva contraseña debe contener al menos 6 caracteres.' };
+    }
+
+    const list = getLocal<Usuario>(SK.USUARIOS);
+    const userIdx = list.findIndex(u => u.email.toLowerCase() === cleanEmail);
+
+    if (userIdx === -1) {
+      return { success: false, message: 'No existe ninguna cuenta registrada con este correo electrónico.' };
+    }
+
+    const user = list[userIdx];
+
+    // Validación de identidad por cédula si la cuenta tiene cédula registrada
+    if (user.cedula && cleanCedula) {
+      const userCedClean = user.cedula.replace(/[^0-9]/g, '');
+      if (userCedClean !== cleanCedula) {
+        return { success: false, message: 'La cédula de identidad no coincide con los datos registrados para esta cuenta.' };
+      }
+    } else if (cleanCedula && !user.cedula) {
+      user.cedula = `V-${cleanCedula}`;
+    }
+
+    user.password = cleanPass;
+    list[userIdx] = user;
+    setLocal(SK.USUARIOS, list);
+
+    // Si coincide con usuario en sesión
+    const current = this.getCurrentUser();
+    if (current && current.email.toLowerCase() === cleanEmail) {
+      this.setCurrentUser(user);
+    }
+
+    // Sincronización en segundo plano con Google Sheets (Costo Cero)
+    postGAS('saveUsuario', user).catch(() => {});
+    postGAS('recuperarPassword', {
+      email: user.email,
+      newPassword: cleanPass,
+      cedula: user.cedula
+    }).catch(() => {});
+
+    // Registro de Auditoría Forense
+    await this.logAudit({
+      usuario: user.nombre,
+      accion: 'RESTABLECER_CONTRASENA',
+      entidad: 'Usuarios',
+      entidadId: user._id,
+      detalles: `Restablecimiento de contraseña por autogestión de usuario (Costo Cero): ${user.nombre} (${user.email})`,
+    });
+
+    return {
+      success: true,
+      user,
+      message: '¡Contraseña restablecida exitosamente! Ya puede iniciar sesión con su nueva clave.'
+    };
+  },
+
+  async requestRecoveryCode(emailQuery: string): Promise<{
+    success: boolean;
+    code?: string;
+    message: string;
+    sentViaEmail: boolean;
+  }> {
+    const cleanEmail = (emailQuery || '').trim().toLowerCase();
+    const user = this.findUserByEmail(cleanEmail);
+    if (!user) {
+      return {
+        success: false,
+        sentViaEmail: false,
+        message: 'No se encontró ninguna cuenta registrada con este correo electrónico.'
+      };
+    }
+
+    // Generar código OTP de 6 dígitos aleatorio
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    try {
+      sessionStorage.setItem('sgd_recovery_otp', JSON.stringify({
+        email: cleanEmail,
+        code,
+        expiresAt: Date.now() + 15 * 60 * 1000 // 15 minutos
+      }));
+    } catch {}
+
+    let sentViaEmail = false;
+    // Si hay conexión con backend Google Sheets / Apps Script, enviar correo GRATIS vía MailApp
+    try {
+      if (navigator.onLine && isSheetsConfigured()) {
+        const gasRes = await postGAS('solicitarCodigoRecuperacion', {
+          email: cleanEmail,
+          code,
+          nombre: user.nombre
+        });
+        if (gasRes && (gasRes.status === 'success' || gasRes.data?.status === 'success')) {
+          sentViaEmail = true;
+        }
+      }
+    } catch (e) {
+      console.warn('Envío de correo GAS no completado (modo local/offline activo):', e);
+    }
+
+    return {
+      success: true,
+      code,
+      sentViaEmail,
+      message: sentViaEmail
+        ? `Código enviado con éxito a su correo Gmail (${cleanEmail}). Revise su bandeja de entrada.`
+        : `Código de seguridad generado para ${cleanEmail}. Puede usarlo de inmediato.`
+    };
+  },
+
+  verifyRecoveryCode(emailQuery: string, inputCode: string): boolean {
+    try {
+      const stored = sessionStorage.getItem('sgd_recovery_otp');
+      if (!stored) return false;
+      const data = JSON.parse(stored);
+      if (data.email === emailQuery.trim().toLowerCase() && data.code === inputCode.trim()) {
+        if (Date.now() <= data.expiresAt) {
+          return true;
+        }
+      }
+    } catch {}
+    return false;
   },
 
   // ── EPP / DOTACIÓN ────────────────────────────────────────

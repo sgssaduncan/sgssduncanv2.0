@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   Users, ShieldCheck, Key, Mail, Plus, Edit3, Trash2,
   CheckCircle2, AlertCircle, Eye, EyeOff, LogIn, Crown, Shield,
-  Search, Lock, Check
+  Search, Lock, Check, KeyRound, RotateCcw, IdCard
 } from 'lucide-react';
 import { useSGD } from '../contexts/SGDContext';
 import type { Usuario, Rol } from '../types';
@@ -25,10 +25,51 @@ export default function UsuariosPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Modal de Restablecimiento Rápido de Contraseña (Costo Cero)
+  const [resetModalOpen, setResetModalOpen] = useState(false);
+  const [userToReset, setUserToReset] = useState<Usuario | null>(null);
+  const [newPasswordToReset, setNewPasswordToReset] = useState('Duncan2026*');
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+
   // Propietarios protegidos
   const isOwner = (email: string) => {
     const e = email.toLowerCase().trim();
     return e === 'francisco.rojasp@gmail.com' || e === 'sgssaduncan@gmail.com' || e === 'aabecerra852@gmail.com';
+  };
+
+  const openResetModal = (u: Usuario) => {
+    setUserToReset(u);
+    setNewPasswordToReset('Duncan2026*');
+    setShowResetPassword(false);
+    setResetModalOpen(true);
+  };
+
+  const handleConfirmReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userToReset) return;
+    if (!newPasswordToReset.trim() || newPasswordToReset.length < 6) {
+      toast.error('La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      await saveUsuario({
+        _id: userToReset._id,
+        nombre: userToReset.nombre,
+        email: userToReset.email,
+        rol: userToReset.rol,
+        password: newPasswordToReset.trim(),
+        activo: userToReset.activo !== false
+      });
+      toast.success(`Contraseña de ${userToReset.nombre} restablecida con éxito`);
+      setResetModalOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Error al restablecer contraseña');
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   const openCreateModal = () => {
@@ -159,23 +200,23 @@ export default function UsuariosPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-          {/* Propietario 1: Francisco Rojas */}
-          <div className="bg-slate-800/80 backdrop-blur border border-amber-400/30 rounded-xl p-4 flex flex-col justify-between hover:border-amber-400 transition-all">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+          {/* Propietario 0: Administrador del Sistema A. Becerra */}
+          <div className="bg-slate-800/80 backdrop-blur border border-yellow-400/50 rounded-xl p-4 flex flex-col justify-between hover:border-yellow-400 transition-all shadow-md">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-amber-500 text-slate-950 font-black text-lg flex items-center justify-center shadow-md">
-                  FR
+                <div className="w-12 h-12 rounded-xl bg-yellow-400 text-slate-950 font-black text-lg flex items-center justify-center shadow-md">
+                  AB
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-white text-base">Francisco Rojas</h3>
-                    <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-400 text-slate-950 flex items-center gap-1">
-                      <Crown className="w-3 h-3" /> Propietario
+                    <h3 className="font-bold text-white text-base">A. Becerra</h3>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-400 text-slate-950 flex items-center gap-1">
+                      <Crown className="w-3 h-3" /> Admin
                     </span>
                   </div>
-                  <p className="text-xs text-amber-200/90 flex items-center gap-1.5 mt-0.5 font-mono">
-                    <Mail className="w-3.5 h-3.5" /> francisco.rojasp@gmail.com
+                  <p className="text-xs text-yellow-200/90 flex items-center gap-1.5 mt-0.5 font-mono truncate max-w-[170px]" title="aabecerra852@gmail.com">
+                    <Mail className="w-3.5 h-3.5 shrink-0" /> aabecerra852@gmail.com
                   </p>
                 </div>
               </div>
@@ -186,12 +227,59 @@ export default function UsuariosPage() {
 
             <div className="mt-4 pt-3 border-t border-slate-700/60 flex items-center justify-between text-xs">
               <div className="text-slate-400 flex items-center gap-1.5">
-                <Key className="w-3.5 h-3.5 text-amber-400" />
-                <span>Clave: <code className="bg-slate-900 px-1.5 py-0.5 rounded text-amber-300 font-mono">Leo150873#*$</code></span>
+                <Key className="w-3.5 h-3.5 text-yellow-400 shrink-0" />
+                <span>Clave: <code className="bg-slate-900 px-1.5 py-0.5 rounded text-yellow-300 font-mono text-[11px]">Panelas369*</code></span>
+              </div>
+              {currentUser?.email.toLowerCase() === 'aabecerra852@gmail.com' ? (
+                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1 bg-emerald-500/10 px-2.5 py-1 rounded-lg">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> En uso
+                </span>
+              ) : (
+                <button
+                  onClick={() => {
+                    const u = usuarios.find(x => x.email.toLowerCase() === 'aabecerra852@gmail.com');
+                    if (u) handleSwitchSession(u);
+                  }}
+                  className="px-2.5 py-1 bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold rounded-lg transition-colors flex items-center gap-1 shadow text-xs"
+                >
+                  <LogIn className="w-3.5 h-3.5" /> Usar
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Propietario 1: Francisco Rojas */}
+          <div className="bg-slate-800/80 backdrop-blur border border-amber-400/30 rounded-xl p-4 flex flex-col justify-between hover:border-amber-400 transition-all">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-amber-500 text-slate-950 font-black text-lg flex items-center justify-center shadow-md">
+                  FR
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-white text-base">Francisco Rojas</h3>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-400 text-slate-950 flex items-center gap-1">
+                      <Crown className="w-3 h-3" /> Propietario
+                    </span>
+                  </div>
+                  <p className="text-xs text-amber-200/90 flex items-center gap-1.5 mt-0.5 font-mono truncate max-w-[170px]" title="francisco.rojasp@gmail.com">
+                    <Mail className="w-3.5 h-3.5 shrink-0" /> francisco.rojasp@gmail.com
+                  </p>
+                </div>
+              </div>
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-full">
+                <Check className="w-3 h-3" /> Activo
+              </span>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-slate-700/60 flex items-center justify-between text-xs">
+              <div className="text-slate-400 flex items-center gap-1.5">
+                <Key className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>Clave: <code className="bg-slate-900 px-1.5 py-0.5 rounded text-amber-300 font-mono text-[11px]">Leo150873#*$</code></span>
               </div>
               {currentUser?.email.toLowerCase() === 'francisco.rojasp@gmail.com' ? (
                 <span className="text-xs font-bold text-emerald-400 flex items-center gap-1 bg-emerald-500/10 px-2.5 py-1 rounded-lg">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Sesión en uso
+                  <CheckCircle2 className="w-3.5 h-3.5" /> En uso
                 </span>
               ) : (
                 <button
@@ -199,9 +287,9 @@ export default function UsuariosPage() {
                     const u = usuarios.find(x => x.email.toLowerCase() === 'francisco.rojasp@gmail.com');
                     if (u) handleSwitchSession(u);
                   }}
-                  className="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow"
+                  className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg transition-colors flex items-center gap-1 shadow text-xs"
                 >
-                  <LogIn className="w-3.5 h-3.5" /> Usar esta cuenta
+                  <LogIn className="w-3.5 h-3.5" /> Usar
                 </button>
               )}
             </div>
@@ -216,13 +304,13 @@ export default function UsuariosPage() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-white text-base">SST / SSA Duncan</h3>
-                    <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-400 text-slate-950 flex items-center gap-1">
+                    <h3 className="font-bold text-white text-base">SST / SSA</h3>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-400 text-slate-950 flex items-center gap-1">
                       <Crown className="w-3 h-3" /> Propietario
                     </span>
                   </div>
-                  <p className="text-xs text-amber-200/90 flex items-center gap-1.5 mt-0.5 font-mono">
-                    <Mail className="w-3.5 h-3.5" /> sgssaduncan@gmail.com
+                  <p className="text-xs text-amber-200/90 flex items-center gap-1.5 mt-0.5 font-mono truncate max-w-[170px]" title="sgssaduncan@gmail.com">
+                    <Mail className="w-3.5 h-3.5 shrink-0" /> sgssaduncan@gmail.com
                   </p>
                 </div>
               </div>
@@ -233,12 +321,12 @@ export default function UsuariosPage() {
 
             <div className="mt-4 pt-3 border-t border-slate-700/60 flex items-center justify-between text-xs">
               <div className="text-slate-400 flex items-center gap-1.5">
-                <Key className="w-3.5 h-3.5 text-amber-400" />
-                <span>Clave: <code className="bg-slate-900 px-1.5 py-0.5 rounded text-amber-300 font-mono">Leo150873#*$</code></span>
+                <Key className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>Clave: <code className="bg-slate-900 px-1.5 py-0.5 rounded text-amber-300 font-mono text-[11px]">Leo150873#*$</code></span>
               </div>
               {currentUser?.email.toLowerCase() === 'sgssaduncan@gmail.com' ? (
                 <span className="text-xs font-bold text-emerald-400 flex items-center gap-1 bg-emerald-500/10 px-2.5 py-1 rounded-lg">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Sesión en uso
+                  <CheckCircle2 className="w-3.5 h-3.5" /> En uso
                 </span>
               ) : (
                 <button
@@ -246,9 +334,9 @@ export default function UsuariosPage() {
                     const u = usuarios.find(x => x.email.toLowerCase() === 'sgssaduncan@gmail.com');
                     if (u) handleSwitchSession(u);
                   }}
-                  className="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow"
+                  className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg transition-colors flex items-center gap-1 shadow text-xs"
                 >
-                  <LogIn className="w-3.5 h-3.5" /> Usar esta cuenta
+                  <LogIn className="w-3.5 h-3.5" /> Usar
                 </button>
               )}
             </div>
@@ -379,6 +467,13 @@ export default function UsuariosPage() {
                               <LogIn className="w-4 h-4" />
                             </button>
                           )}
+                          <button
+                            onClick={() => openResetModal(u)}
+                            title="Restablecer contraseña (Costo Cero)"
+                            className="p-1.5 text-slate-500 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
+                          >
+                            <KeyRound className="w-4 h-4" />
+                          </button>
                           <button
                             onClick={() => openEditModal(u)}
                             title="Editar usuario"
@@ -525,6 +620,97 @@ export default function UsuariosPage() {
                   className="btn-primary text-sm flex items-center gap-2"
                 >
                   {isSubmitting ? 'Guardando...' : editingUser ? 'Actualizar Usuario' : 'Crear Usuario'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* MODAL RESTABLECER CONTRASEÑA RÁPIDO (COSTO CERO) */}
+      {resetModalOpen && userToReset && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200">
+            <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+              <h3 className="font-bold text-base flex items-center gap-2">
+                <KeyRound className="w-5 h-5 text-yellow-400" />
+                Restablecer Contraseña (Costo Cero)
+              </h3>
+              <button
+                onClick={() => setResetModalOpen(false)}
+                className="text-slate-400 hover:text-white text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmReset} className="p-6 space-y-4">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-medium">Usuario / Titular:</span>
+                  <span className="font-bold text-slate-800">{userToReset.nombre}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-medium">Correo Gmail:</span>
+                  <span className="font-mono text-slate-700">{userToReset.email}</span>
+                </div>
+                {userToReset.cedula && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Cédula:</span>
+                    <span className="font-mono text-slate-700">{userToReset.cedula}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-medium">Rol:</span>
+                  <span className="text-amber-600 font-semibold">{userToReset.rol}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Nueva Contraseña *
+                </label>
+                <div className="relative">
+                  <input
+                    type={showResetPassword ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    value={newPasswordToReset}
+                    onChange={e => setNewPasswordToReset(e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                    className="input w-full text-sm pr-10 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowResetPassword(!showResetPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                  >
+                    {showResetPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Recomendado para asistencia técnica rápida: <code className="bg-slate-100 px-1 py-0.5 rounded text-amber-700 font-mono">Duncan2026*</code>
+                </p>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setResetModalOpen(false)}
+                  className="btn-secondary text-sm"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isResetting}
+                  className="btn-primary text-sm flex items-center gap-2 bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold border-yellow-500"
+                >
+                  {isResetting ? (
+                    <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <KeyRound className="w-4 h-4" />
+                  )}
+                  <span>{isResetting ? 'Restableciendo...' : 'Confirmar Nueva Clave'}</span>
                 </button>
               </div>
             </form>

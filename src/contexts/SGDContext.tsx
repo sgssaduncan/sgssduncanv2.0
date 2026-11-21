@@ -52,6 +52,12 @@ interface SGDContextType {
   switchUser: (u: Usuario) => void;
   saveUsuario: (u: Partial<Usuario>) => Promise<{ success: boolean; id?: string; message?: string }>;
   deleteUsuario: (id: string) => Promise<{ success: boolean; message?: string }>;
+  // Recuperación Costo Cero
+  findUserByCedula: (cedula: string) => { found: boolean; user?: Usuario; empleado?: Empleado; message?: string };
+  findUserByEmail: (email: string) => Usuario | null;
+  resetPasswordWithIdentity: (params: { email: string; cedula?: string; newPassword: string }) => Promise<{ success: boolean; user?: Usuario; message: string }>;
+  requestRecoveryCode: (email: string) => Promise<{ success: boolean; code?: string; message: string; sentViaEmail: boolean }>;
+  verifyRecoveryCode: (email: string, code: string) => boolean;
 }
 
 const SGDContext = createContext<SGDContextType | null>(null);
@@ -275,6 +281,18 @@ export function SGDProvider({ children }: { children: React.ReactNode }) {
     return res;
   };
 
+  const findUserByCedula = (cedula: string) => gsApi.findUserByCedula(cedula);
+  const findUserByEmail = (email: string) => gsApi.findUserByEmail(email);
+  const resetPasswordWithIdentity = async (params: { email: string; cedula?: string; newPassword: string }) => {
+    const res = await gsApi.resetPasswordWithIdentity(params);
+    if (res.success) {
+      await refreshData();
+    }
+    return res;
+  };
+  const requestRecoveryCode = (email: string) => gsApi.requestRecoveryCode(email);
+  const verifyRecoveryCode = (email: string, code: string) => gsApi.verifyRecoveryCode(email, code);
+
   return (
     <SGDContext.Provider value={{
       inspecciones, planAccion, stats, planStats,
@@ -291,6 +309,7 @@ export function SGDProvider({ children }: { children: React.ReactNode }) {
       createInspeccion, saveFormData, completeInspeccion,
       deleteInspeccion, updatePlanAccion, logAudit, getInspeccionById,
       login, register, logout, switchUser, saveUsuario, deleteUsuario,
+      findUserByCedula, findUserByEmail, resetPasswordWithIdentity, requestRecoveryCode, verifyRecoveryCode,
     }}>
       {children}
     </SGDContext.Provider>

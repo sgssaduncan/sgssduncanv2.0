@@ -18,7 +18,15 @@ import {
   WifiOff,
   Sparkles,
   KeyRound,
-  ChevronRight
+  ChevronRight,
+  Search,
+  HelpCircle,
+  Copy,
+  Check,
+  RotateCcw,
+  Send,
+  ShieldAlert,
+  ArrowLeft
 } from 'lucide-react';
 import { useSGD } from '../contexts/SGDContext';
 import { DUNCAN_LOGO_COLOR } from '../lib/logos';
@@ -28,11 +36,21 @@ import type { Rol } from '../types';
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentUser, login, register, isOnline } = useSGD();
+  const {
+    currentUser,
+    login,
+    register,
+    isOnline,
+    findUserByCedula,
+    findUserByEmail,
+    resetPasswordWithIdentity,
+    requestRecoveryCode,
+    verifyRecoveryCode
+  } = useSGD();
 
   const from = (location.state as any)?.from?.pathname || '/';
 
-  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+  const [activeTab, setActiveTab] = useState<'login' | 'register' | 'recover'>('login');
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState('');
@@ -51,6 +69,32 @@ export default function LoginPage() {
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
   const [showRegPassword, setShowRegPassword] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
+
+  // ── RECOVERY (COSTO CERO) STATE ──
+  const [recoverySubTab, setRecoverySubTab] = useState<'username' | 'password'>('username');
+  
+  // Recuperar Usuario (por Cédula)
+  const [recCedula, setRecCedula] = useState('');
+  const [isSearchingCedula, setIsSearchingCedula] = useState(false);
+  const [foundAccount, setFoundAccount] = useState<{
+    found: boolean;
+    user?: any;
+    empleado?: any;
+    message?: string;
+  } | null>(null);
+  const [copiedEmail, setCopiedEmail] = useState(false);
+
+  // Recuperar Contraseña
+  const [recEmail, setRecEmail] = useState('');
+  const [recPassCedula, setRecPassCedula] = useState('');
+  const [recOtpCode, setRecOtpCode] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [isRequestingOtp, setIsRequestingOtp] = useState(false);
+  const [identityVerified, setIdentityVerified] = useState(false);
+  const [recNewPassword, setRecNewPassword] = useState('');
+  const [recConfirmNewPassword, setRecConfirmNewPassword] = useState('');
+  const [showRecPassword, setShowRecPassword] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   // Pre-cargar cuenta de administrador solicitado
   const loadAdminAccount = () => {
@@ -137,6 +181,176 @@ export default function LoginPage() {
     }
   };
 
+  // ── MÉTODOS DE RECUPERACIÓN (COSTO CERO) ──
+
+  // 1. Buscar Usuario por Cédula (Localización de Nombre de Usuario / Correo)
+  const handleSearchUserByCedula = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!recCedula.trim()) {
+      toast.error('Ingrese el número de cédula de identidad.');
+      return;
+    }
+
+    setIsSearchingCedula(true);
+    try {
+      const result = findUserByCedula(recCedula.trim());
+      setFoundAccount(result);
+      if (result.found && result.user) {
+        toast.success(`¡Cuenta localizada para ${result.user.nombre}!`);
+      } else if (result.empleado) {
+        toast(result.message || 'Trabajador localizado en nómina activa.', { icon: 'ℹ️' });
+      } else {
+        toast.error(result.message || 'No se encontró ninguna cuenta con esa cédula.');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Error al buscar cuenta.');
+    } finally {
+      setIsSearchingCedula(false);
+    }
+  };
+
+  // Copiar correo y transferir al Login
+  const handleUseFoundEmail = (email: string) => {
+    setLoginEmail(email);
+    navigator.clipboard?.writeText(email);
+    setCopiedEmail(true);
+    toast.success('Correo copiado y transferido a la pantalla de inicio de sesión');
+    setTimeout(() => {
+      setCopiedEmail(false);
+      setActiveTab('login');
+    }, 800);
+  };
+
+  // Pasar de Usuario encontrado a Restablecer Contraseña
+  const handleProceedToPasswordReset = (email: string, cedula?: string) => {
+    setRecEmail(email);
+    if (cedula) setRecPassCedula(cedula);
+    setRecoverySubTab('password');
+    setIdentityVerified(true);
+    toast.success('Identidad validada con su Cédula. Defina su nueva contraseña.');
+  };
+
+  // 2. Validación de Identidad por Cédula para Restablecer Contraseña
+  const handleVerifyIdentity = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanEmail = recEmail.trim().toLowerCase();
+    const cleanCed = recPassCedula.trim();
+
+    if (!cleanEmail) {
+      toast.error('Ingrese su correo electrónico Gmail.');
+      return;
+    }
+    if (!cleanCed) {
+      toast.error('Ingrese su cédula de identidad para verificar que usted es el titular.');
+      return;
+    }
+
+    const user = findUserByEmail(cleanEmail);
+    if (!user) {
+      toast.error('No se encontró ningún usuario con ese correo electrónico.');
+      return;
+    }
+
+    // Comprobar coincidencia de cédula con el usuario o censo
+    const cleanNumbersInput = cleanCed.replace(/[^0-9]/g, '');
+    const userCedNumbers = (user.cedula || '').replace(/[^0-9]/g, '');
+
+    if (userCedNumbers && userCedNumbers !== cleanNumbersInput) {
+      toast.error('La cédula ingresada no coincide con los registros del titular de esta cuenta.');
+      return;
+    }
+
+    setIdentityVerified(true);
+    toast.success('¡Identidad confirmada exitosamente! Ingrese su nueva contraseña a continuación.');
+  };
+
+  // 3. Solicitar Código OTP a Gmail (Vía Google Apps Script - Costo Cero)
+  const handleRequestOtp = async () => {
+    const cleanEmail = recEmail.trim().toLowerCase();
+    if (!cleanEmail) {
+      toast.error('Ingrese su correo Gmail para enviarle el código de seguridad.');
+      return;
+    }
+
+    setIsRequestingOtp(true);
+    try {
+      const res = await requestRecoveryCode(cleanEmail);
+      if (res.success) {
+        setOtpSent(true);
+        if (res.sentViaEmail) {
+          toast.success(res.message);
+        } else {
+          toast.success(`Código de seguridad generado para ${cleanEmail}. Ingréselo abajo.`);
+        }
+      } else {
+        toast.error(res.message || 'No se pudo generar el código.');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Error solicitando código.');
+    } finally {
+      setIsRequestingOtp(false);
+    }
+  };
+
+  // 4. Validar Código OTP
+  const handleVerifyOtp = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!recOtpCode.trim()) {
+      toast.error('Ingrese el código de 6 dígitos.');
+      return;
+    }
+
+    const isValid = verifyRecoveryCode(recEmail.trim().toLowerCase(), recOtpCode.trim());
+    if (isValid) {
+      setIdentityVerified(true);
+      toast.success('¡Código validado exitosamente! Defina su nueva contraseña.');
+    } else {
+      toast.error('Código inválido o expirado. Verifíquelo o solicite uno nuevo.');
+    }
+  };
+
+  // 5. Guardar Nueva Contraseña
+  const handleSaveNewPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!recNewPassword || recNewPassword.length < 6) {
+      toast.error('La nueva contraseña debe contener al menos 6 caracteres.');
+      return;
+    }
+    if (recNewPassword !== recConfirmNewPassword) {
+      toast.error('Las contraseñas no coinciden.');
+      return;
+    }
+
+    setIsResettingPassword(true);
+    try {
+      const res = await resetPasswordWithIdentity({
+        email: recEmail.trim().toLowerCase(),
+        cedula: recPassCedula.trim(),
+        newPassword: recNewPassword.trim()
+      });
+
+      if (res.success) {
+        toast.success(res.message);
+        setLoginEmail(recEmail.trim().toLowerCase());
+        setLoginPassword(recNewPassword.trim());
+        // Reset recovery form
+        setIdentityVerified(false);
+        setRecNewPassword('');
+        setRecConfirmNewPassword('');
+        setRecOtpCode('');
+        setOtpSent(false);
+        // Switch to login tab
+        setActiveTab('login');
+      } else {
+        toast.error(res.message);
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Error al restablecer la contraseña.');
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-zinc-950 flex flex-col justify-center py-8 px-4 sm:px-6 lg:px-8 font-sans selection:bg-yellow-400 selection:text-slate-950">
       <div className="sm:mx-auto sm:w-full sm:max-w-md md:max-w-xl">
@@ -172,33 +386,45 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Tarjeta de Inicio de Sesión / Registro */}
+        {/* Tarjeta Principal de Autenticación */}
         <div className="mt-6 bg-slate-900/95 border border-slate-800/90 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden">
-          {/* Pestañas Login vs Register */}
-          <div className="grid grid-cols-2 border-b border-slate-800 bg-slate-950/60 p-1.5 gap-1.5">
+          {/* Pestañas Principales: Login | Register | Recover */}
+          <div className="grid grid-cols-3 border-b border-slate-800 bg-slate-950/70 p-1.5 gap-1.5">
             <button
               type="button"
               onClick={() => setActiveTab('login')}
-              className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all ${
+              className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
                 activeTab === 'login'
                   ? 'bg-yellow-400 text-slate-950 shadow-md font-black'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
               }`}
             >
-              <LogIn size={15} />
-              Iniciar Sesión
+              <LogIn size={14} />
+              <span className="truncate">Iniciar Sesión</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('register')}
-              className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all ${
+              className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
                 activeTab === 'register'
                   ? 'bg-yellow-400 text-slate-950 shadow-md font-black'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
               }`}
             >
-              <UserPlus size={15} />
-              Registrarse con Gmail
+              <UserPlus size={14} />
+              <span className="truncate">Registrarse</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('recover')}
+              className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                activeTab === 'recover'
+                  ? 'bg-yellow-400 text-slate-950 shadow-md font-black'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+              }`}
+            >
+              <KeyRound size={14} />
+              <span className="truncate">Recuperar Acceso</span>
             </button>
           </div>
 
@@ -222,7 +448,7 @@ export default function LoginPage() {
             )}
 
             {/* TAB 1: FORMULARIO DE INICIO DE SESIÓN */}
-            {activeTab === 'login' ? (
+            {activeTab === 'login' && (
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1.5">
@@ -271,6 +497,32 @@ export default function LoginPage() {
                   </div>
                 </div>
 
+                {/* Enlace destacado a Recuperar Acceso Costo Cero */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('recover');
+                      setRecoverySubTab('password');
+                      if (loginEmail) setRecEmail(loginEmail);
+                    }}
+                    className="text-amber-400 hover:text-amber-300 font-semibold underline underline-offset-2 transition-colors flex items-center gap-1"
+                  >
+                    <KeyRound size={12} />
+                    ¿Olvidó su contraseña?
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('recover');
+                      setRecoverySubTab('username');
+                    }}
+                    className="text-slate-400 hover:text-slate-200 transition-colors"
+                  >
+                    ¿Olvidó su correo/usuario?
+                  </button>
+                </div>
+
                 <button
                   type="submit"
                   disabled={isLoggingIn}
@@ -317,8 +569,10 @@ export default function LoginPage() {
                   </div>
                 </div>
               </form>
-            ) : (
-              /* TAB 2: FORMULARIO DE REGISTRO CON GMAIL */
+            )}
+
+            {/* TAB 2: FORMULARIO DE REGISTRO CON GMAIL */}
+            {activeTab === 'register' && (
               <form onSubmit={handleRegister} className="space-y-3.5">
                 <div className="bg-yellow-400/10 border border-yellow-400/20 rounded-xl p-3 text-xs text-yellow-300 flex items-start gap-2">
                   <Sparkles size={16} className="text-yellow-400 shrink-0 mt-0.5" />
@@ -496,6 +750,409 @@ export default function LoginPage() {
                   {isRegistering ? 'Registrando Usuario...' : 'Crear Cuenta e Ingresar'}
                 </button>
               </form>
+            )}
+
+            {/* TAB 3: RECUPERACIÓN DE ACCESO Y CONTRASEÑA (METODOLOGÍA COSTO CERO) */}
+            {activeTab === 'recover' && (
+              <div className="space-y-4">
+                {/* Banner de Metodología Costo Cero */}
+                <div className="bg-yellow-400/10 border border-yellow-400/20 rounded-xl p-3 flex items-start gap-2.5">
+                  <ShieldCheck size={18} className="text-yellow-400 shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="text-xs font-bold text-yellow-300">
+                      Recuperación Autónoma a Costo Cero
+                    </h3>
+                    <p className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">
+                      Si olvidó su usuario (correo) o su contraseña, recupérelos al instante validando su <strong>Cédula de Identidad</strong> o recibiendo un código en su Gmail sin costo adicional.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Sub-selector: ¿Olvidó Usuario o Contraseña? */}
+                <div className="grid grid-cols-2 bg-slate-950 p-1 rounded-xl border border-slate-800 gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setRecoverySubTab('username')}
+                    className={`py-2 px-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                      recoverySubTab === 'username'
+                        ? 'bg-slate-800 text-yellow-400 shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <IdCard size={14} />
+                    <span>1. Olvidé mi Correo/Usuario</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRecoverySubTab('password')}
+                    className={`py-2 px-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                      recoverySubTab === 'password'
+                        ? 'bg-slate-800 text-yellow-400 shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <KeyRound size={14} />
+                    <span>2. Olvidé mi Contraseña</span>
+                  </button>
+                </div>
+
+                {/* SUB-MODO A: RECUPERAR NOMBRE DE USUARIO / CORREO POR CÉDULA */}
+                {recoverySubTab === 'username' && (
+                  <div className="space-y-4 pt-1">
+                    <form onSubmit={handleSearchUserByCedula} className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                          Cédula de Identidad del Trabajador
+                        </label>
+                        <div className="relative rounded-xl shadow-xs">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                            <IdCard size={16} />
+                          </div>
+                          <input
+                            type="text"
+                            value={recCedula}
+                            onChange={e => setRecCedula(e.target.value)}
+                            required
+                            placeholder="Ej: V-12033632 o 12033632"
+                            className="block w-full pl-10 pr-3 py-2.5 bg-slate-950 border border-slate-700/80 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-yellow-400 font-medium"
+                          />
+                        </div>
+                        <p className="text-[10.5px] text-slate-400 mt-1">
+                          El sistema consultará de forma instantánea el padrón de usuarios y la nómina activa de Duncan.
+                        </p>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isSearchingCedula}
+                        className="w-full bg-slate-800 hover:bg-slate-700 text-yellow-400 border border-yellow-400/30 font-bold py-2.5 px-4 rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2"
+                      >
+                        {isSearchingCedula ? (
+                          <div className="w-4 h-4 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Search size={15} />
+                        )}
+                        <span>Buscar Cuenta Registrada</span>
+                      </button>
+                    </form>
+
+                    {/* Resultado de la Búsqueda */}
+                    {foundAccount && (
+                      <div className="mt-3">
+                        {foundAccount.found && foundAccount.user ? (
+                          <div className="bg-slate-950 border border-emerald-500/50 rounded-xl p-4 space-y-3 shadow-lg">
+                            <div className="flex items-center gap-2 text-emerald-400">
+                              <CheckCircle2 size={18} />
+                              <span className="text-xs font-bold uppercase tracking-wider">¡Cuenta de Usuario Localizada!</span>
+                            </div>
+
+                            <div className="space-y-1.5 text-xs border-t border-slate-800/80 pt-2.5">
+                              <div className="flex justify-between">
+                                <span className="text-slate-400">Nombre Completo:</span>
+                                <span className="font-bold text-white">{foundAccount.user.nombre}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-400">Cédula:</span>
+                                <span className="font-mono text-white">{foundAccount.user.cedula || recCedula}</span>
+                              </div>
+                              <div className="flex justify-between items-center bg-slate-900/90 p-2 rounded-lg border border-slate-800">
+                                <div>
+                                  <span className="text-[10px] text-yellow-400 block font-bold uppercase">Correo de Acceso (Usuario):</span>
+                                  <span className="font-mono text-white font-bold text-xs">{foundAccount.user.email}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUseFoundEmail(foundAccount.user.email)}
+                                  className="p-1.5 bg-yellow-400 hover:bg-yellow-300 text-slate-950 rounded-lg text-xs font-bold flex items-center gap-1 transition-all"
+                                  title="Copiar e Iniciar Sesión"
+                                >
+                                  {copiedEmail ? <Check size={14} /> : <Copy size={14} />}
+                                  <span>{copiedEmail ? 'Copiado' : 'Usar'}</span>
+                                </button>
+                              </div>
+                              {foundAccount.user.cargo && (
+                                <div className="flex justify-between">
+                                  <span className="text-slate-400">Cargo:</span>
+                                  <span className="text-slate-300">{foundAccount.user.cargo}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between">
+                                <span className="text-slate-400">Nivel de Acceso:</span>
+                                <span className="text-yellow-400 font-semibold">{foundAccount.user.rol}</span>
+                              </div>
+                            </div>
+
+                            <div className="pt-2 border-t border-slate-800 flex flex-col sm:flex-row gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleUseFoundEmail(foundAccount.user.email)}
+                                className="flex-1 bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-black py-2 px-3 rounded-lg text-xs text-center transition-colors"
+                              >
+                                Iniciar Sesión con este Correo →
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleProceedToPasswordReset(foundAccount.user.email, foundAccount.user.cedula || recCedula)}
+                                className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-2 px-3 rounded-lg text-xs text-center transition-colors"
+                              >
+                                Restablecer Contraseña
+                              </button>
+                            </div>
+                          </div>
+                        ) : foundAccount.empleado ? (
+                          <div className="bg-slate-950 border border-amber-500/40 rounded-xl p-4 space-y-3">
+                            <div className="flex items-center gap-2 text-amber-400">
+                              <AlertCircle size={18} />
+                              <span className="text-xs font-bold uppercase tracking-wider">Trabajador en Nómina Activa</span>
+                            </div>
+                            <p className="text-xs text-slate-300 leading-relaxed">
+                              El trabajador <strong>{foundAccount.empleado.nombre}</strong> (C.I. {foundAccount.empleado.cedula}) está registrado en la nómina de <strong>{foundAccount.empleado.empresaNombre || 'Duncan'}</strong>, pero todavía no ha creado su cuenta de acceso en la plataforma.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRegNombre(foundAccount.empleado.nombre);
+                                setRegCedula(foundAccount.empleado.cedula);
+                                setRegCargo(foundAccount.empleado.cargo || '');
+                                setActiveTab('register');
+                                toast.success('Datos del trabajador precargados en el formulario de registro.');
+                              }}
+                              className="w-full bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold py-2.5 px-3 rounded-lg text-xs transition-colors flex items-center justify-center gap-1.5"
+                            >
+                              <UserPlus size={15} />
+                              <span>Crear mi Cuenta de Usuario con Gmail Ahora</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 text-center space-y-2">
+                            <p className="text-xs text-slate-400">
+                              {foundAccount.message || 'No se localizó ningún registro con esa cédula de identidad.'}
+                            </p>
+                            <p className="text-[11px] text-slate-500">
+                              Verifique que los dígitos sean correctos o solicite asistencia directa al administrador:
+                            </p>
+                            <a
+                              href="mailto:aabecerra852@gmail.com?subject=SGD%20Duncan%20-%20Solicitud%20de%20Recuperacion%20de%20Usuario&body=Hola%20Administrador,%20solicito%20asistencia%20para%20ubicar%20mi%20cuenta%20en%20el%20SGD%20Duncan.%20Mi%20C%C3%A9dula%20es:%20"
+                              className="inline-flex items-center gap-1 text-xs text-yellow-400 hover:underline font-semibold"
+                            >
+                              <Mail size={13} />
+                              Contactar a aabecerra852@gmail.com
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* SUB-MODO B: RESTABLECER CONTRASEÑA */}
+                {recoverySubTab === 'password' && (
+                  <div className="space-y-4 pt-1">
+                    {!identityVerified ? (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                            Correo Gmail Registrado
+                          </label>
+                          <div className="relative rounded-xl shadow-xs">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                              <Mail size={16} />
+                            </div>
+                            <input
+                              type="email"
+                              value={recEmail}
+                              onChange={e => setRecEmail(e.target.value)}
+                              required
+                              placeholder="su_correo@gmail.com"
+                              className="block w-full pl-10 pr-3 py-2 bg-slate-950 border border-slate-700/80 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-yellow-400 font-medium"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Opción 1: Verificación de Identidad con Cédula (Inmediata y Costo Cero) */}
+                        <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 space-y-2.5">
+                          <span className="text-[10px] font-bold text-yellow-400 uppercase tracking-wider block">
+                            Método 1: Validación Directa por Cédula (Recomendado - Sin Esperar)
+                          </span>
+                          <div className="relative rounded-xl shadow-xs">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                              <IdCard size={15} />
+                            </div>
+                            <input
+                              type="text"
+                              value={recPassCedula}
+                              onChange={e => setRecPassCedula(e.target.value)}
+                              placeholder="Cédula de Identidad (Ej: V-12345678)"
+                              className="block w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700/80 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-yellow-400"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleVerifyIdentity}
+                            className="w-full bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold py-2 px-3 rounded-lg text-xs transition-colors flex items-center justify-center gap-1.5"
+                          >
+                            <ShieldCheck size={14} />
+                            <span>Validar Cédula y Restablecer Contraseña</span>
+                          </button>
+                        </div>
+
+                        {/* Opción 2: Código OTP por Correo Gmail (Google Apps Script - Costo Cero) */}
+                        <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                              Método 2: Código OTP a su Gmail (Google Apps Script)
+                            </span>
+                            <span className="text-[9px] text-emerald-400 font-semibold bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800">
+                              Costo 0
+                            </span>
+                          </div>
+
+                          {!otpSent ? (
+                            <button
+                              type="button"
+                              onClick={handleRequestOtp}
+                              disabled={isRequestingOtp}
+                              className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold py-2 px-3 rounded-lg text-xs transition-colors flex items-center justify-center gap-1.5"
+                            >
+                              {isRequestingOtp ? (
+                                <div className="w-3.5 h-3.5 border-2 border-slate-200 border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Send size={13} />
+                              )}
+                              <span>Enviar Código de 6 Dígitos a mi Gmail</span>
+                            </button>
+                          ) : (
+                            <div className="space-y-2">
+                              <p className="text-[11px] text-emerald-300 flex items-center gap-1">
+                                <CheckCircle2 size={13} /> Código generado. Ingréselo para continuar:
+                              </p>
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={recOtpCode}
+                                  onChange={e => setRecOtpCode(e.target.value)}
+                                  maxLength={6}
+                                  placeholder="Código de 6 dígitos"
+                                  className="flex-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs font-mono tracking-widest text-center focus:outline-none focus:border-yellow-400"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleVerifyOtp}
+                                  className="bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold px-3 py-2 rounded-xl text-xs transition-colors"
+                                >
+                                  Validar
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      /* FORMULARIO PARA ESTABLECER NUEVA CONTRASEÑA */
+                      <form onSubmit={handleSaveNewPassword} className="space-y-3 bg-slate-950/80 border border-yellow-400/30 rounded-xl p-4">
+                        <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                          <span className="text-xs font-bold text-yellow-400 flex items-center gap-1.5">
+                            <CheckCircle2 size={15} /> Titular Validado ({recEmail})
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setIdentityVerified(false)}
+                            className="text-[11px] text-slate-400 hover:text-white flex items-center gap-1"
+                          >
+                            <RotateCcw size={12} /> Cambiar
+                          </button>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-300 mb-1">
+                            Nueva Contraseña (Mín. 6 caracteres)
+                          </label>
+                          <div className="relative rounded-xl shadow-xs">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                              <Lock size={15} />
+                            </div>
+                            <input
+                              type={showRecPassword ? 'text' : 'password'}
+                              value={recNewPassword}
+                              onChange={e => setRecNewPassword(e.target.value)}
+                              required
+                              minLength={6}
+                              placeholder="Nueva contraseña..."
+                              className="block w-full pl-9 pr-9 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-yellow-400"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowRecPassword(!showRecPassword)}
+                              className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-white"
+                            >
+                              {showRecPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-300 mb-1">
+                            Confirmar Nueva Contraseña
+                          </label>
+                          <div className="relative rounded-xl shadow-xs">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                              <Lock size={15} />
+                            </div>
+                            <input
+                              type={showRecPassword ? 'text' : 'password'}
+                              value={recConfirmNewPassword}
+                              onChange={e => setRecConfirmNewPassword(e.target.value)}
+                              required
+                              minLength={6}
+                              placeholder="Repita la nueva contraseña..."
+                              className="block w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-yellow-400"
+                            />
+                          </div>
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={isResettingPassword}
+                          className="w-full mt-2 bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-black py-2.5 px-4 rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-yellow-500/10"
+                        >
+                          {isResettingPassword ? (
+                            <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <CheckCircle2 size={16} />
+                          )}
+                          <span>Guardar Nueva Contraseña e Iniciar Sesión</span>
+                        </button>
+                      </form>
+                    )}
+
+                    {/* Asistencia de Soporte Directo Maestro */}
+                    <div className="pt-3 border-t border-slate-800/80 text-[11px] text-slate-400 flex items-center justify-between">
+                      <span className="flex items-center gap-1 text-slate-400">
+                        <HelpCircle size={13} className="text-yellow-400" />
+                        ¿Problemas para restablecer?
+                      </span>
+                      <a
+                        href="mailto:aabecerra852@gmail.com?subject=Solicitud%20de%20Restablecimiento%20de%20Contrase%C3%B1a%20SGD%20Duncan&body=Hola%20Administrador,%20solicito%20asistencia%20para%20restablecer%20mi%20contrase%C3%B1a%20en%20el%20SGD%20Duncan.%20Mi%20Correo%20Gmail%20es:%20"
+                        className="text-yellow-400 hover:text-yellow-300 underline font-semibold"
+                      >
+                        Contactar a Admin (aabecerra852@gmail.com)
+                      </a>
+                    </div>
+                  </div>
+                )}
+
+                {/* Botón para volver a Iniciar Sesión */}
+                <div className="pt-2 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('login')}
+                    className="text-xs text-slate-400 hover:text-white inline-flex items-center gap-1 transition-colors"
+                  >
+                    <ArrowLeft size={13} />
+                    <span>Volver a la pantalla de Inicio de Sesión</span>
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </div>

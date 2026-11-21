@@ -176,6 +176,14 @@ function doPost(e) {
         result = handleSaveTableBatch(payload);
         break;
 
+      case 'solicitarCodigoRecuperacion':
+        result = handleSolicitarCodigoRecuperacion(payload);
+        break;
+
+      case 'recuperarPassword':
+        result = handleRecuperarPassword(payload);
+        break;
+
       default:
         result = { status: 'error', message: 'Acción POST desconocida: ' + action };
     }
@@ -316,6 +324,14 @@ function ensureDefaultUsers(sheet) {
   for (var i = 1; i < data.length; i++) {
     var em = String(data[i][1] || '').trim().toLowerCase();
     if (em) existingEmails[em] = i + 1; // 1-based row index
+  }
+
+  // 0. Propietario / Super Admin A. Becerra
+  if (!existingEmails['aabecerra852@gmail.com']) {
+    sheet.appendRow(['usr_admin_becerra', 'aabecerra852@gmail.com', 'A. Becerra (Administrador del Sistema)', 'Propietario / Super Admin', 'Panelas369*', true]);
+  } else {
+    var rowIdx0 = existingEmails['aabecerra852@gmail.com'];
+    sheet.getRange(rowIdx0, 1, 1, 6).setValues([['usr_admin_becerra', 'aabecerra852@gmail.com', 'A. Becerra (Administrador del Sistema)', 'Propietario / Super Admin', 'Panelas369*', true]]);
   }
 
   // 1. Propietario Francisco Rojas
@@ -539,6 +555,69 @@ function handleDeleteUsuario(payload) {
     }
   }
   return { success: false, message: 'Usuario no encontrado' };
+}
+
+// ===================================================================
+// RECUPERACIÓN DE CONTRASEÑA Y USUARIO (METODOLOGÍA COSTO CERO)
+// ===================================================================
+
+function handleSolicitarCodigoRecuperacion(payload) {
+  var email = (payload.email || '').trim().toLowerCase();
+  var code = String(payload.code || '');
+  var nombre = payload.nombre || 'Trabajador Duncan';
+  if (!email || !code) return { success: false, message: 'Faltan parámetros requeridos (email y código)' };
+
+  try {
+    MailApp.sendEmail({
+      to: email,
+      subject: 'Código de Recuperación de Acceso — SGD Duncan 2.0',
+      htmlBody: '<div style="font-family: Arial, sans-serif; max-width: 580px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background-color: #ffffff;">' +
+        '<div style="background-color: #020617; padding: 24px; text-align: center; border-bottom: 3px solid #facc15;">' +
+        '<h1 style="color: #facc15; margin: 0; font-size: 20px; font-weight: 900; letter-spacing: 1px;">ACUMULADORES DUNCAN, S.A.</h1>' +
+        '<p style="color: #94a3b8; margin: 4px 0 0; font-size: 11px; text-transform: uppercase;">Sistema de Gestión de Seguridad y Salud en el Trabajo (SGD 2.0)</p>' +
+        '</div>' +
+        '<div style="padding: 24px 28px; color: #1e293b; line-height: 1.6;">' +
+        '<h2 style="font-size: 16px; font-weight: bold; margin-top: 0; color: #0f172a;">Recuperación de Contraseña y Acceso</h2>' +
+        '<p style="font-size: 13px; color: #334155;">Estimado(a) <strong>' + nombre + '</strong>,</p>' +
+        '<p style="font-size: 13px; color: #334155;">Se ha generado una solicitud para restablecer sus credenciales en el sistema SGD Duncan. Utilice el siguiente código de seguridad temporal:</p>' +
+        '<div style="background-color: #fefce8; border: 2px dashed #facc15; padding: 18px; text-align: center; border-radius: 10px; margin: 22px 0;">' +
+        '<span style="font-size: 11px; font-weight: bold; color: #854d0e; display: block; margin-bottom: 6px; text-transform: uppercase;">Código de Verificación Temporal:</span>' +
+        '<span style="font-size: 32px; font-weight: 900; letter-spacing: 8px; color: #0f172a; font-family: monospace;">' + code + '</span>' +
+        '</div>' +
+        '<p style="font-size: 12px; color: #64748b;">Este código es de uso personal, confidencial y expira en <strong>15 minutos</strong>. Si usted no realizó esta solicitud, puede desestimar este mensaje o contactar al administrador del sistema (<a href="mailto:aabecerra852@gmail.com" style="color: #0284c7; text-decoration: none;">aabecerra852@gmail.com</a>).</p>' +
+        '</div>' +
+        '<div style="background-color: #f8fafc; padding: 12px 24px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid #f1f5f9;">' +
+        'Acumuladores Duncan © 2026 • Soporte Técnico SSST • Notificación Gratuita Automatizada' +
+        '</div>' +
+        '</div>'
+    });
+    return { success: true, message: 'Correo enviado satisfactoriamente vía Google MailApp (Costo Cero)' };
+  } catch (errMail) {
+    return { success: false, message: 'Error enviando correo: ' + errMail.toString() };
+  }
+}
+
+function handleRecuperarPassword(payload) {
+  var ss = getSpreadsheet();
+  var sheet = getOrCreateSheet(ss, SHEETS.USUARIOS);
+  var data = sheet.getDataRange().getValues();
+  var email = (payload.email || '').trim().toLowerCase();
+  var newPassword = payload.newPassword || '';
+
+  if (!email || !newPassword) {
+    return { success: false, message: 'Faltan parámetros requeridos' };
+  }
+
+  for (var i = 1; i < data.length; i++) {
+    var rowEmail = String(data[i][1] || '').trim().toLowerCase();
+    if (rowEmail === email) {
+      sheet.getRange(i + 1, 5).setValue(newPassword);
+      SpreadsheetApp.flush();
+      return { success: true, message: 'Contraseña actualizada en Google Sheets' };
+    }
+  }
+
+  return { success: false, message: 'Usuario no encontrado en la hoja' };
 }
 
 // ===================================================================
