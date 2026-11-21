@@ -21,8 +21,9 @@ export default defineConfig({
         start_url: '/',
         lang: 'es',
         icons: [
-          { src: '/duncan-logo-color.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
-          { src: '/duncan-logo-bw.png', sizes: '192x192', type: 'image/png' },
+          { src: '/icons/icon.svg', sizes: '192x192 512x512', type: 'image/svg+xml', purpose: 'any maskable' },
+          { src: '/duncan-logo-color.png', sizes: '832x356', type: 'image/png' },
+          { src: '/duncan-logo-bw.png', sizes: '147x52', type: 'image/png' },
         ],
       },
       workbox: {

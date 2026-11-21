@@ -273,7 +273,7 @@ const MontacargasTemplate = ({ inspection, metadata }: { inspection: Inspeccion,
                 {inspection.firmas?.inspector && <img src={inspection.firmas.inspector} alt="Firma" style={{ maxHeight: '100%', maxWidth: '100%', width: 'auto', height: 'auto' }} />}
               </div>
               <div style={{ borderTop: '1px solid #000', width: '80%', margin: '0 auto', paddingTop: '6px', fontSize: '11px', fontWeight: 'bold' }}>
-                {inspection.respuestas?.['f_realizado'] || (inspection.firmas?.inspector ? 'Firma Registrada' : inspection.inspectorId.substring(0,8))}
+                {inspection.respuestas?.['f_realizado'] || (inspection.firmas?.inspector ? 'Firma Registrada' : (inspection.inspectorId || inspection.inspector || 'INSP').substring(0,8))}
               </div>
             </td>
             <td style={{ border: '1px solid #000', padding: '10px', textAlign: 'center' }}>
@@ -606,8 +606,8 @@ const ExtintoresTemplate = ({ inspection, metadata }: { inspection: Inspeccion, 
 
   const getRealizadoPor = () => {
     const item = sec4?.items?.find((it: any) => it.pregunta.toLowerCase().includes('realizado') || it.pregunta.toLowerCase().includes('inspector'));
-    if (item) return String(inspection.respuestas?.[item.id] || inspection.inspectorId);
-    return inspection.inspectorId;
+    if (item) return String(inspection.respuestas?.[item.id] || inspection.inspectorId || inspection.inspector || 'Inspector SSA');
+    return inspection.inspectorId || inspection.inspector || 'Inspector SSA';
   };
 
   const getRevisadoPor = () => {
@@ -1378,7 +1378,7 @@ const DistribuidorasTemplate = ({ inspection, metadata }: { inspection: Inspecci
                       <div style={{ width: '110px', borderBottom: '1px dashed #bbb', height: '35px' }} />
                     )}
                   </div>
-                  <div style={{ fontWeight: 'bold', fontSize: '8px' }}>{inspection.inspectorId.toUpperCase()}</div>
+                  <div style={{ fontWeight: 'bold', fontSize: '8px' }}>{(inspection.inspectorId || inspection.inspector || 'Inspector SSA').toUpperCase()}</div>
                   <div style={{ fontSize: '6.5px', color: '#555', marginTop: '1px' }}>INSPECTOR DE SEGURIDAD, SALUD Y AMBIENTE (SSA)</div>
                 </td>
                 <td style={{ padding: '2px 4px', verticalAlign: 'middle' , lineHeight: 1.2}}>
@@ -1940,13 +1940,13 @@ export default function InspectionReport({
                      </tr>
                      <tr>
                          <td style={{ padding: isExtintores ? '4px 6px' : '8px 10px', borderRight: '1px solid #000', borderBottom: '1px solid #000', fontWeight: 'bold', backgroundColor: '#f3f4f6', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>INSPECTOR:</td>
-                         <td style={{ padding: isExtintores ? '4px 6px' : '8px 10px', borderRight: '1px solid #000', borderBottom: '1px solid #000', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>{inspection.inspectorId.toUpperCase()}</td>
+                         <td style={{ padding: isExtintores ? '4px 6px' : '8px 10px', borderRight: '1px solid #000', borderBottom: '1px solid #000', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>{(inspection.inspectorId || inspection.inspector || 'Inspector SSA').toUpperCase()}</td>
                          <td style={{ padding: isExtintores ? '4px 6px' : '8px 10px', borderRight: '1px solid #000', borderBottom: '1px solid #000', fontWeight: 'bold', backgroundColor: '#f3f4f6', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>SISTEMA EMISOR:</td>
                          <td style={{ padding: isExtintores ? '4px 6px' : '8px 10px', borderBottom: '1px solid #000', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>SGD DUNCAN</td>
                      </tr>
                      <tr>
                          <td style={{ padding: isExtintores ? '4px 6px' : '8px 10px', borderRight: '1px solid #000', fontWeight: 'bold', backgroundColor: '#f3f4f6', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>ESTADO:</td>
-                         <td style={{ padding: isExtintores ? '4px 6px' : '8px 10px', borderRight: '1px solid #000', fontWeight: 'bold', color: inspection.estado === 'Completada' ? '#166534' : '#b91c1c', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>{inspection.estado.toUpperCase()}</td>
+                         <td style={{ padding: isExtintores ? '4px 6px' : '8px 10px', borderRight: '1px solid #000', fontWeight: 'bold', color: inspection.estado === 'Completada' ? '#166534' : '#b91c1c', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>{(inspection.estado || 'BORRADOR').toUpperCase()}</td>
                          <td style={{ padding: isExtintores ? '4px 6px' : '8px 10px', borderRight: '1px solid #000', fontWeight: 'bold', backgroundColor: '#f3f4f6', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>FRECUENCIA:</td>
                          <td style={{ padding: isExtintores ? '4px 6px' : '8px 10px', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>{metadata.tipo?.frecuencia?.toUpperCase() || 'N/A'}</td>
                      </tr>
@@ -2125,7 +2125,7 @@ export default function InspectionReport({
                       ) : <div style={{ height: isExtintores ? "40px" : "65px", borderBottom: '1px dashed #ccc', width: '150px' }} />}
                     </div>
                     <div style={{ borderTop: "1px solid #000", margin: "0 auto", width: "85%", paddingTop: "3px", fontSize: '8.5px' }}>
-                      <strong>{inspection.inspectorId.toUpperCase()}</strong><br/>
+                      <strong>{(inspection.inspectorId || inspection.inspector || 'Inspector SSA').toUpperCase()}</strong><br/>
                       FIRMA AUTORIZADA: INSPECTOR SST
                     </div>
                   </td>

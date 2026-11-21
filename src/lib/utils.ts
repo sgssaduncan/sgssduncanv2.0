@@ -60,6 +60,7 @@ export function truncate(str: string, n: number): string {
   return str.length > n ? str.slice(0, n - 1) + '…' : str;
 }
 
-export function capitalize(str: string): string {
+export function capitalize(str?: string): string {
+  if (!str) return '';
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }

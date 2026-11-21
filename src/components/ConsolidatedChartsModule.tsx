@@ -38,7 +38,7 @@ export default function ConsolidatedChartsModule({ inspecciones, localidades, es
     if (filterTipo !== 'ALL') {
       const allowedEstablecimientos = establecimientos
         .filter(e => {
-            const isDist = e.tipo?.toUpperCase() === 'DISTRIBUIDORA' || e.nombre.toUpperCase().includes('DISTRIBUIDORA');
+            const isDist = e.tipo?.toUpperCase() === 'DISTRIBUIDORA' || (e.nombre || '').toUpperCase().includes('DISTRIBUIDORA');
             if (filterTipo === 'DISTRIBUIDORA') return isDist;
             if (filterTipo === 'SERVICENTRO') return !isDist;
             return true;
@@ -65,7 +65,7 @@ export default function ConsolidatedChartsModule({ inspecciones, localidades, es
       const locEsts = establecimientos.filter(e => e.localidadId === filterLocalidad);
       locEsts.forEach(est => {
         // filter by tipo if needed
-        const isDist = est.tipo?.toUpperCase() === 'DISTRIBUIDORA' || est.nombre.toUpperCase().includes('DISTRIBUIDORA');
+        const isDist = est.tipo?.toUpperCase() === 'DISTRIBUIDORA' || (est.nombre || '').toUpperCase().includes('DISTRIBUIDORA');
         if (filterTipo === 'DISTRIBUIDORA' && !isDist) return;
         if (filterTipo === 'SERVICENTRO' && isDist) return;
 

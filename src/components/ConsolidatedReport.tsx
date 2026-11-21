@@ -74,7 +74,7 @@ export default function ConsolidatedReport() {
     filteredLocs.forEach(loc => {
       const locEsts = establecimientos.filter(e => e.localidadId === loc.id);
       
-      const distribuidoras = locEsts.filter(e => e.tipo === 'Distribuidora' || e.tipo?.toUpperCase() === 'DISTRIBUIDORA' || e.nombre.toUpperCase().includes('DISTRIBUIDORA'));
+      const distribuidoras = locEsts.filter(e => e.tipo === 'Distribuidora' || e.tipo?.toUpperCase() === 'DISTRIBUIDORA' || (e.nombre || '').toUpperCase().includes('DISTRIBUIDORA'));
       const distribuidora = distribuidoras.length > 0 ? distribuidoras[0] : locEsts[0];
       
       const servicentros = locEsts.filter(e => e.id !== distribuidora?.id);
@@ -91,7 +91,7 @@ export default function ConsolidatedReport() {
         const distGeneral = distInspections.filter(i => 
           tipos.find(t => t.id === i.tipoInspeccionId)?.categoria !== 'Vehículos' &&
           tipos.find(t => t.id === i.tipoInspeccionId)?.categoria !== 'Maquinaria' &&
-          !tipos.find(t => t.id === i.tipoInspeccionId)?.nombre.toUpperCase().includes('MONTACARGAS')
+          !(tipos.find(t => t.id === i.tipoInspeccionId)?.nombre || '').toUpperCase().includes('MONTACARGAS')
         );
         const efDist = distGeneral.length > 0 ? 
           distGeneral.reduce((sum, i) => sum + (i.puntuacionConformidad || 0), 0) / distGeneral.length : 0;
@@ -99,7 +99,7 @@ export default function ConsolidatedReport() {
         totalRegion += pondDist;
         subRows.push({
           ambito: 'DISTRIBUIDORA',
-          nombre: distribuidora.nombre.toUpperCase(),
+          nombre: (distribuidora?.nombre || 'DISTRIBUIDORA').toUpperCase(),
           eficiencia: efDist,
           ponderacion: 0.4,
           ponderado: pondDist
@@ -125,7 +125,7 @@ export default function ConsolidatedReport() {
         // Montacargas
         const distMon = distInspections.filter(i => 
           tipos.find(t => t.id === i.tipoInspeccionId)?.categoria === 'Maquinaria' ||
-          tipos.find(t => t.id === i.tipoInspeccionId)?.nombre.toUpperCase().includes('MONTACARGAS')
+          (tipos.find(t => t.id === i.tipoInspeccionId)?.nombre || '').toUpperCase().includes('MONTACARGAS')
         );
         if (distMon.length > 0) {
           const efMon = distMon.reduce((sum, i) => sum + (i.puntuacionConformidad || 0), 0) / distMon.length;
@@ -150,12 +150,12 @@ export default function ConsolidatedReport() {
         
         const scGeneral = scInspections.filter(i => 
           tipos.find(t => t.id === i.tipoInspeccionId)?.categoria !== 'Maquinaria' &&
-          !tipos.find(t => t.id === i.tipoInspeccionId)?.nombre.toUpperCase().includes('MONTACARGAS')
+          !(tipos.find(t => t.id === i.tipoInspeccionId)?.nombre || '').toUpperCase().includes('MONTACARGAS')
         );
         
         const scMon = scInspections.filter(i => 
           tipos.find(t => t.id === i.tipoInspeccionId)?.categoria === 'Maquinaria' ||
-          tipos.find(t => t.id === i.tipoInspeccionId)?.nombre.toUpperCase().includes('MONTACARGAS')
+          (tipos.find(t => t.id === i.tipoInspeccionId)?.nombre || '').toUpperCase().includes('MONTACARGAS')
         );
 
         if (scMon.length > 0) {
@@ -168,7 +168,7 @@ export default function ConsolidatedReport() {
           totalRegion += pondScGen;
           subRows.push({
             ambito: 'SERVICENTRO',
-            nombre: sc.nombre.toUpperCase().replace('SERVICENTRO ', ''),
+            nombre: (sc?.nombre || 'SERVICENTRO').toUpperCase().replace('SERVICENTRO ', ''),
             eficiencia: efScGen,
             ponderacion: genWeight,
             ponderado: pondScGen
@@ -192,7 +192,7 @@ export default function ConsolidatedReport() {
           totalRegion += pondSc;
           subRows.push({
             ambito: 'SERVICENTRO',
-            nombre: sc.nombre.toUpperCase().replace('SERVICENTRO ', ''),
+            nombre: (sc?.nombre || 'SERVICENTRO').toUpperCase().replace('SERVICENTRO ', ''),
             eficiencia: efSc,
             ponderacion: weightPerSc,
             ponderado: pondSc
@@ -204,7 +204,7 @@ export default function ConsolidatedReport() {
       if (subRows.some(r => r.eficiencia > 0)) {
         rows.push({
           ambito: 'LOCALIDAD',
-          nombre: loc.nombre.toUpperCase(),
+          nombre: (loc?.nombre || 'LOCALIDAD').toUpperCase(),
           eficiencia: 0,
           ponderacion: 0,
           ponderado: 0,
@@ -411,7 +411,7 @@ export default function ConsolidatedReport() {
   const todayStr = formatDateTime(new Date().toISOString());
   const selectedRegionName = selectedLocalidad === 'ALL' 
     ? 'TODAS LAS LOCALIDADES' 
-    : localidades.find(l => l.id === selectedLocalidad)?.nombre.toUpperCase() || 'REGIÓN';
+    : (localidades.find(l => l.id === selectedLocalidad)?.nombre || 'REGIÓN').toUpperCase();
 
   // Render para el reporte oculto que usa html2pdf (tamaño A4/Letter optimizado)
   const renderPdfContent = () => {
@@ -476,7 +476,7 @@ export default function ConsolidatedReport() {
                     </td>
                     <td style={{ width: '55%', borderRight: '1.5px solid #000', padding: '8px', textAlign: 'center', verticalAlign: 'middle' }}>
                         <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#000', lineHeight: '1.2' }}>PROGRAMA DE SEGURIDAD Y SALUD EN EL TRABAJO</div>
-                        <div style={{ fontSize: '13px', color: '#002855', fontWeight: 'bold', marginTop: '2px', textDecoration: 'underline' }}>INFORME EJECUTIVO DE CONFORMIDAD - {selectedRegionName.toUpperCase()}</div>
+                        <div style={{ fontSize: '13px', color: '#002855', fontWeight: 'bold', marginTop: '2px', textDecoration: 'underline' }}>INFORME EJECUTIVO DE CONFORMIDAD - {String(selectedRegionName || 'REGIÓN').toUpperCase()}</div>
                     </td>
                     <td style={{ width: '25%', padding: '0' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '7.5px' }}>
@@ -522,7 +522,7 @@ export default function ConsolidatedReport() {
               <div style={{ padding: '10px', backgroundColor: '#fff' }}>
                 {localidadesGraphData.map((loc, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', fontSize: '8.5px', marginBottom: '6px' }}>
-                    <div style={{ width: '150px', fontWeight: '900', color: '#000' }}>{loc.name.toUpperCase()}</div>
+                    <div style={{ width: '150px', fontWeight: '900', color: '#000' }}>{String(loc?.name || 'LOCALIDAD').toUpperCase()}</div>
                     <div style={{ flex: 1, backgroundColor: '#eee', height: '12px', margin: '0 10px', border: '0.5px solid #000' }}>
                        <div style={{ width: `${loc.promedio}%`, backgroundColor: getColorByEficiencia(loc.promedio), height: '100%' }}></div>
                     </div>
@@ -550,7 +550,7 @@ export default function ConsolidatedReport() {
                       return (
                         <tr key={i} style={{ backgroundColor: '#f3f4f6', color: '#000' }}>
                           <td colSpan={2} style={{ padding: '6px', border: '1px solid #000', fontWeight: '900', fontSize: '8.5px' }}>
-                            LOCALIDAD: {row.nombre.toUpperCase()}
+                            LOCALIDAD: {String(row?.nombre || 'LOCALIDAD').toUpperCase()}
                           </td>
                           <td colSpan={3} style={{ padding: '6px', border: '1px solid #000', textAlign: 'right', fontSize: '8.5px', fontWeight: '900' }}>
                             CONSOLIDADO LOCALIDAD: <span style={{ color: getColorByEficiencia(row.promedioRegion || 0) }}>{row.promedioRegion?.toFixed(1)}%</span>
@@ -561,7 +561,7 @@ export default function ConsolidatedReport() {
                     
                     return (
                       <tr key={i} style={{ backgroundColor: i % 2 === 0 ? '#fff' : '#fcfcfc' }}>
-                        <td style={{ border: '1px solid #000', padding: '4px', color: '#555', fontWeight: '900' }}>{row.ambito.toUpperCase()}</td>
+                        <td style={{ border: '1px solid #000', padding: '4px', color: '#555', fontWeight: '900' }}>{String(row?.ambito || '').toUpperCase()}</td>
                         <td style={{ border: '1px solid #000', padding: '4px', fontWeight: '900' }}>{row.nombre}</td>
                         <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'center', color: getColorByEficiencia(row.eficiencia), fontWeight: '900' }}>
                           {Math.round(row.eficiencia)}%
@@ -630,7 +630,7 @@ export default function ConsolidatedReport() {
           <tbody>
             <tr>
               <td style={{ width: '30%', textAlign: 'left', border: 'none', borderStyle: 'none', padding: '0', fontSize: '6.5px', fontWeight: 'bold', color: '#000', backgroundColor: 'transparent' }}>
-                ERP AUDIT: CONSOL-REG-{selectedRegionName.substring(0,3).toUpperCase()}
+                ERP AUDIT: CONSOL-REG-{String(selectedRegionName || 'REG').substring(0,3).toUpperCase()}
               </td>
               <td style={{ width: '40%', textAlign: 'center', border: 'none', borderStyle: 'none', padding: '0', fontSize: '6.5px', fontWeight: 'bold', color: '#000', backgroundColor: 'transparent' }}>
                 DOCUMENTO GENERADO AUTOMÁTICAMENTE - PÁGINA 1 / 1

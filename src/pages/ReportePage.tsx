@@ -31,6 +31,8 @@ export default function ReportePage() {
     localidadId: inspeccion.localidadId || 'loc_caracas',
     establecimientoId: inspeccion.establecimientoId || 'est_dist_ccs',
     tipoInspeccionId: inspeccion.tipoInspeccionId || 'ti_ext',
+    inspectorId: inspeccion.inspectorId || inspeccion.inspector || 'Francisco Rojas',
+    inspector: inspeccion.inspector || inspeccion.inspectorId || 'Francisco Rojas',
     fecha: inspeccion.fecha,
     estado: (inspeccion.estado === 'completada' ? 'Completada' : inspeccion.estado === 'en_progreso' ? 'En Progreso' : 'Borrador') as any,
     respuestas: inspeccion.respuestas || (inspeccion.formResponses ? JSON.parse(inspeccion.formResponses) : {}),
