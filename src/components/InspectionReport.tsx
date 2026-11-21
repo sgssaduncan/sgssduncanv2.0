@@ -35,6 +35,7 @@ import type {
 } from "../types";
 import { dbService } from "../services/db";
 import { useAuth } from '../hooks/useAuth';
+import { getFormDefinition } from "../lib/formDefinitions";
 
 import { QRCodeSVG } from "qrcode.react";
 
@@ -53,7 +54,7 @@ const getCompanyLogo = (metadata: any) => {
   } else if (nombre.includes('ergoexpress')) {
     return '/logo-ergoexpress.png';
   }
-  return '/logo.png';
+  return '/duncan-logo-color.png';
 };
 
 const MontacargasTemplate = ({ inspection, metadata }: { inspection: Inspeccion, metadata: any }) => {
@@ -62,9 +63,9 @@ const MontacargasTemplate = ({ inspection, metadata }: { inspection: Inspeccion,
   const dateStr = `${months[d.getMonth()]} - ${d.getFullYear()}`;
 
   const allItems: any[] = [];
-  metadata.tipo?.secciones.forEach((sec: any) => {
+  (metadata.tipo?.secciones || []).forEach((sec: any) => {
     if (sec.id !== 'i_datos_montacargas' && sec.id !== 'i_firmas') {
-      sec.items.forEach((it: any) => allItems.push(it));
+      (sec.items || []).forEach((it: any) => allItems.push(it));
     }
   });
 
@@ -85,7 +86,7 @@ const MontacargasTemplate = ({ inspection, metadata }: { inspection: Inspeccion,
 
     return {
       id: item.id,
-      pregunta: item.pregunta,
+      pregunta: item.pregunta || item.label || 'Item de Inspección',
       respuesta: isPositive ? "Bueno" : isNegative ? val : isNA ? "N/A" : val
     };
   });
@@ -132,7 +133,7 @@ const MontacargasTemplate = ({ inspection, metadata }: { inspection: Inspeccion,
             <td style={{ border: '2px solid #000', width: '80%', textAlign: 'center', padding: '6px' }}>EMPRESA - LOCALIDAD - ESTABLECIMIENTO - FECHA</td>
           </tr>
           <tr>
-            <td style={{ border: '2px solid #000', textAlign: 'center', padding: '6px' }}>{inspection.id.substring(0, 5).toUpperCase()}</td>
+            <td style={{ border: '2px solid #000', textAlign: 'center', padding: '6px' }}>{(inspection.id || inspection._id || 'INSP').substring(0, 5).toUpperCase()}</td>
             <td style={{ border: '2px solid #000', textAlign: 'center', padding: '6px', fontWeight: 'bold', textTransform: 'uppercase' }}>
               {metadata.empresa?.nombre || 'DUNCAN, C.A.'} - {metadata.localidad?.nombre || 'CARACAS'} - {metadata.establecimiento?.nombre || 'LOS RUICES'} - {dateStr}
             </td>
@@ -510,19 +511,13 @@ const itemMetaMap: Record<string, { ley: string; grupo: string; area: string }> 
 
 const ExtintoresTemplate = ({ inspection, metadata }: { inspection: Inspeccion, metadata: any }) => {
   const sections = metadata.tipo?.secciones || [];
-  const sec1 = sections.find((s: any) => s.id.includes('informacion') || s.titulo.toLowerCase().includes('información') || s.id.includes('identificacion')) || sections[0];
-  const sec2 = sections.find((s: any) => s.id.includes('condiciones') || s.titulo.toLowerCase().includes('condiciones')) || sections[1];
-  const sec3 = sections.find((s: any) => s.id.includes('observaciones') || s.titulo.toLowerCase().includes('observaciones')) || sections[2];
-  const sec4 = sections.find((s: any) => s.id.includes('personal') || s.titulo.toLowerCase().includes('personal')) || sections[3];
+  const sec1 = sections.find((s: any) => s.id?.includes('informacion') || (s.titulo || s.title || '').toLowerCase().includes('información') || s.id?.includes('identificacion')) || sections[0];
+  const sec2 = sections.find((s: any) => s.id?.includes('condiciones') || (s.titulo || s.title || '').toLowerCase().includes('condiciones')) || sections[1] || sections[0];
+  const sec3 = sections.find((s: any) => s.id?.includes('observaciones') || (s.titulo || s.title || '').toLowerCase().includes('observaciones')) || sections[2];
+  const sec4 = sections.find((s: any) => s.id?.includes('personal') || (s.titulo || s.title || '').toLowerCase().includes('personal') || (s.titulo || s.title || '').toLowerCase().includes('firmas')) || sections[3];
 
   const getCompanyLogoLocal = (metadata: any) => {
-    const nombre = metadata?.empresa?.nombre?.toLowerCase() || "";
-    if (nombre.includes('duncan')) {
-      return '/logo-duncan.png';
-    } else if (nombre.includes('ergoexpress')) {
-      return '/logo-ergoexpress.png';
-    }
-    return '/logo.png';
+    return '/duncan-logo-color.png';
   };
 
   const getMonthYearSpanish = (dateStr: string) => {
@@ -536,8 +531,8 @@ const ExtintoresTemplate = ({ inspection, metadata }: { inspection: Inspeccion, 
   };
 
   const getDisplayStatus = (val: string, pregunta: string) => {
-    const v = val.toUpperCase().trim();
-    const lowerPreg = pregunta.toLowerCase();
+    const v = (val || '').toUpperCase().trim();
+    const lowerPreg = (pregunta || '').toLowerCase();
     
     if (lowerPreg.includes("operatividad")) {
       if (["C", "SI", "BUENO", "OPERATIVO", "OK", "CONFORME"].includes(v)) return "Operativo";
@@ -565,31 +560,32 @@ const ExtintoresTemplate = ({ inspection, metadata }: { inspection: Inspeccion, 
   };
 
   const getValByPreguntaPart = (part: string) => {
-    const item = sec1?.items?.find((it: any) => it.pregunta.toLowerCase().includes(part.toLowerCase()));
+    const item = sec1?.items?.find((it: any) => (it.pregunta || it.label || '').toLowerCase().includes(part.toLowerCase()));
     if (item) {
       return String(inspection.respuestas?.[item.id] || "N/A");
     }
     return "N/A";
   };
 
-  const ubicacion = getValByPreguntaPart("ubicación") !== "N/A" ? getValByPreguntaPart("ubicación") : (getValByPreguntaPart("ubicacion") !== "N/A" ? getValByPreguntaPart("ubicacion") : "N/A");
-  const vencimiento = getValByPreguntaPart("vencimiento") !== "N/A" ? getValByPreguntaPart("vencimiento") : "N/A";
-  const agente = getValByPreguntaPart("agente") !== "N/A" ? getValByPreguntaPart("agente") : "N/A";
-  const capacidad = getValByPreguntaPart("capacidad") !== "N/A" ? getValByPreguntaPart("capacidad") : "N/A";
+  const ubicacion = getValByPreguntaPart("ubicación") !== "N/A" ? getValByPreguntaPart("ubicación") : (getValByPreguntaPart("ubicacion") !== "N/A" ? getValByPreguntaPart("ubicacion") : (inspection.respuestas?.['ubicacion'] || inspection.respuestasAdicionales?.['ubicacion'] || "N/A"));
+  const vencimiento = getValByPreguntaPart("vencimiento") !== "N/A" ? getValByPreguntaPart("vencimiento") : (inspection.respuestas?.['fechaVencimiento'] || inspection.respuestasAdicionales?.['fechaVencimiento'] || "N/A");
+  const agente = getValByPreguntaPart("agente") !== "N/A" ? getValByPreguntaPart("agente") : (inspection.respuestas?.['agenteExtinguidor'] || inspection.respuestasAdicionales?.['agenteExtinguidor'] || "N/A");
+  const capacidad = getValByPreguntaPart("capacidad") !== "N/A" ? getValByPreguntaPart("capacidad") : (inspection.respuestas?.['capacidad'] || inspection.respuestasAdicionales?.['capacidad'] || "N/A");
   const fechaInspeccion = formatDate(inspection.fecha);
 
   let cantBueno = 0;
   let cantDañado = 0;
   let cantNoAplica = 0;
 
-  const complianceItems = sec2?.items?.filter((item: any) => {
-    const qLower = item.pregunta.toLowerCase();
+  const complianceItems = (sec2?.items || []).filter((item: any) => {
+    const qLower = (item.pregunta || item.label || '').toLowerCase();
     return !qLower.includes("operatividad") && !qLower.includes("acción") && !qLower.includes("accion");
-  }) || [];
+  });
 
   complianceItems.forEach((item: any) => {
     const val = String(inspection.respuestas?.[item.id] || "N/A").toUpperCase().trim();
-    const status = getDisplayStatus(val, item.pregunta);
+    const itemPregunta = item.pregunta || item.label || '';
+    const status = getDisplayStatus(val, itemPregunta);
     if (status === "Bueno") {
       cantBueno++;
     } else if (status === "Dañado") {
@@ -605,13 +601,13 @@ const ExtintoresTemplate = ({ inspection, metadata }: { inspection: Inspeccion, 
   const conformidadPerc = maxPuntuacion > 0 ? Math.round((cantBueno / maxPuntuacion) * 100) : 100;
 
   const getRealizadoPor = () => {
-    const item = sec4?.items?.find((it: any) => it.pregunta.toLowerCase().includes('realizado') || it.pregunta.toLowerCase().includes('inspector'));
+    const item = sec4?.items?.find((it: any) => (it.pregunta || it.label || '').toLowerCase().includes('realizado') || (it.pregunta || it.label || '').toLowerCase().includes('inspector'));
     if (item) return String(inspection.respuestas?.[item.id] || inspection.inspectorId || inspection.inspector || 'Inspector SSA');
     return inspection.inspectorId || inspection.inspector || 'Inspector SSA';
   };
 
   const getRevisadoPor = () => {
-    const item = sec4?.items?.find((it: any) => it.pregunta.toLowerCase().includes('revisado') || it.pregunta.toLowerCase().includes('revisor') || it.pregunta.toLowerCase().includes('validado'));
+    const item = sec4?.items?.find((it: any) => (it.pregunta || it.label || '').toLowerCase().includes('revisado') || (it.pregunta || it.label || '').toLowerCase().includes('revisor') || (it.pregunta || it.label || '').toLowerCase().includes('validado'));
     if (item) return String(inspection.respuestas?.[item.id] || "Firma Digital");
     return "Firma Digital";
   };
@@ -663,7 +659,7 @@ const ExtintoresTemplate = ({ inspection, metadata }: { inspection: Inspeccion, 
             <td style={{ width: '80%', borderBottom: '1.5px solid #000000', padding: '4px' , verticalAlign: 'middle' }}>EMPRESA - LOCALIDAD - ESTABLECIMIENTO - FECHA</td>
           </tr>
           <tr style={{ fontWeight: 'bold', color: '#000000' }}>
-            <td style={{ borderRight: '1.5px solid #000000', padding: '4px', verticalAlign: 'middle' }}>{inspection.referencia || inspection.id.substring(0, 8).toUpperCase()}</td>
+            <td style={{ borderRight: '1.5px solid #000000', padding: '4px', verticalAlign: 'middle' }}>{inspection.referencia || (inspection.id || inspection._id || 'INSP').substring(0, 8).toUpperCase()}</td>
             <td style={{ padding: '4px', textTransform: 'uppercase' , verticalAlign: 'middle' }}>
               {metadata.empresa?.nombre || 'DISTRIBUIDORA DUNCAN, C.A.'} - {metadata.localidad?.nombre || 'CARACAS'} - {metadata.establecimiento?.nombre || 'LAS ACACIAS'} - {getMonthYearSpanish(inspection.fecha)}
             </td>
@@ -732,9 +728,9 @@ const ExtintoresTemplate = ({ inspection, metadata }: { inspection: Inspeccion, 
           </tr>
         </thead>
         <tbody>
-          {sec2?.items?.map((item: any) => {
+          {(sec2?.items || []).map((item: any) => {
             const rawResponse = inspection.respuestas?.[item.id] || "N/A";
-            const displayVal = getDisplayStatus(rawResponse, item.pregunta);
+            const displayVal = getDisplayStatus(rawResponse, item.pregunta || item.label || '');
 
             return (
               <tr key={item.id} style={{ borderBottom: '1.5px solid #000000' }}>
@@ -743,7 +739,7 @@ const ExtintoresTemplate = ({ inspection, metadata }: { inspection: Inspeccion, 
                     {inspection.fotos?.[item.id] && (
                       <span style={{ marginRight: '6px' }}>📷</span>
                     )}
-                    <span>{item.pregunta}</span>
+                    <span>{item.pregunta || item.label}</span>
                   </div>
                 </td>
                 <td style={{ padding: '5px 8px', textAlign: 'center', fontSize: '9px', verticalAlign: 'middle', fontWeight: 'bold' }}>
@@ -841,7 +837,7 @@ const ExtintoresTemplate = ({ inspection, metadata }: { inspection: Inspeccion, 
                 <td style={{ width: '25%', padding: '4px', fontSize: '9px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#f3f4f6', color: '#000000', borderBottom: '1.5px solid #000000' , verticalAlign: 'middle' }}>ID TRANS:</td>
               </tr>
               <tr>
-                <td style={{ padding: '4px', fontSize: '9px', textAlign: 'center', fontWeight: 'bold', color: '#000000' , verticalAlign: 'middle' }}>{inspection.referencia || inspection.id.substring(0, 8).toUpperCase()}</td>
+                <td style={{ padding: '4px', fontSize: '9px', textAlign: 'center', fontWeight: 'bold', color: '#000000' , verticalAlign: 'middle' }}>{inspection.referencia || (inspection.id || inspection._id || 'INSP').substring(0, 8).toUpperCase()}</td>
               </tr>
             </tbody>
           </table>
@@ -1049,7 +1045,7 @@ const DistribuidorasTemplate = ({ inspection, metadata }: { inspection: Inspecci
           </thead>
           <tbody>
             <tr style={{ fontSize: '8px' }}>
-              <td style={{ border: '1.5px solid #000', textAlign: 'center', padding: '2px 4px' , verticalAlign: 'middle', lineHeight: 1.2}}>{inspection.id.substring(0, 5).toUpperCase()}</td>
+              <td style={{ border: '1.5px solid #000', textAlign: 'center', padding: '2px 4px' , verticalAlign: 'middle', lineHeight: 1.2}}>{(inspection.id || inspection._id || 'INSP').substring(0, 5).toUpperCase()}</td>
               <td style={{ border: '1.5px solid #000', textAlign: 'center', padding: '2px 4px', fontWeight: 'bold', textTransform: 'uppercase' , verticalAlign: 'middle', lineHeight: 1.2}}>
                 {metadata.empresa?.nombre || 'ACUMULADORES DUNCAN C.A.'} - {metadata.localidad?.nombre || 'LOCALIDAD'} - {metadata.establecimiento?.nombre || 'ESTABLECIMIENTO'} - {dateStr}
               </td>
@@ -1215,7 +1211,7 @@ const DistribuidorasTemplate = ({ inspection, metadata }: { inspection: Inspecci
                 <div style={{ fontSize: '5.8px', color: '#555', marginTop: '2px', lineHeight: '1.2' }}>
                   Reporte firmado digitalmente. Escanea para verificar validez.
                   <br/>
-                  <strong>HASH:</strong> {inspection.id.toUpperCase()}
+                  <strong>HASH:</strong> {(inspection.id || inspection._id || 'INSP').toUpperCase()}
                 </div>
               </div>
             </div>
@@ -1244,16 +1240,17 @@ const DistribuidorasTemplate = ({ inspection, metadata }: { inspection: Inspecci
           findingsText = nonCompliantItems.map((it: any, idx: number) => {
             const val = String(inspection.respuestas?.[it.id] || "").toUpperCase();
             const statusLabel = ["OM"].includes(val) ? "Oportunidad de Mejora" : "No Conforme";
-            return `${idx + 1}. Punto ${it.id.split('_').slice(1).join('.')}: ${it.pregunta.replace(/^\d+\.\d+\s+¿?/, '').replace(/\?$/, '')} (${statusLabel})`;
+            const textPreg = it.pregunta || it.label || '';
+            return `${idx + 1}. Punto ${it.id.split('_').slice(1).join('.')}: ${textPreg.replace(/^\d+\.\d+\s+¿?/, '').replace(/\?$/, '')} (${statusLabel})`;
           }).join('\n');
         }
 
         // Section photos
-        const sectionPhotos = sec.items
+        const sectionPhotos = (sec.items || [])
           .filter((it: any) => inspection.fotos?.[it.id])
           .map((it: any) => ({
             itemId: it.id,
-            itemName: it.pregunta.replace(/^\d+\.\d+\s+¿?/, '').replace(/\?$/, ''),
+            itemName: (it.pregunta || it.label || '').replace(/^\d+\.\d+\s+¿?/, '').replace(/\?$/, ''),
             url: inspection.fotos[it.id]
           }));
 
@@ -1261,7 +1258,7 @@ const DistribuidorasTemplate = ({ inspection, metadata }: { inspection: Inspecci
           <div key={sec.id} style={{ pageBreakInside: 'auto', marginTop: '12px', borderTop: sIdx > 0 ? '1px dashed #aaa' : 'none', paddingTop: '8px' }}>
             {/* TITLE BAR */}
             <div style={{ backgroundColor: '#f3f4f6', border: '1.5px solid #000', borderBottom: 'none', fontWeight: 'bold', fontSize: '8px', padding: '4px 6px', textTransform: 'uppercase' }}>
-              ASPECTOS EVALUADOS: {sec.titulo.toUpperCase()}
+              ASPECTOS EVALUADOS: {(sec.titulo || sec.title || '').toUpperCase()}
             </div>
 
             {/* QUESTIONS TABLE */}
@@ -1276,7 +1273,7 @@ const DistribuidorasTemplate = ({ inspection, metadata }: { inspection: Inspecci
                 </tr>
               </thead>
               <tbody>
-                {checklistItems.map((item: any) => {
+                {(checklistItems || []).map((item: any) => {
                   const meta = itemMetaMap[item.id] || { ley: item.referenciaLegal || 'RCHST / COVENIN', grupo: 'SSA', area: 'VENTAS' };
                   const rawResponse = inspection.respuestas?.[item.id] || "N/A";
                   const val = String(rawResponse).toUpperCase();
@@ -1289,7 +1286,7 @@ const DistribuidorasTemplate = ({ inspection, metadata }: { inspection: Inspecci
 
                   return (
                     <tr key={item.id} style={{ pageBreakInside: 'avoid' }}>
-                      <td style={{ border: '1.5px solid #000', padding: '2px 4px', textAlign: 'left', lineHeight: '1.2', wordBreak: 'break-word', overflowWrap: 'break-word' , verticalAlign: 'middle'}}>{item.pregunta}</td>
+                      <td style={{ border: '1.5px solid #000', padding: '2px 4px', textAlign: 'left', lineHeight: '1.2', wordBreak: 'break-word', overflowWrap: 'break-word' , verticalAlign: 'middle'}}>{item.pregunta || item.label}</td>
                       <td style={{ border: '1.5px solid #000', padding: '2px 4px', textAlign: 'left', fontStyle: 'italic', color: '#444', lineHeight: '1.2', wordBreak: 'break-word', overflowWrap: 'break-word' , verticalAlign: 'middle'}}>{meta.ley}</td>
                       <td style={{ border: '1.5px solid #000', padding: '2px 4px', textAlign: 'center', wordBreak: 'break-word', overflowWrap: 'break-word' , verticalAlign: 'middle', lineHeight: 1.2}}>{meta.grupo}</td>
                       <td style={{ border: '1.5px solid #000', padding: '2px 4px', textAlign: 'center', wordBreak: 'break-word', overflowWrap: 'break-word' , verticalAlign: 'middle', lineHeight: 1.2}}>{meta.area}</td>
@@ -1435,7 +1432,9 @@ export default function InspectionReport({
   const [showPrintPreview, setShowPrintPreview] = React.useState(false);
   const reportRef = React.useRef<HTMLDivElement>(null);
 
-  const isExtintores = metadata.tipo?.nombre?.toLowerCase().includes('extintor') || false;
+  const tipoCod = (metadata.tipo?.codigo || inspection.tipoCodigo || '').toUpperCase();
+  const tipoNom = (metadata.tipo?.nombre || inspection.tipoNombre || '').toLowerCase();
+  const isExtintores = tipoCod === 'EXT' || tipoCod === 'IEP' || (tipoNom.includes('extintor') && !tipoNom.includes('fuente') && !tipoNom.includes('ducha'));
 
   React.useEffect(() => {
     const load = async () => {
@@ -1443,16 +1442,63 @@ export default function InspectionReport({
         dbService.getEmpresas(),
         dbService.getTiposInspeccion(),
       ]);
-      const empresa = empresas.find((e) => e.id === inspection.empresaId);
-      const tipo = tipos.find((t) => t.id === inspection.tipoInspeccionId);
+      const empresa = empresas.find((e) => e.id === inspection.empresaId || (e as any)._id === inspection.empresaId) || {
+        _id: inspection.empresaId || 'emp_ddca',
+        id: inspection.empresaId || 'emp_ddca',
+        codigo: 'DDCA',
+        nombre: (inspection as any).empresaNombre || 'Distribuidora Duncan, C.A.',
+        rif: 'J-00100047-0',
+      };
 
       const locs = await dbService.getLocalidades(inspection.empresaId);
-      const localidad = locs.find((l) => l.id === inspection.localidadId);
+      const localidad = locs.find((l) => l.id === inspection.localidadId || (l as any)._id === inspection.localidadId) || {
+        _id: inspection.localidadId || 'loc_caracas',
+        id: inspection.localidadId || 'loc_caracas',
+        empresaId: inspection.empresaId || 'emp_ddca',
+        nombre: (inspection as any).localidadNombre || 'Caracas',
+      };
 
       const ests = await dbService.getEstablecimientos(inspection.localidadId);
       const establecimiento = ests.find(
-        (e) => e.id === inspection.establecimientoId,
-      );
+        (e) => e.id === inspection.establecimientoId || (e as any)._id === inspection.establecimientoId,
+      ) || {
+        _id: inspection.establecimientoId || 'est_dist_ccs',
+        id: inspection.establecimientoId || 'est_dist_ccs',
+        localidadId: inspection.localidadId || 'loc_caracas',
+        nombre: (inspection as any).establecimientoNombre || 'Distribuidora Duncan Caracas',
+        iniciales: 'DDC',
+      };
+
+      // Resolver definición canónica del formulario oficial
+      const formDef = getFormDefinition(inspection.tipoCodigo) ||
+                     getFormDefinition(inspection.tipoInspeccionId) ||
+                     getFormDefinition(inspection.tipoNombre);
+
+      const foundTipo = tipos.find((t) => t.id === inspection.tipoInspeccionId || (t as any)._id === inspection.tipoInspeccionId || (t as any).codigo === inspection.tipoCodigo);
+
+      // Si formDef existe, convertir sus sections a secciones para compatibilidad universal
+      const seccionesNormalizadas = formDef?.sections ? formDef.sections.map(s => ({
+        id: s.id,
+        titulo: s.title,
+        items: s.items.map(it => ({
+          id: it.id,
+          pregunta: it.label,
+          tipoRespuesta: it.responseType,
+          referenciaLegal: ''
+        }))
+      })) : (foundTipo?.secciones || []);
+
+      const tipo: TipoInspeccion = {
+        _id: inspection.tipoInspeccionId || (foundTipo as any)?._id || foundTipo?.id || 'ti_gen',
+        id: inspection.tipoInspeccionId || (foundTipo as any)?._id || foundTipo?.id || 'ti_gen',
+        codigo: formDef?.code || foundTipo?.codigo || inspection.tipoCodigo || 'GEN',
+        nombre: formDef?.name || foundTipo?.nombre || inspection.tipoNombre || 'Inspección General',
+        descripcion: formDef?.description || foundTipo?.descripcion || '',
+        frecuencia: foundTipo?.frecuencia || 'Mensual',
+        categoria: foundTipo?.categoria || 'Seguridad y Salud Laboral',
+        icono: foundTipo?.icono || '📋',
+        secciones: seccionesNormalizadas
+      };
 
       setMetadata({ empresa, localidad, establecimiento, tipo });
     };
@@ -1512,7 +1558,7 @@ export default function InspectionReport({
     const fileName = `${tipo}-${empresa}-${est}-${dateStr}-${correlativo}.pdf`;
     const refCode = inspection.referencia?.startsWith("REF")
       ? inspection.referencia
-      : `REF-${inspection.referencia || inspection.id.substring(0, 8).toUpperCase()}`;
+      : `REF-${inspection.referencia || (inspection.id || inspection._id || 'INSP').substring(0, 8).toUpperCase()}`;
 
     // Temporarily configure the live visible element to render perfectly at exactly targetWidth for the PDF snapshot
     const originalWidth = element.style.width;
@@ -1884,9 +1930,9 @@ export default function InspectionReport({
             `}</style>
           {isExtintores ? (
             <ExtintoresTemplate inspection={inspection} metadata={metadata} />
-          ) : metadata.tipo?.codigo === 'DIST' || metadata.tipo?.nombre?.toLowerCase().includes('distribuidora') ? (
+          ) : (metadata.tipo?.codigo === 'DIST' || metadata.tipo?.codigo === 'DD' || (metadata.tipo?.nombre || '').toLowerCase().includes('distribuidora')) ? (
             <DistribuidorasTemplate inspection={inspection} metadata={metadata} />
-          ) : metadata.tipo?.codigo === 'IMC' || metadata.tipo?.nombre?.toLowerCase().includes('montacargas') ? (
+          ) : (metadata.tipo?.codigo === 'IMC' || metadata.tipo?.codigo === 'MTCG' || (metadata.tipo?.nombre || '').toLowerCase().includes('montacargas')) ? (
             <MontacargasTemplate inspection={inspection} metadata={metadata} />
           ) : (
             <>
@@ -1899,13 +1945,13 @@ export default function InspectionReport({
                        </td>
                        <td style={{ width: '55%', borderRight: '1px solid #000', padding: isExtintores ? '4px' : '8px', textAlign: 'center', verticalAlign: 'middle' }}>
                            <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#000', lineHeight: '1.2' }}>PROGRAMA DE SEGURIDAD Y SALUD EN EL TRABAJO</div>
-                           <div style={{ fontSize: '13px', color: '#002855', fontWeight: 'bold', marginTop: '2px', textDecoration: 'underline' }}>{metadata.tipo?.nombre?.toUpperCase() || "REPORTE TÉCNICO DE INSPECCIÓN"}</div>
+                           <div style={{ fontSize: '13px', color: '#002855', fontWeight: 'bold', marginTop: '2px', textDecoration: 'underline' }}>{(metadata.tipo?.nombre || inspection.tipoNombre || "REPORTE TÉCNICO DE INSPECCIÓN").toUpperCase()}</div>
                        </td>
                        <td className="nested-table-container" style={{ width: '25%', padding: '0' }}>
                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '7.5px' }}>
                                <tbody>
                                    <tr><td style={{ borderBottom: '1px solid #000', padding: isExtintores ? '1.5px 4px' : '3px 6px' }}><strong>CÓDIGO DOC:</strong> {metadata.tipo?.codigo || 'GEN-SST-F01'}</td></tr>
-                                   <tr><td style={{ borderBottom: '1px solid #000', padding: isExtintores ? '1.5px 4px' : '3px 6px' }}><strong>ID TRANS:</strong> {inspection.referencia || inspection.id.substring(0, 8).toUpperCase()}</td></tr>
+                                   <tr><td style={{ borderBottom: '1px solid #000', padding: isExtintores ? '1.5px 4px' : '3px 6px' }}><strong>ID TRANS:</strong> {inspection.referencia || (inspection.id || inspection._id || 'INSP').substring(0, 8).toUpperCase()}</td></tr>
                                    <tr><td style={{ padding: isExtintores ? '1.5px 4px' : '3px 6px' }}><strong>EMISIÓN:</strong> {formatDate(inspection.fecha)}</td></tr>
                                </tbody>
                            </table>
@@ -1965,9 +2011,9 @@ export default function InspectionReport({
                 </tr>
               </thead>
               <tbody>
-                {metadata.tipo?.secciones.map(sec => {
+                {(metadata.tipo?.secciones || []).map((sec: any) => {
                   let c = 0, na = 0, total = 0;
-                  sec.items.forEach(item => {
+                  (sec.items || []).forEach((item: any) => {
                     const val = String(inspection.respuestas?.[item.id] || "N/A").toUpperCase();
                     if (["C", "SI", "BUENO", "OPERATIVO", "OK", "CONFORME", "EXISTE"].includes(val)) c++;
                     else if (["N/A", "NA"].includes(val)) na++;
@@ -1978,7 +2024,7 @@ export default function InspectionReport({
                   
                   return (
                     <tr key={sec.id}>
-                      <td style={{ border: "1px solid #000", padding: isExtintores ? "4px 6px" : "8px 10px", fontSize: isExtintores ? '8px' : '9px', verticalAlign: 'middle' }}>{sec.titulo.toUpperCase()}</td>
+                      <td style={{ border: "1px solid #000", padding: isExtintores ? "4px 6px" : "8px 10px", fontSize: isExtintores ? '8px' : '9px', verticalAlign: 'middle' }}>{(sec.titulo || sec.title || '').toUpperCase()}</td>
                       <td style={{ border: "1px solid #000", padding: isExtintores ? "4px 6px" : "8px 10px", textAlign: "center", fontWeight: "bold", fontSize: isExtintores ? '8px' : '9px', verticalAlign: 'middle' }}>
                         <span style={{ color: perc >= 90 ? '#166534' : perc >= 75 ? '#854d0e' : '#991b1b' }}>{perc}%</span>
                       </td>
@@ -1998,10 +2044,10 @@ export default function InspectionReport({
           {/* CUERPO TÉCNICO DE LA INSPECCIÓN */}
           <div className="pdf-section-header" style={{ border: '1px solid #000', borderBottom: 'none' }}>3.0 HALLAZGOS Y EVIDENCIAS DE CAMPO</div>
           <div style={{ border: '1px solid #000', marginBottom: isExtintores ? '6px' : '20px' }}>
-            {metadata.tipo?.secciones.map((sec, i) => (
+            {(metadata.tipo?.secciones || []).map((sec: any, i: number) => (
               <div key={sec.id} style={{ pageBreakInside: "auto" }}>
                 <div className="pdf-subsection-header" style={{ borderBottom: '1px solid #000', borderTop: i > 0 ? '1px solid #000' : 'none' }}>
-                  {`3.${i + 1} ${sec.titulo.toUpperCase()}`}
+                  {`3.${i + 1} ${(sec.titulo || sec.title || '').toUpperCase()}`}
                 </div>
                 <table style={{ width: "100%", tableLayout: "fixed", borderCollapse: "collapse" }}>
                   <thead>
@@ -2011,7 +2057,7 @@ export default function InspectionReport({
                     </tr>
                   </thead>
                   <tbody>
-                    {sec.items.map(item => {
+                    {(sec.items || []).map((item: any) => {
                        const rawResponse = inspection.respuestas?.[item.id] || "N/A";
                        const val = String(rawResponse).toUpperCase();
                        let smallVal = val;
@@ -2025,7 +2071,7 @@ export default function InspectionReport({
                        
                        if (isPositive) { 
                          c = "#166534"; 
-                         smallVal = val === "C" ? "CONFORME (C)" : val; 
+                         smallVal = val === "C" ? "CONFORME (C)" : (val === "SI" ? "SÍ" : val); 
                        }
                        else if (isNegative) { 
                          c = "#b91c1c"; 
@@ -2034,6 +2080,10 @@ export default function InspectionReport({
                        else if (isNeutral) { 
                          c = "#c2410c"; 
                          smallVal = "OBSERVACIÓN (OM)"; 
+                       }
+                       else if (isNA) {
+                         smallVal = "N/A";
+                         c = "#6b7280";
                        }
                        else if (isTextBased) {
                          smallVal = String(rawResponse);
@@ -2049,7 +2099,7 @@ export default function InspectionReport({
                                      <Camera size={11} style={{ color: '#004B93', display: 'inline-block', verticalAlign: 'middle' }} />
                                    </span>
                                  )}
-                                 <span style={{ display: 'inline', wordBreak: 'normal', overflowWrap: 'anywhere' }}>{item.pregunta}</span>
+                                 <span style={{ display: 'inline', wordBreak: 'normal', overflowWrap: 'anywhere' }}>{item.pregunta || item.label}</span>
                                  {item.referenciaLegal && (
                                    <div style={{ fontSize: '7px', color: '#666', fontStyle: 'italic', marginTop: '2px' }}>Ref: {item.referenciaLegal}</div>
                                  )}
@@ -2089,9 +2139,9 @@ export default function InspectionReport({
               <div style={{ padding: isExtintores ? "5px" : "10px", backgroundColor: "#fff", display: 'flex', flexWrap: 'wrap', gap: isExtintores ? '6px' : '15px', justifyContent: 'center' }}>
                 {Object.entries(inspection.fotos).map(([fotoId, url], i) => {
                   let itemName = fotoId;
-                  metadata.tipo?.secciones.forEach((sec: any) => {
-                    const found = sec.items.find((it: any) => it.id === fotoId);
-                    if (found) itemName = found.pregunta;
+                  (metadata.tipo?.secciones || []).forEach((sec: any) => {
+                    const found = (sec.items || []).find((it: any) => it.id === fotoId);
+                    if (found) itemName = found.pregunta || found.label || fotoId;
                   });
                   const numFotos = Object.keys(inspection.fotos || {}).length;
                   const itemWidth = isExtintores 

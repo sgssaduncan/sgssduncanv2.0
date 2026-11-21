@@ -504,7 +504,7 @@ function PlanDetailModal({ plan, empleados, onClose, onUpdate }: ModalProps) {
         <div className="flex-1 p-8 md:p-10 overflow-y-auto no-scrollbar space-y-8">
           <div className="flex items-center justify-between mb-2">
             <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-100">
-               ID: {plan.id.substring(0, 8)}
+               ID: {(plan.id || (plan as any)._id || '001').substring(0, 8)}
             </span>
             <button onClick={onClose} className="p-2 hover:bg-slate-50 rounded-full transition-colors text-slate-400">
               <X size={24} />

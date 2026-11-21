@@ -420,7 +420,7 @@ export default function MedicalEvaluationsManager() {
               <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-200">
                 <div>
                   <div className="text-xs text-slate-500 font-semibold">Número de Autorización:</div>
-                  <div className="text-sm font-bold text-slate-800">{selectedEval.numeroAutorizacion || `AUT-MED-${selectedEval.id.substring(0, 8)}`}</div>
+                  <div className="text-sm font-bold text-slate-800">{selectedEval.numeroAutorizacion || `AUT-MED-${(selectedEval.id || (selectedEval as any)._id || '001').substring(0, 8)}`}</div>
                 </div>
                 <div className="text-right">
                   <div className="text-xs text-slate-500 font-semibold">Estado:</div>

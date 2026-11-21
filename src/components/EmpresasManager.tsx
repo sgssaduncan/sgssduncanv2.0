@@ -251,7 +251,7 @@ export default function EmpresasManager({ onBack }: { onBack: () => void }) {
                 const isEditing = editingId === emp.id;
                 return (
                   <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 text-xs font-mono text-slate-400">{emp.id.substring(0, 8)}</td>
+                    <td className="px-6 py-4 text-xs font-mono text-slate-400">{(emp.id || (emp as any)._id || '').substring(0, 8)}</td>
                     <td className="px-6 py-4">
                       {isEditing ? (
                          <input 

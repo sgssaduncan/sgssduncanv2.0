@@ -117,6 +117,7 @@ export interface Inspeccion {
   estado: EstadoInspeccion;
   resultado?: ResultadoInspeccion;
   respuestas: Record<string, any>;
+  respuestasAdicionales?: Record<string, string>;
   formResponses?: string;
   formObservations?: string;
   formAdditional?: string;

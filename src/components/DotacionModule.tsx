@@ -493,7 +493,7 @@ function SolicitudDetalleModal({ solicitud, empleados, inventario, entregas, onC
 
         doc.setFont('helvetica', 'normal');
         doc.text('SST-F-DOT-ACTA', col3X + 20, currentY + 4.2);
-        doc.text(solicitud.id.substring(0, 10).toUpperCase(), col3X + 20, currentY + 10.2);
+        doc.text((solicitud.id || (solicitud as any)._id || 'DOT-001').substring(0, 10).toUpperCase(), col3X + 20, currentY + 10.2);
         doc.text(formatDateString(solicitud.createdAt), col3X + 20, currentY + 16.2);
         doc.setFont('helvetica', 'bold');
         doc.text((solicitud.estado || 'REGISTRADA').toUpperCase(), col3X + 20, currentY + 22.2);

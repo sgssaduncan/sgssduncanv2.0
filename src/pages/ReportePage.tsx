@@ -23,21 +23,69 @@ export default function ReportePage() {
     );
   }
 
+  // Extraer respuestas, firmas y adicionales de forma segura
+  let parsedResponses: Record<string, any> = {};
+  try {
+    if (inspeccion.respuestas && typeof inspeccion.respuestas === 'object') {
+      parsedResponses = { ...inspeccion.respuestas };
+    } else if (inspeccion.formResponses) {
+      parsedResponses = JSON.parse(inspeccion.formResponses);
+    }
+  } catch (e) {
+    parsedResponses = {};
+  }
+
+  let parsedFirmas: Record<string, string> = {};
+  try {
+    if (inspeccion.firmas && typeof inspeccion.firmas === 'object') {
+      parsedFirmas = { ...inspeccion.firmas };
+    } else if (inspeccion.formSignatures) {
+      parsedFirmas = JSON.parse(inspeccion.formSignatures);
+    }
+  } catch (e) {
+    parsedFirmas = {};
+  }
+
+  let parsedAdditional: Record<string, string> = {};
+  try {
+    if (inspeccion.respuestasAdicionales && typeof inspeccion.respuestasAdicionales === 'object') {
+      parsedAdditional = { ...inspeccion.respuestasAdicionales };
+    } else if (inspeccion.formAdditional) {
+      parsedAdditional = JSON.parse(inspeccion.formAdditional);
+    }
+  } catch (e) {
+    parsedAdditional = {};
+  }
+
+  // Si hay campos adicionales (ubicacion, capacidad, etc.), integrarlos en respuestas para templates
+  Object.entries(parsedAdditional).forEach(([k, v]) => {
+    if (v && !parsedResponses[k]) {
+      parsedResponses[k] = v;
+    }
+  });
+
   // Mapear campos si faltan para compatibilidad total con el template avanzado
   const inspectionFull: Inspeccion = {
     ...inspeccion,
     id: inspeccion._id || inspeccion.id,
     empresaId: inspeccion.empresaId || 'emp_ddca',
+    empresaNombre: inspeccion.empresaNombre || 'Distribuidora Duncan, C.A.',
     localidadId: inspeccion.localidadId || 'loc_caracas',
+    localidadNombre: inspeccion.localidadNombre || 'Caracas',
     establecimientoId: inspeccion.establecimientoId || 'est_dist_ccs',
+    establecimientoNombre: inspeccion.establecimientoNombre || 'Distribuidora Duncan Caracas',
     tipoInspeccionId: inspeccion.tipoInspeccionId || 'ti_ext',
+    tipoCodigo: inspeccion.tipoCodigo || 'GEN',
+    tipoNombre: inspeccion.tipoNombre || 'Inspección SSA',
     inspectorId: inspeccion.inspectorId || inspeccion.inspector || 'Francisco Rojas',
     inspector: inspeccion.inspector || inspeccion.inspectorId || 'Francisco Rojas',
     fecha: inspeccion.fecha,
     estado: (inspeccion.estado === 'completada' ? 'Completada' : inspeccion.estado === 'en_progreso' ? 'En Progreso' : 'Borrador') as any,
-    respuestas: inspeccion.respuestas || (inspeccion.formResponses ? JSON.parse(inspeccion.formResponses) : {}),
-    puntuacionConformidad: inspeccion.puntuacion || inspeccion.puntuacionConformidad || 100,
-    observaciones: inspeccion.observaciones || inspeccion.formObservations || '',
+    respuestas: parsedResponses,
+    firmas: parsedFirmas,
+    respuestasAdicionales: parsedAdditional,
+    puntuacionConformidad: inspeccion.puntuacion ?? inspeccion.puntuacionConformidad ?? 100,
+    observaciones: inspeccion.observaciones || (typeof inspeccion.formObservations === 'string' && !inspeccion.formObservations.startsWith('{') ? inspeccion.formObservations : '') || '',
     referencia: inspeccion.referencia || `INSP-${inspeccion.correlativo || '001'}`,
     createdAt: inspeccion.createdAt || inspeccion.actualizadoEn || new Date().toISOString(),
     updatedAt: inspeccion.updatedAt || inspeccion.actualizadoEn || new Date().toISOString(),
