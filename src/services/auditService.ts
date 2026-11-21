@@ -43,25 +43,42 @@ function getCurrentSessionUser() {
     if (raw) {
       const parsed = JSON.parse(raw);
       return {
-        id: parsed.id || parsed._id || 'usr_fr',
-        nombre: parsed.nombre || parsed.displayName || 'Francisco Rojas',
-        email: parsed.email || 'frojas@acumuladoresduncan.com',
-        rol: parsed.rol || parsed.role || 'SuperAdmin',
-        sede: parsed.establecimientoNombre || parsed.sede || 'Distribuidora Valencia',
-        empresa: parsed.empresaNombre || 'Distribuidora Duncan, C.A.'
+        id: parsed.id || parsed._id || 'usr_anonymous',
+        nombre: parsed.nombre || parsed.displayName || 'Usuario de Sesión',
+        email: parsed.email || 'usuario@duncan.com.ve',
+        rol: parsed.rol || parsed.role || 'Inspector',
+        sede: parsed.establecimientoNombre || parsed.sede || 'Planta Principal Los Ruices',
+        empresa: parsed.empresaNombre || 'Acumuladores Duncan, C.A.'
       };
     }
   } catch {
     // ignore
   }
   return {
-    id: 'usr_fr',
-    nombre: 'Francisco Rojas',
-    email: 'frojas@acumuladoresduncan.com',
-    rol: 'SuperAdmin',
-    sede: 'Sede Principal Valencia',
-    empresa: 'Distribuidora Duncan, C.A.'
+    id: 'usr_unauth',
+    nombre: 'Usuario Anónimo / Sistema',
+    email: 'anonimo@duncan.local',
+    rol: 'Sin Autenticación',
+    sede: 'Acceso Local',
+    empresa: 'SGD Duncan 2.0'
   };
+}
+
+async function computeAuditHash(entry: Partial<AuditLogEntry>, prevHash: string = ''): Promise<string> {
+  const content = `${prevHash}|${entry.id}|${entry.timestamp}|${entry.usuarioId}|${entry.accion}|${entry.entidadTipo}|${entry.entidadId || ''}|${entry.descripcion}`;
+  if (typeof crypto !== 'undefined' && crypto.subtle) {
+    try {
+      const buf = new TextEncoder().encode(content);
+      const hashBuf = await crypto.subtle.digest('SHA-256', buf);
+      return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch {}
+  }
+  let h = 0;
+  for (let i = 0; i < content.length; i++) {
+    h = ((h << 5) - h) + content.charCodeAt(i);
+    h |= 0;
+  }
+  return 'h_' + Math.abs(h).toString(16);
 }
 
 // Semilla inicial realista de eventos de auditoría si la bitácora está vacía
@@ -284,8 +301,16 @@ class AuditService {
     const pad = (n: number) => n.toString().padStart(2, '0');
     const fechaFormateada = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 
+    const currentLogs = this.getLocalLogs();
+    const prevLog = currentLogs.length > 0 ? currentLogs[0] : null;
+    const previousHash = prevLog?.hash || 'GENESIS_HASH_SGD2_SECURE';
+
+    const logId = (typeof crypto !== 'undefined' && crypto.randomUUID) 
+      ? `aud_${crypto.randomUUID()}`
+      : `aud_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
     const newEntry: AuditLogEntry = {
-      id: `aud_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      id: logId,
       timestamp: now.toISOString(),
       fechaFormateada,
       usuarioId: user.id,
@@ -302,15 +327,17 @@ class AuditService {
       descripcion: event.descripcion,
       detalles: event.detalles,
       severidad: event.severidad || 'INFO',
-      ip: '192.168.1.100', // Client IP / Local Tag
+      ip: '127.0.0.1 (Local Client)',
       userAgent: device.userAgent,
       dispositivo: device.dispositivo,
       plataforma: device.plataforma,
       online: typeof navigator !== 'undefined' ? navigator.onLine : true,
-      ruta: event.ruta || (typeof window !== 'undefined' ? window.location.pathname : undefined)
+      ruta: event.ruta || (typeof window !== 'undefined' ? window.location.pathname : undefined),
+      previousHash
     };
 
-    const currentLogs = this.getLocalLogs();
+    newEntry.hash = await computeAuditHash(newEntry, previousHash);
+
     currentLogs.unshift(newEntry);
     this.saveLocalLogs(currentLogs);
 
@@ -320,6 +347,49 @@ class AuditService {
     }
 
     return newEntry;
+  }
+
+  /**
+   * Verifica la integridad criptográfica de la cadena de auditoría forense (SHA-256 Chained Hashes)
+   */
+  async verifyIntegrity(): Promise<{ valid: boolean; total: number; tamperedIndex?: number; message: string }> {
+    const logs = this.getLocalLogs();
+    if (logs.length === 0) {
+      return { valid: true, total: 0, message: 'Bitácora sin eventos registrados.' };
+    }
+
+    for (let i = 0; i < logs.length; i++) {
+      const entry = logs[i];
+      const nextOlder = i + 1 < logs.length ? logs[i + 1] : null;
+      const expectedPrevHash = nextOlder?.hash || 'GENESIS_HASH_SGD2_SECURE';
+
+      if (entry.previousHash && entry.previousHash !== expectedPrevHash) {
+        return {
+          valid: false,
+          total: logs.length,
+          tamperedIndex: i,
+          message: `Ruptura de cadena en evento ${entry.id} (posición ${i}): previousHash no coincide.`
+        };
+      }
+
+      if (entry.hash) {
+        const computed = await computeAuditHash(entry, entry.previousHash || expectedPrevHash);
+        if (computed !== entry.hash) {
+          return {
+            valid: false,
+            total: logs.length,
+            tamperedIndex: i,
+            message: `Hash manipulado en evento ${entry.id} (posición ${i}): firma SHA-256 no coincide.`
+          };
+        }
+      }
+    }
+
+    return {
+      valid: true,
+      total: logs.length,
+      message: `Integridad verificada con éxito: ${logs.length} eventos inmutables validados.`
+    };
   }
 
   /**

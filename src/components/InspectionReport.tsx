@@ -145,7 +145,7 @@ export default function InspectionReport({
       const populate = () => {
         const target = document.getElementById("print-preview-modal-content");
         if (target) {
-          target.innerHTML = reportRef.current.innerHTML;
+          if (reportRef.current) { target.replaceChildren(reportRef.current.cloneNode(true)); }
         } else {
           requestAnimationFrame(populate);
         }

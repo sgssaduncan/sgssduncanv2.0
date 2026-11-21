@@ -17,6 +17,11 @@ interface PDFGeneratorResult {
  * Generador Oficial de Reportes de Inspección Técnica SSA Duncan
  * Modelo idéntico a los primeros reportes oficiales (INFORME OFICIAL: SSA)
  */
+function isValidImageSignature(data?: string): boolean {
+  if (!data || typeof data !== 'string') return false;
+  return /^data:image\/(png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=]+$/.test(data);
+}
+
 export function generarInspeccionPDF(inspection: Inspeccion, metadataInput?: any): PDFGeneratorResult {
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -288,7 +293,7 @@ export function generarInspeccionPDF(inspection: Inspeccion, metadataInput?: any
   const col2CenterX = pageWidth - marginX - 45;
 
   // Firma Inspector SSA (Izquierda)
-  if (firmas.inspector && firmas.inspector.startsWith('data:image')) {
+  if (isValidImageSignature(firmas.inspector)) {
     try {
       doc.addImage(firmas.inspector, 'PNG', col1CenterX - 20, signLineY - 14, 40, 13);
     } catch (e) {
@@ -311,7 +316,7 @@ export function generarInspeccionPDF(inspection: Inspeccion, metadataInput?: any
   doc.text('Elaborado por (Inspector SSA)', col1CenterX, signLineY + 7.5, { align: 'center' });
 
   // Firma Supervisor / Sede (Derecha)
-  if (firmas.revisor && firmas.revisor.startsWith('data:image')) {
+  if (isValidImageSignature(firmas.revisor)) {
     try {
       doc.addImage(firmas.revisor, 'PNG', col2CenterX - 20, signLineY - 14, 40, 13);
     } catch (e) {

@@ -56,7 +56,7 @@ interface SGDContextType {
   findUserAccount: (query: string) => { found: boolean; user?: Usuario; empleado?: Empleado; message?: string };
   findUserByCedula: (cedula: string) => { found: boolean; user?: Usuario; empleado?: Empleado; message?: string };
   findUserByEmail: (email: string) => Usuario | null;
-  resetPasswordWithIdentity: (params: { email: string; cedula?: string; newPassword: string }) => Promise<{ success: boolean; user?: Usuario; message: string }>;
+  resetPasswordWithIdentity: (params: { email: string; code?: string; cedula?: string; newPassword: string }) => Promise<{ success: boolean; user?: Usuario; message: string }>;
   requestRecoveryCode: (email: string) => Promise<{ success: boolean; code?: string; message: string; sentViaEmail: boolean }>;
   verifyRecoveryCode: (email: string, code: string) => boolean;
 }
@@ -285,7 +285,7 @@ export function SGDProvider({ children }: { children: React.ReactNode }) {
   const findUserAccount = (query: string) => gsApi.findUserAccount(query);
   const findUserByCedula = (cedula: string) => gsApi.findUserAccount(cedula);
   const findUserByEmail = (email: string) => gsApi.findUserByEmail(email);
-  const resetPasswordWithIdentity = async (params: { email: string; cedula?: string; newPassword: string }) => {
+  const resetPasswordWithIdentity = async (params: { email: string; code?: string; cedula?: string; newPassword: string }) => {
     const res = await gsApi.resetPasswordWithIdentity(params);
     if (res.success) {
       await refreshData();

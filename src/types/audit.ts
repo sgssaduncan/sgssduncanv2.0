@@ -71,6 +71,8 @@ export interface AuditLogEntry {
   plataforma: string;
   online: boolean;
   ruta?: string;
+  previousHash?: string;
+  hash?: string;
 }
 
 export interface AuditFilter {

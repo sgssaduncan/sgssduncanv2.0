@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { SGDProvider } from './contexts/SGDContext';
 import Layout from './components/Layout';
+import ProtectedRoute from './components/ProtectedRoute';
 
 // Páginas
 import DashboardPage from './pages/DashboardPage';
@@ -62,17 +63,59 @@ export default function App() {
               {/* Salud y Bienestar */}
               <Route path="trabajadores" element={<TrabajadoresPage />} />
               <Route path="dotacion" element={<DotacionPage />} />
-              <Route path="medico" element={<MedicoPage />} />
+              <Route 
+                path="medico" 
+                element={
+                  <ProtectedRoute allowedRoles={['Super Admin', 'Propietario / Super Admin', 'Admin', 'Supervisor']}>
+                    <MedicoPage />
+                  </ProtectedRoute>
+                } 
+              />
               <Route path="accidentes" element={<AccidentesPage />} />
               <Route path="formacion" element={<FormacionPage />} />
               
               {/* Auditoría y Gestión */}
-              <Route path="auditoria" element={<AuditoriaPage />} />
-              <Route path="consolidador" element={<ConsolidadorPage />} />
+              <Route 
+                path="auditoria" 
+                element={
+                  <ProtectedRoute allowedRoles={['Super Admin', 'Propietario / Super Admin', 'Admin']}>
+                    <AuditoriaPage />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="consolidador" 
+                element={
+                  <ProtectedRoute allowedRoles={['Super Admin', 'Propietario / Super Admin', 'Admin', 'Supervisor']}>
+                    <ConsolidadorPage />
+                  </ProtectedRoute>
+                } 
+              />
               <Route path="comites" element={<ComitesPage />} />
-              <Route path="reportes" element={<ReportesPage />} />
-              <Route path="usuarios" element={<UsuariosPage />} />
-              <Route path="ajustes" element={<AjustesPage />} />
+              <Route 
+                path="reportes" 
+                element={
+                  <ProtectedRoute allowedRoles={['Super Admin', 'Propietario / Super Admin', 'Admin', 'Supervisor']}>
+                    <ReportesPage />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="usuarios" 
+                element={
+                  <ProtectedRoute allowedRoles={['Super Admin', 'Propietario / Super Admin', 'Admin']}>
+                    <UsuariosPage />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="ajustes" 
+                element={
+                  <ProtectedRoute allowedRoles={['Super Admin', 'Propietario / Super Admin', 'Admin']}>
+                    <AjustesPage />
+                  </ProtectedRoute>
+                } 
+              />
               
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>

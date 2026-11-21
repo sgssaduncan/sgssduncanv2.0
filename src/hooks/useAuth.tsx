@@ -21,10 +21,10 @@ export function useAuth(): AuthContextType {
     const u = gsApi.getCurrentUser();
     if (!u) return null;
     return {
-      id: u._id || u.id || 'usr_admin',
+      id: u._id || u.id || 'usr_user',
       email: u.email,
       displayName: u.nombre || u.displayName || u.email.split('@')[0],
-      role: (u.rol || u.role || 'Super Admin') as Role,
+      role: (u.rol || u.role || 'Inspector') as Role,
       photoURL: u.fotoUrl || u.photoURL,
     };
   });
@@ -36,10 +36,10 @@ export function useAuth(): AuthContextType {
       const u = gsApi.getCurrentUser();
       if (u) {
         setProfile({
-          id: u._id || u.id || 'usr_admin',
+          id: u._id || u.id || 'usr_user',
           email: u.email,
           displayName: u.nombre || u.displayName || u.email.split('@')[0],
-          role: (u.rol || u.role || 'Super Admin') as Role,
+          role: (u.rol || u.role || 'Inspector') as Role,
           photoURL: u.fotoUrl || u.photoURL,
         });
       } else {
@@ -56,17 +56,18 @@ export function useAuth(): AuthContextType {
   }, []);
 
   const signIn = useCallback(async (email?: string, password?: string) => {
+    if (!email || !password) {
+      return false;
+    }
     setLoading(true);
     try {
-      const targetEmail = email || 'aabecerra852@gmail.com';
-      const targetPass = password || 'Panelas369*';
-      const res = await gsApi.login(targetEmail, targetPass);
+      const res = await gsApi.login(email.trim(), password.trim());
       if (res.success && res.user) {
         setProfile({
-          id: res.user._id || res.user.id || 'usr_admin',
+          id: res.user._id || res.user.id || 'usr_user',
           email: res.user.email,
           displayName: res.user.nombre || res.user.email.split('@')[0],
-          role: (res.user.rol || res.user.role || 'Super Admin') as Role,
+          role: (res.user.rol || res.user.role || 'Inspector') as Role,
           photoURL: res.user.fotoUrl || res.user.photoURL,
         });
         return true;
@@ -78,7 +79,7 @@ export function useAuth(): AuthContextType {
   }, []);
 
   const logout = useCallback(async () => {
-    gsApi.logout();
+    await gsApi.logout();
     setProfile(null);
   }, []);
 
@@ -93,13 +94,11 @@ export function useAuth(): AuthContextType {
   const emailLow = (profile?.email || '').toLowerCase().trim();
   const role = profile?.role || profile?.rol || '';
   
-  // Acceso total irrestricto para cuentas maestras de Propietarios y Desarrolladores
-  const isSpecialDeveloperOwner = isOwnerOrDeveloperEmail(emailLow);
-  const isOwner = isSpecialDeveloperOwner || role.includes('Propietario');
-  const isDeveloper = isSpecialDeveloperOwner || emailLow === 'sgssaduncan@gmail.com' || emailLow.includes('francisco.rojasp');
-  const isAdmin = isSpecialDeveloperOwner || role.includes('Admin') || role.includes('Propietario');
-  const isSuperAdmin = isSpecialDeveloperOwner || role.includes('Super Admin') || role.includes('Propietario');
-  const canAccessAll = isSpecialDeveloperOwner || isOwner || isDeveloper || isSuperAdmin;
+  const isOwner = role.includes('Propietario') || isOwnerOrDeveloperEmail(emailLow, role);
+  const isSuperAdmin = isOwner || role.includes('Super Admin');
+  const isAdmin = isSuperAdmin || role.includes('Admin');
+  const isDeveloper = isOwner || isSuperAdmin;
+  const canAccessAll = isOwner || isSuperAdmin || isAdmin;
 
   return {
     user,

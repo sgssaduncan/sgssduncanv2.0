@@ -12,14 +12,11 @@ import {
   Wifi, 
   WifiOff, 
   RefreshCw, 
-  AlertCircle,
-  ChevronRight, 
   Package, 
   Stethoscope, 
   Lock, 
   FileText, 
   Crown, 
-  User,
   Truck,
   ShieldAlert,
   Flame,
@@ -32,16 +29,20 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { isOwnerOrDeveloperEmail } from '../types';
+import type { Role } from '../types';
+
+interface NavItem {
+  to: string;
+  icon: any;
+  label: string;
+  badge?: string;
+  exact?: boolean;
+  allowedRoles?: Role[];
+}
 
 interface NavGroup {
   category: string;
-  items: {
-    to: string;
-    icon: any;
-    label: string;
-    badge?: string;
-    exact?: boolean;
-  }[];
+  items: NavItem[];
 }
 
 const NAV_GROUPS: NavGroup[] = [
@@ -49,7 +50,12 @@ const NAV_GROUPS: NavGroup[] = [
     category: 'VISTA GENERAL',
     items: [
       { to: '/', icon: LayoutDashboard, label: 'Dashboard Principal', exact: true },
-      { to: '/consolidador', icon: BarChart2, label: 'Reportes Consolidados' }
+      { 
+        to: '/consolidador', 
+        icon: BarChart2, 
+        label: 'Reportes Consolidados',
+        allowedRoles: ['Super Admin', 'Propietario / Super Admin', 'Admin', 'Supervisor']
+      }
     ]
   },
   {
@@ -73,7 +79,12 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: '/trabajadores', icon: Users, label: 'Nómina & Trabajadores', badge: 'RRHH' },
       { to: '/dotacion', icon: Package, label: 'Dotación EPP y Uniformes' },
-      { to: '/medico', icon: Stethoscope, label: 'Salud, Plombemia & Vacaciones' },
+      { 
+        to: '/medico', 
+        icon: Stethoscope, 
+        label: 'Salud, Plombemia & Vacaciones',
+        allowedRoles: ['Super Admin', 'Propietario / Super Admin', 'Admin', 'Supervisor']
+      },
       { to: '/accidentes', icon: AlertTriangle, label: 'Accidentes F-465 (INPSASEL)' },
       { to: '/formacion', icon: GraduationCap, label: 'Formación & RACDA (2m)' },
       { to: '/comites', icon: Building, label: 'Comités CSSL & Delegados' }
@@ -82,10 +93,31 @@ const NAV_GROUPS: NavGroup[] = [
   {
     category: 'SISTEMA & REPORTES',
     items: [
-      { to: '/auditoria', icon: ShieldCheck, label: 'Auditoría & Trazabilidad', badge: 'FORENSE' },
-      { to: '/reportes', icon: FileText, label: 'Informes Ejecutivos' },
-      { to: '/usuarios', icon: Users, label: 'Usuarios y Accesos' },
-      { to: '/ajustes', icon: Settings, label: 'Ajustes & Google Sheets' }
+      { 
+        to: '/auditoria', 
+        icon: ShieldCheck, 
+        label: 'Auditoría & Trazabilidad', 
+        badge: 'FORENSE',
+        allowedRoles: ['Super Admin', 'Propietario / Super Admin', 'Admin']
+      },
+      { 
+        to: '/reportes', 
+        icon: FileText, 
+        label: 'Informes Ejecutivos',
+        allowedRoles: ['Super Admin', 'Propietario / Super Admin', 'Admin', 'Supervisor']
+      },
+      { 
+        to: '/usuarios', 
+        icon: Users, 
+        label: 'Usuarios y Accesos',
+        allowedRoles: ['Super Admin', 'Propietario / Super Admin', 'Admin']
+      },
+      { 
+        to: '/ajustes', 
+        icon: Settings, 
+        label: 'Ajustes & Google Sheets',
+        allowedRoles: ['Super Admin', 'Propietario / Super Admin', 'Admin']
+      }
     ]
   }
 ];
@@ -108,6 +140,22 @@ export default function Layout() {
 
   const isActive = (to: string, exact?: boolean) =>
     exact ? location.pathname === to : location.pathname.startsWith(to) && to !== '/';
+
+  const userRole = (currentUser.rol || currentUser.role || '') as Role;
+  const isSuperAdminOrOwner = 
+    userRole === 'Super Admin' || 
+    userRole === 'Propietario / Super Admin' ||
+    userRole.includes('Propietario') ||
+    userRole.includes('Super Admin') ||
+    isOwnerOrDeveloperEmail(currentUser.email);
+
+  const canAccessItem = (item: NavItem) => {
+    if (!item.allowedRoles || item.allowedRoles.length === 0) return true;
+    if (isSuperAdminOrOwner) return true;
+    return item.allowedRoles.includes(userRole);
+  };
+
+  const canManageUsers = isSuperAdminOrOwner || userRole === 'Admin';
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
@@ -158,43 +206,58 @@ export default function Layout() {
 
         {/* Tarjeta de Usuario Activo y Logout */}
         {currentUser && (() => {
-          const isOwnerDev = isOwnerOrDeveloperEmail(currentUser.email) || currentUser.rol?.includes('Propietario');
+          const isOwnerDev = isSuperAdminOrOwner;
+          const userCardContent = (
+            <>
+              <div className={`w-8 h-8 rounded-lg font-black text-xs flex items-center justify-center flex-shrink-0 shadow ${
+                isOwnerDev
+                  ? 'bg-amber-400 text-slate-950 font-black'
+                  : 'bg-blue-600 text-white'
+              }`}>
+                {currentUser.nombre?.slice(0, 2).toUpperCase() || 'US'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1">
+                  <p className="text-xs font-bold text-white truncate group-hover:text-amber-300 transition-colors">
+                    {currentUser.nombre}
+                  </p>
+                  {isOwnerDev && (
+                    <Crown className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                  )}
+                </div>
+                <p className="text-[10px] text-slate-400 truncate font-semibold">
+                  {isOwnerDev ? 'Propietario / Desarrollador' : currentUser.rol}
+                </p>
+              </div>
+            </>
+          );
+
           return (
             <div className="mx-3 mt-2.5 flex items-center gap-1.5">
-              <Link
-                to="/usuarios"
-                onClick={() => setSidebarOpen(false)}
-                className="flex-1 p-2 bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 rounded-xl flex items-center gap-2.5 transition-all group shadow-sm min-w-0"
-                title="Administrar usuarios y accesos"
-              >
-                <div className={`w-8 h-8 rounded-lg font-black text-xs flex items-center justify-center flex-shrink-0 shadow ${
-                  isOwnerDev
-                    ? 'bg-amber-400 text-slate-950 font-black'
-                    : 'bg-blue-600 text-white'
-                }`}>
-                  {currentUser.nombre.slice(0, 2).toUpperCase()}
+              {canManageUsers ? (
+                <Link
+                  to="/usuarios"
+                  onClick={() => setSidebarOpen(false)}
+                  className="flex-1 p-2 bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 rounded-xl flex items-center gap-2.5 transition-all group shadow-sm min-w-0"
+                  title="Administrar usuarios y accesos"
+                >
+                  {userCardContent}
+                </Link>
+              ) : (
+                <div
+                  className="flex-1 p-2 bg-slate-800/90 border border-slate-700/80 rounded-xl flex items-center gap-2.5 shadow-sm min-w-0"
+                  title="Perfil activo"
+                >
+                  {userCardContent}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1">
-                    <p className="text-xs font-bold text-white truncate group-hover:text-amber-300 transition-colors">
-                      {currentUser.nombre}
-                    </p>
-                    {isOwnerDev && (
-                      <Crown className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
-                    )}
-                  </div>
-                  <p className="text-[10px] text-slate-400 truncate font-semibold">
-                    {isOwnerDev ? 'Propietario / Desarrollador' : currentUser.rol}
-                  </p>
-                </div>
-              </Link>
+              )}
               <button
                 onClick={() => {
                   setSidebarOpen(false);
                   handleLogout();
                 }}
                 title="Cerrar sesión"
-                className="p-2.5 bg-slate-800/90 hover:bg-rose-950/70 hover:text-rose-400 text-slate-400 border border-slate-700/80 hover:border-rose-850 rounded-xl transition-all flex-shrink-0"
+                className="p-2.5 bg-slate-800/90 hover:bg-rose-950/70 hover:text-rose-400 text-slate-400 border border-slate-700/80 hover:border-rose-800 rounded-xl transition-all flex-shrink-0"
               >
                 <LogOut size={16} />
               </button>
@@ -202,45 +265,50 @@ export default function Layout() {
           );
         })()}
 
-        {/* Menú de Navegación con Categorías */}
+        {/* Menú de Navegación con Categorías filtradas por RBAC */}
         <nav className="flex-1 px-3 py-3 space-y-4 overflow-y-auto">
-          {NAV_GROUPS.map((group, gIdx) => (
-            <div key={gIdx} className="space-y-1">
-              <div className="px-3 text-[10px] font-black text-slate-400 tracking-wider">
-                {group.category}
+          {NAV_GROUPS.map((group, gIdx) => {
+            const visibleItems = group.items.filter(canAccessItem);
+            if (visibleItems.length === 0) return null;
+
+            return (
+              <div key={gIdx} className="space-y-1">
+                <div className="px-3 text-[10px] font-black text-slate-400 tracking-wider">
+                  {group.category}
+                </div>
+                <div className="space-y-0.5">
+                  {visibleItems.map((item) => {
+                    const Icon = item.icon;
+                    const active = isActive(item.to, item.exact);
+                    return (
+                      <Link
+                        key={item.to}
+                        to={item.to}
+                        onClick={() => setSidebarOpen(false)}
+                        className={cn(
+                          'flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all group',
+                          active
+                            ? 'bg-yellow-400 text-slate-950 shadow-sm font-bold'
+                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                        )}
+                      >
+                        <Icon className={cn('h-4 w-4 flex-shrink-0', active ? 'text-slate-950' : 'text-slate-400 group-hover:text-yellow-400')} />
+                        <span className="flex-1 truncate">{item.label}</span>
+                        {item.badge && (
+                          <span className={cn(
+                            "text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider",
+                            active ? "bg-slate-950 text-yellow-400" : "bg-slate-800 text-yellow-400 border border-yellow-500/30"
+                          )}>
+                            {item.badge}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="space-y-0.5">
-                {group.items.map((item) => {
-                  const Icon = item.icon;
-                  const active = isActive(item.to, item.exact);
-                  return (
-                    <Link
-                      key={item.to}
-                      to={item.to}
-                      onClick={() => setSidebarOpen(false)}
-                      className={cn(
-                        'flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all group',
-                        active
-                          ? 'bg-yellow-400 text-slate-950 shadow-sm font-bold'
-                          : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                      )}
-                    >
-                      <Icon className={cn('h-4 w-4 flex-shrink-0', active ? 'text-slate-950' : 'text-slate-400 group-hover:text-yellow-400')} />
-                      <span className="flex-1 truncate">{item.label}</span>
-                      {item.badge && (
-                        <span className={cn(
-                          "text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider",
-                          active ? "bg-slate-950 text-yellow-400" : "bg-slate-800 text-yellow-400 border border-yellow-500/30"
-                        )}>
-                          {item.badge}
-                        </span>
-                      )}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
 
         {/* Footer Sidebar */}

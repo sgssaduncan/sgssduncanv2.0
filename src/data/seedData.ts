@@ -1,5 +1,5 @@
 // ============================================================
-// SGD DUNCAN 2.0 — DATOS MAESTROS (SEED DATA)
+// SGD DUNCAN 2.0 — DATOS MAESTROS (SEED DATA BLINDADOS)
 // 3 Empresas | 11 Localidades | 63 Establecimientos | 16 Tipos de Inspección
 // ============================================================
 
@@ -100,6 +100,10 @@ export const INITIAL_TIPOS_INSPECCION: TipoInspeccion[] = [
   { _id: 'ti_gen', codigo: 'GEN', nombre: 'Inspección General', descripcion: 'Inspección general de instalaciones', frecuencia: 'Mensual', categoria: 'SSA General', icono: '📊' },
 ];
 
+/**
+ * Cuentas iniciales sanitizadas sin contraseñas ni datos privados.
+ * La autenticación y verificación de credenciales es 100% procesada en el backend.
+ */
 export const INITIAL_USUARIOS: Usuario[] = [
   {
     _id: 'usr_admin_duncan',
@@ -109,108 +113,34 @@ export const INITIAL_USUARIOS: Usuario[] = [
     cargo: 'Gerente General SST Duncan',
     localidad: 'Oficinas Centrales Los Ruices',
     rol: 'Propietario / Super Admin',
-    password: 'Duncan2026*',
     activo: true,
   },
   {
-    _id: 'usr_admin_becerra',
-    email: 'aabecerra852@gmail.com',
-    cedula: 'V-14567890',
-    nombre: 'A. Becerra (Administrador del Sistema)',
-    cargo: 'Administrador del Sistema',
+    _id: 'usr_sst_duncan',
+    email: 'sst@duncan.com.ve',
+    cedula: 'V-10000002',
+    nombre: 'Coordinador SST / SSA Duncan',
+    cargo: 'Especialista Técnico SSA',
     localidad: 'Planta Principal Los Ruices',
-    rol: 'Propietario / Super Admin',
-    password: 'Panelas369*',
+    rol: 'Admin',
     activo: true,
   },
   {
-    _id: 'usr_francisco',
-    email: 'francisco.rojasp@gmail.com',
-    cedula: 'V-12033632',
-    nombre: 'Francisco Rojas',
-    cargo: 'Propietario / Desarrollador Líder',
-    localidad: 'Sede Principal Los Ruices',
-    rol: 'Propietario / Super Admin',
-    password: 'Leo150873#*$',
-    activo: true,
-  },
-  {
-    _id: 'usr_sgssa',
-    email: 'sgssaduncan@gmail.com',
-    cedula: 'V-18765432',
-    nombre: 'SST / SSA Duncan',
-    cargo: 'Propietario SST / Coordinador SSA',
+    _id: 'usr_inspector_duncan',
+    email: 'inspector@duncan.com.ve',
+    cedula: 'V-10000003',
+    nombre: 'Inspector de Seguridad y Salud',
+    cargo: 'Inspector Técnico SSA',
     localidad: 'Planta Principal Los Ruices',
-    rol: 'Propietario / Super Admin',
-    password: 'Leo150873#*$',
+    rol: 'Inspector',
     activo: true,
-  },
+  }
 ];
 
 export const INITIAL_INSPECCIONES: any[] = [];
 export const INITIAL_PLAN_ACCION: any[] = [];
 export const INITIAL_EMPLEADOS: Empleado[] = [
-  ...PAYROLL_ACTIVE_WORKERS,
-  { 
-    _id: 'emp_01', 
-    cedula: 'V-15894123', 
-    nombre: 'Carlos Eduardo Mendoza', 
-    cargo: 'Operador de Formación y Carga', 
-    departamento: 'Producción', 
-    empresaNombre: 'Acumuladores Duncan, C.A.', 
-    activo: true,
-    fechaIngreso: '2021-03-15',
-    ultimoDisfruteVacacional: '2025-02-10',
-    diasVacacionesPendientes: 15
-  },
-  { 
-    _id: 'emp_02', 
-    cedula: 'V-18765432', 
-    nombre: 'José Manuel Rivas', 
-    cargo: 'Técnico de Mantenimiento Eléctrico', 
-    departamento: 'Mantenimiento', 
-    empresaNombre: 'Acumuladores Duncan, C.A.', 
-    activo: true,
-    fechaIngreso: '2019-07-01',
-    ultimoDisfruteVacacional: '2024-05-20', // Vencido (+18 meses)
-    diasVacacionesPendientes: 32
-  },
-  { 
-    _id: 'emp_03', 
-    cedula: 'V-20112345', 
-    nombre: 'María Alejandra Delgado', 
-    cargo: 'Supervisora de Distribución', 
-    departamento: 'Logística', 
-    empresaNombre: 'Distribuidora Duncan, C.A.', 
-    activo: true,
-    fechaIngreso: '2022-11-10',
-    ultimoDisfruteVacacional: '2026-01-15',
-    diasVacacionesPendientes: 0
-  },
-  { 
-    _id: 'emp_04', 
-    cedula: 'V-14567890', 
-    nombre: 'Roberto Antonio Gómez', 
-    cargo: 'Mecánico / Operador de Montacargas', 
-    departamento: 'Almacén', 
-    empresaNombre: 'Distribuidora Duncan, C.A.', 
-    activo: true,
-    fechaIngreso: '2018-02-01',
-    ultimoDisfruteVacacional: '2024-08-14', // Vencido (+15 meses)
-    diasVacacionesPendientes: 28
-  },
-  { 
-    _id: 'emp_05', 
-    cedula: 'V-19345678', 
-    nombre: 'Luis Fernando Castillo', 
-    cargo: 'Técnico de Servicentro', 
-    departamento: 'Servicio al Cliente', 
-    empresaNombre: 'Inversiones 1286, C.A.', 
-    activo: true,
-    fechaIngreso: '2023-04-18',
-    ultimoDisfruteVacacional: '2025-10-05',
-    diasVacacionesPendientes: 15
-  },
+  ...PAYROLL_ACTIVE_WORKERS
 ];
 
 export const INITIAL_EPP_INVENTARIO: any[] = [
@@ -236,7 +166,6 @@ export const INITIAL_LOTO_EQUIPOS: any[] = [
 ];
 
 export const INITIAL_EVALUACIONES_MEDICAS: any[] = [
-  { _id: 'med_01', empleadoNombre: 'Carlos Eduardo Mendoza', cedula: 'V-15894123', empresaNombre: 'Acumuladores Duncan, C.A.', establecimientoNombre: 'Planta Los Ruices', tipoEvaluacion: 'Especial Plombemia', fecha: '2026-02-15', medicoTratante: 'Dra. Elena Silva (Médico Ocupacional)', plombemiaValor: 18.5, audiometria: 'Normal', aptitud: 'Apto', observaciones: 'Nivel de plomo en sangre dentro de los límites biológicos permisibles (< 30 µg/dL).' },
-  { _id: 'med_02', empleadoNombre: 'José Manuel Rivas', cedula: 'V-18765432', empresaNombre: 'Acumuladores Duncan, C.A.', establecimientoNombre: 'Planta Los Ruices', tipoEvaluacion: 'Periódica Anual', fecha: '2026-01-20', medicoTratante: 'Dr. Marcos Valera', plombemiaValor: 24.2, audiometria: 'Normal', aptitud: 'Apto', observaciones: 'Examen físico y de laboratorio sin alteraciones relevantes. Se recomienda continuar uso estricto de respirador.' },
-  { _id: 'med_03', empleadoNombre: 'Roberto Antonio Gómez', cedula: 'V-14567890', empresaNombre: 'Distribuidora Duncan, C.A.', establecimientoNombre: 'Distribuidora Valencia', tipoEvaluacion: 'Periódica Anual', fecha: '2026-02-05', medicoTratante: 'Dra. Elena Silva', plombemiaValor: 12.0, audiometria: 'Hipoacusia Leve', aptitud: 'Apto con Restricciones', observaciones: 'Uso obligatorio y permanente de protector auditivo en zona de carga y montacargas.' },
+  { _id: 'med_demo_01', empleadoNombre: 'Trabajador Demostración 01', cedula: 'V-10000001', empresaNombre: 'Acumuladores Duncan, C.A.', establecimientoNombre: 'Planta Los Ruices', tipoEvaluacion: 'Control Periódico', fecha: '2026-02-15', medicoTratante: 'Servicio Médico Ocupacional', plombemiaValor: 12.0, audiometria: 'Normal', aptitud: 'Apto', observaciones: 'Examen de control ocupacional sin observaciones.' },
+  { _id: 'med_demo_02', empleadoNombre: 'Trabajador Demostración 02', cedula: 'V-10000002', empresaNombre: 'Acumuladores Duncan, C.A.', establecimientoNombre: 'Planta Los Ruices', tipoEvaluacion: 'Periódica Anual', fecha: '2026-01-20', medicoTratante: 'Servicio Médico Ocupacional', plombemiaValor: 14.5, audiometria: 'Normal', aptitud: 'Apto', observaciones: 'Condición apta con seguimiento de normas de higiene ocupacional.' },
 ];

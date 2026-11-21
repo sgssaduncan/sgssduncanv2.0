@@ -23,10 +23,11 @@ import {
 import type { Usuario, Role, Rol, Empleado } from '../types';
 
 // ============================================================
-// CLAVES DE ALMACENAMIENTO LOCAL
+// CLAVES DE ALMACENAMIENTO LOCAL Y SESIÓN (ZERO TRUST)
 // ============================================================
 const SK = {
   SHEETS_URL:        'sgd_sheets_url',
+  SESSION_TOKEN:     'sgd_session_token',
   INSPECCIONES:      'sgd_inspecciones',
   PLAN_ACCION:       'sgd_plan_accion',
   OFFLINE_QUEUE:     'sgd_offline_queue',
@@ -41,6 +42,26 @@ const SK = {
   LOTO_EQUIPOS:      'sgd_loto_equipos',
   LOTO_BLOQUEOS:     'sgd_loto_bloqueos',
 };
+
+export function getSessionToken(): string | null {
+  try {
+    return sessionStorage.getItem(SK.SESSION_TOKEN) || localStorage.getItem(SK.SESSION_TOKEN);
+  } catch {
+    return null;
+  }
+}
+
+export function setSessionToken(token: string | null) {
+  try {
+    if (token) {
+      sessionStorage.setItem(SK.SESSION_TOKEN, token);
+      localStorage.setItem(SK.SESSION_TOKEN, token);
+    } else {
+      sessionStorage.removeItem(SK.SESSION_TOKEN);
+      localStorage.removeItem(SK.SESSION_TOKEN);
+    }
+  } catch {}
+}
 
 // ============================================================
 // CONFIGURACIÓN DE URL
@@ -92,7 +113,6 @@ function initLocalStorage() {
   if (!localStorage.getItem(SK.ESTABLECIMIENTOS)) localStorage.setItem(SK.ESTABLECIMIENTOS, JSON.stringify(INITIAL_ESTABLECIMIENTOS));
   try {
     let existing: Usuario[] = JSON.parse(localStorage.getItem(SK.USUARIOS) || '[]');
-    // Asegurar que las cuentas administradoras maestras estén presentes con credenciales y rol correcto
     INITIAL_USUARIOS.forEach(admin => {
       const idx = existing.findIndex(u => u.email.toLowerCase() === admin.email.toLowerCase());
       if (idx === -1) {
@@ -100,11 +120,11 @@ function initLocalStorage() {
       } else {
         existing[idx] = {
           ...existing[idx],
-          ...admin,
-          password: admin.password || existing[idx].password,
-          rol: admin.rol || 'Propietario / Super Admin',
+          nombre: admin.nombre,
+          rol: admin.rol || existing[idx].rol || 'Inspector',
           activo: true
         };
+        delete (existing[idx] as any).password;
       }
     });
     localStorage.setItem(SK.USUARIOS, JSON.stringify(existing));
@@ -115,13 +135,18 @@ function initLocalStorage() {
 initLocalStorage();
 
 // ============================================================
-// HELPERS HTTP
+// HELPERS HTTP CON TOKEN DE SESIÓN HMAC-SHA256
 // ============================================================
 async function fetchGAS(action: string, params: Record<string, any> = {}) {
   const url = getSheetsUrl();
   if (!url) return null;
   try {
-    const qs = new URLSearchParams({ action, ...params }).toString();
+    const token = getSessionToken();
+    const queryParams: Record<string, any> = { action, ...params };
+    if (token) {
+      queryParams.token = token;
+    }
+    const qs = new URLSearchParams(queryParams).toString();
     const res = await fetch(`${url}?${qs}`, { method: 'GET' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
@@ -134,8 +159,11 @@ async function fetchGAS(action: string, params: Record<string, any> = {}) {
 
 export async function postGAS(action: string, payload: Record<string, any> = {}) {
   const url = getSheetsUrl();
+  const token = getSessionToken();
+  const bodyData = { action, ...(token ? { token } : {}), ...payload };
+
   if (!url) {
-    enqueueOffline(action, payload);
+    enqueueOffline(action, bodyData);
     return { status: 'local_only' };
   }
   try {
@@ -143,24 +171,33 @@ export async function postGAS(action: string, payload: Record<string, any> = {})
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action, ...payload }),
+      body: JSON.stringify(bodyData),
     });
     const json = await res.json();
     return json;
   } catch (err) {
     console.warn(`[GAS] POST ${action} falló. Encolando offline.`, err);
-    enqueueOffline(action, payload);
+    enqueueOffline(action, bodyData);
     return { status: 'queued_offline' };
   }
 }
 
 // ============================================================
-// COLA OFFLINE
+// COLA OFFLINE CON IDEMPOTENCIA
 // ============================================================
 function enqueueOffline(action: string, payload: Record<string, any>) {
   try {
     const q = JSON.parse(localStorage.getItem(SK.OFFLINE_QUEUE) || '[]');
-    q.push({ id: `q_${Date.now()}_${Math.random().toString(36).slice(2,6)}`, action, payload, timestamp: new Date().toISOString() });
+    const transactionId = (typeof crypto !== 'undefined' && crypto.randomUUID) 
+      ? crypto.randomUUID() 
+      : `tx_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    q.push({
+      id: transactionId,
+      idempotencyKey: transactionId,
+      action,
+      payload,
+      timestamp: new Date().toISOString()
+    });
     localStorage.setItem(SK.OFFLINE_QUEUE, JSON.stringify(q));
   } catch (e) {
     console.error('Error encolando offline:', e);
@@ -502,134 +539,46 @@ export const gsApi = {
       return { success: false, message: 'Ingrese correo electrónico y contraseña.' };
     }
 
-    // 1. Verificación directa contra cuentas maestras autorizadas (Cero latencia, nunca bloquea a dueños/devs)
-    const masterAccount = INITIAL_USUARIOS.find(m => {
-      if (m.email.toLowerCase() !== emailLow) return false;
-      const passCleanLow = cleanPass.toLowerCase();
-      if (emailLow === 'francisco.rojasp@gmail.com' || emailLow === 'sgssaduncan@gmail.com') {
-        return (
-          cleanPass === (m.password || '').trim() ||
-          cleanPass === 'Leo150873#*$' ||
-          cleanPass === 'Leo150873#*' ||
-          cleanPass === 'Leo150873' ||
-          cleanPass.startsWith('Leo150873') ||
-          passCleanLow === 'duncan2026*' ||
-          passCleanLow === 'panelas369*'
-        );
-      }
-      if (emailLow === 'aabecerra852@gmail.com') {
-        return (
-          cleanPass === (m.password || '').trim() ||
-          passCleanLow === 'panelas369*' ||
-          passCleanLow === 'duncan2026*'
-        );
-      }
-      if (emailLow === 'admin@duncan.com.ve') {
-        return (
-          cleanPass === (m.password || '').trim() ||
-          passCleanLow === 'duncan2026*' ||
-          passCleanLow === 'duncan2026'
-        );
-      }
-      return (m.password || '').trim() === cleanPass;
-    });
-    if (masterAccount) {
-      const fullMaster: Usuario = {
-        ...masterAccount,
-        rol: masterAccount.rol || 'Propietario / Super Admin',
-        activo: true
-      };
-      // Actualizar/insertar en el almacenamiento local con su clave correcta
-      const list = getLocal<Usuario>(SK.USUARIOS);
-      const idx = list.findIndex(u => u.email.toLowerCase() === emailLow);
-      if (idx !== -1) {
-        list[idx] = { ...list[idx], ...fullMaster };
-      } else {
-        list.unshift(fullMaster);
-      }
-      setLocal(SK.USUARIOS, list);
-      gsApi.setCurrentUser(fullMaster);
-      return { success: true, user: fullMaster };
-    }
-
-    // 2. Verificación en caché local
-    const list = getLocal<Usuario>(SK.USUARIOS);
-    const localUser = list.find(u => u.email.toLowerCase() === emailLow && (u.password || '').trim() === cleanPass);
-    if (localUser) {
-      if (localUser.activo === false) {
-        return { success: false, message: 'Esta cuenta se encuentra inactiva. Contacte al administrador del sistema.' };
-      }
-      gsApi.setCurrentUser(localUser);
-      postGAS('login', { email: emailLow, password: cleanPass }).catch(() => {});
-      return { success: true, user: localUser };
-    }
-
-    // 3. Verificación en vivo contra el backend de Google Sheets (GET y POST)
+    // 1. Verificación en el backend Google Apps Script mediante Zero Trust API
     try {
-      // Intento A: GET login (inmune a CORS y redirecciones de Google Apps Script)
-      const resGet: any = await fetchGAS('login', { email: emailLow, password: cleanPass });
-      if (resGet && (resGet.success || resGet.status === 'success') && resGet.user) {
-        const userData = resGet.user;
+      const resPost = await postGAS('login', { email: emailLow, password: cleanPass });
+      if (resPost && resPost.status === 'success' && resPost.data && resPost.data.token) {
+        setSessionToken(resPost.data.token);
+        const userData = resPost.data.user;
         const u: Usuario = {
           _id: userData._id || userData.id || `usr_${Date.now()}`,
           email: userData.email || emailLow,
           nombre: userData.nombre || emailLow.split('@')[0],
+          cedula: userData.cedula || '',
+          cargo: userData.cargo || '',
+          localidad: userData.localidad || '',
           rol: userData.rol || 'Inspector',
-          password: cleanPass,
           activo: true
         };
+
+        const list = getLocal<Usuario>(SK.USUARIOS);
         const updatedList = list.filter(x => x.email.toLowerCase() !== emailLow);
         updatedList.push(u);
         setLocal(SK.USUARIOS, updatedList);
         gsApi.setCurrentUser(u);
+
         return { success: true, user: u };
       }
 
-      // Intento B: POST login
-      const resPost = await postGAS('login', { email: emailLow, password: cleanPass });
-      if (resPost && resPost.data && resPost.data.success && resPost.data.user) {
-        const u: Usuario = {
-          _id: resPost.data.user._id || resPost.data.user.id || `usr_${Date.now()}`,
-          email: resPost.data.user.email || emailLow,
-          nombre: resPost.data.user.nombre || emailLow.split('@')[0],
-          rol: resPost.data.user.rol || 'Inspector',
-          password: cleanPass,
-          activo: true
-        };
-        const updatedList = list.filter(x => x.email.toLowerCase() !== emailLow);
-        updatedList.push(u);
-        setLocal(SK.USUARIOS, updatedList);
-        gsApi.setCurrentUser(u);
-        return { success: true, user: u };
-      }
-
-      // Intento C: Consulta directa de la tabla Usuarios de Google Sheets
-      const tableRes = await fetchGAS('getTableData', { table: 'Usuarios' });
-      if (tableRes && Array.isArray(tableRes)) {
-        const matchedInSheet = tableRes.find(
-          (row: any) => (row.email || '').trim().toLowerCase() === emailLow && String(row.password || '').trim() === cleanPass
-        );
-        if (matchedInSheet) {
-          const u: Usuario = {
-            _id: matchedInSheet._id || `usr_${Date.now()}`,
-            email: matchedInSheet.email || emailLow,
-            nombre: matchedInSheet.nombre || emailLow.split('@')[0],
-            rol: matchedInSheet.rol || 'Inspector',
-            password: cleanPass,
-            activo: matchedInSheet.activo !== false && matchedInSheet.activo !== 'false'
-          };
-          const updatedList = list.filter(x => x.email.toLowerCase() !== emailLow);
-          updatedList.push(u);
-          setLocal(SK.USUARIOS, updatedList);
-          gsApi.setCurrentUser(u);
-          return { success: true, user: u };
-        }
+      if (resPost && resPost.status === 'error') {
+        return { success: false, message: resPost.message || 'Credenciales inválidas.' };
       }
     } catch (err) {
-      console.warn('[AUTH] Error verificando contra backend Google Sheets:', err);
+      console.warn('[AUTH] Error validando con backend:', err);
     }
 
-    return { success: false, message: 'Credenciales inválidas. Verifique su correo electrónico y contraseña.' };
+    // 2. Modo Resiliente Offline: solo si la sesión previa coincide exactamente con el usuario local
+    const cur = gsApi.getCurrentUser();
+    if (cur && cur.email.toLowerCase() === emailLow && getSessionToken()) {
+      return { success: true, user: cur };
+    }
+
+    return { success: false, message: 'Credenciales inválidas o no se pudo validar la sesión con el servidor.' };
   },
 
   async registerUser(userData: {
@@ -652,55 +601,51 @@ export const gsApi = {
       return { success: false, message: 'Ingrese una dirección de correo electrónico válida.' };
     }
 
-    if (!emailClean.endsWith('@gmail.com')) {
-      return { success: false, message: 'El registro en el sistema requiere una cuenta de correo Gmail (@gmail.com).' };
-    }
-
-    if (!cleanPass || cleanPass.length < 6) {
-      return { success: false, message: 'La contraseña debe contener al menos 6 caracteres.' };
+    if (!cleanPass || cleanPass.length < 8) {
+      return { success: false, message: 'La contraseña debe contener al menos 8 caracteres.' };
     }
 
     const list = getLocal<Usuario>(SK.USUARIOS);
     const existingIdx = list.findIndex(u => u.email.toLowerCase() === emailClean);
 
     if (existingIdx !== -1) {
-      return { success: false, message: 'Este correo Gmail ya se encuentra registrado. Inicie sesión con su contraseña.' };
+      return { success: false, message: 'Este correo ya se encuentra registrado. Inicie sesión con su contraseña.' };
     }
 
-    // Determinación de rol: cuentas clave son Super Admin
-    const esAdmin = emailClean === 'aabecerra852@gmail.com' ||
-                    emailClean === 'francisco.rojasp@gmail.com' ||
-                    emailClean === 'sgssaduncan@gmail.com';
-    const rolFinal: Rol = esAdmin ? 'Propietario / Super Admin' : (userData.rol || 'Inspector');
+    const rolFinal: Rol = userData.rol || 'Inspector';
 
     const nuevoUsuario: Usuario = {
-      _id: 'usr_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
+      _id: (typeof crypto !== 'undefined' && crypto.randomUUID) 
+        ? `usr_${crypto.randomUUID()}`
+        : 'usr_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
       email: emailClean,
       nombre: userData.nombre.trim(),
       rol: rolFinal,
-      password: cleanPass,
       activo: true,
       cedula: userData.cedula?.trim(),
-      cargo: userData.cargo?.trim() || (rolFinal === 'Propietario / Super Admin' ? 'Administrador del Sistema' : 'Inspector SSA'),
+      cargo: userData.cargo?.trim() || 'Inspector SSA',
       localidad: userData.localidad?.trim() || 'Planta Principal Los Ruices',
       createdAt: new Date().toISOString()
     };
 
-    list.push(nuevoUsuario);
-    setLocal(SK.USUARIOS, list);
-    this.setCurrentUser(nuevoUsuario);
-
-    // Intento de sincronización con backend GAS
-    postGAS('saveUsuario', nuevoUsuario).catch(() => {});
-    await this.logAudit({
-      usuario: nuevoUsuario.nombre,
-      accion: 'REGISTRO_USUARIO',
-      entidad: 'Usuarios',
-      entidadId: nuevoUsuario._id,
-      detalles: `Registro de nuevo usuario con cuenta Gmail: ${nuevoUsuario.nombre} (${nuevoUsuario.email}) - Rol: ${nuevoUsuario.rol}`,
+    // Sincronización segura con backend GAS (con hash en servidor)
+    const resPost = await postGAS('saveUsuario', {
+      usuario: {
+        ...nuevoUsuario,
+        password: cleanPass
+      }
     });
 
-    return { success: true, user: nuevoUsuario };
+    if (resPost && resPost.status === 'success') {
+      list.push(nuevoUsuario);
+      setLocal(SK.USUARIOS, list);
+      return { success: true, user: nuevoUsuario };
+    }
+
+    return { 
+      success: false, 
+      message: resPost?.message || 'No fue posible registrar el usuario en el servidor.' 
+    };
   },
 
   getCurrentUser(): Usuario | null {
@@ -723,11 +668,27 @@ export const gsApi = {
     } catch {}
   },
 
-  logout() {
+  async logout() {
+    setSessionToken(null);
     this.setCurrentUser(null);
+    try {
+      localStorage.removeItem(SK.CURRENT_USER);
+      localStorage.removeItem(SK.USUARIOS);
+      localStorage.removeItem(SK.EMPLEADOS);
+      localStorage.removeItem(SK.EVALUACIONES_MED);
+      sessionStorage.clear();
+      if (typeof caches !== 'undefined') {
+        const cacheNames = await caches.keys();
+        await Promise.all(
+          cacheNames.filter(name => name.includes('google-sheets')).map(name => caches.delete(name))
+        );
+      }
+    } catch (e) {
+      console.warn('Aviso durante purga de logout:', e);
+    }
   },
 
-  // ── RECUPERACIÓN DE USUARIO Y CONTRASEÑA (METODOLOGÍA COSTO CERO) ──
+  // ── RECUPERACIÓN SEGURA DE ACCESO (ZERO-TRUST OTP) ──
 
   findUserAccount(query: string): {
     found: boolean;
@@ -735,9 +696,15 @@ export const gsApi = {
     empleado?: Empleado;
     message?: string;
   } {
+    // Protección contra enumeración pública de cuentas
+    const cur = this.getCurrentUser();
+    if (!cur) {
+      return { found: false, message: 'La consulta directa de usuarios requiere una sesión activa con permisos de administración.' };
+    }
+
     const raw = (query || '').trim();
     if (!raw) {
-      return { found: false, message: 'Por favor, ingrese un correo Gmail, nombre o número de cédula.' };
+      return { found: false, message: 'Por favor, ingrese un criterio de búsqueda.' };
     }
 
     const rawLower = raw.toLowerCase();
@@ -745,92 +712,44 @@ export const gsApi = {
     const usuarios = getLocal<Usuario>(SK.USUARIOS);
     const empleados = getLocal<Empleado>(SK.EMPLEADOS);
 
-    // 1. Si es formato de correo o contiene @
     if (rawLower.includes('@')) {
-      const u = usuarios.find(x => x.email.toLowerCase() === rawLower || x.email.toLowerCase().includes(rawLower));
+      const u = usuarios.find(x => x.email.toLowerCase() === rawLower);
       if (u) {
         return {
           found: true,
           user: u,
-          message: `Cuenta de usuario localizada para ${u.nombre} (${u.email}).`
+          message: `Cuenta de usuario localizada para ${u.nombre}.`
         };
       }
     }
 
-    // 2. Buscar por coincidencia de nombre en Usuarios
-    const userByName = usuarios.find(u => {
-      const nom = (u.nombre || '').toLowerCase();
-      return nom.includes(rawLower) || rawLower.includes(nom);
-    });
+    const userByName = usuarios.find(u => (u.nombre || '').toLowerCase().includes(rawLower));
     if (userByName) {
       return {
         found: true,
         user: userByName,
-        message: `Cuenta de usuario localizada para ${userByName.nombre} (${userByName.email}).`
+        message: `Cuenta de usuario localizada para ${userByName.nombre}.`
       };
     }
 
-    // 3. Si tiene números de cédula (al menos 4 dígitos)
     if (cleanNumbers.length >= 4) {
-      // Buscar en usuarios por cédula si existe
       const userByCed = usuarios.find(u => (u.cedula || '').replace(/[^0-9]/g, '') === cleanNumbers);
       if (userByCed) {
         return {
           found: true,
           user: userByCed,
-          message: `Cuenta de usuario localizada para ${userByCed.nombre} (${userByCed.email}).`
+          message: `Cuenta de usuario localizada para ${userByCed.nombre}.`
         };
       }
 
-      // Buscar en nómina de empleados activos
       const emp = empleados.find(e => (e.cedula || '').replace(/[^0-9]/g, '') === cleanNumbers);
       if (emp) {
-        // ¿Hay usuario con nombre coincidente?
-        const empWords = emp.nombre.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-        const matchUser = usuarios.find(u => {
-          const uNom = (u.nombre || '').toLowerCase();
-          return empWords.some(w => uNom.includes(w));
-        });
-        if (matchUser) {
-          return {
-            found: true,
-            user: matchUser,
-            empleado: emp,
-            message: `Cuenta de usuario localizada para ${matchUser.nombre} (${matchUser.email}).`
-          };
-        }
-        return {
-          found: false,
-          empleado: emp,
-          message: `El trabajador ${emp.nombre} (C.I. ${emp.cedula}) está en nómina activa de Duncan pero aún no ha registrado su cuenta de acceso.`
-        };
-      }
-    }
-
-    // 4. Buscar por nombre en empleados de nómina activa
-    const empByName = empleados.find(e => {
-      const nom = (e.nombre || '').toLowerCase();
-      return nom.includes(rawLower) || rawLower.includes(nom);
-    });
-    if (empByName) {
-      const empWords = empByName.nombre.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-      const matchUser = usuarios.find(u => {
-        const uNom = (u.nombre || '').toLowerCase();
-        return empWords.some(w => uNom.includes(w));
-      });
-      if (matchUser) {
         return {
           found: true,
-          user: matchUser,
-          empleado: empByName,
-          message: `Cuenta de usuario localizada para ${matchUser.nombre} (${matchUser.email}).`
+          empleado: emp,
+          message: `Trabajador localizado en nómina activa: ${emp.nombre}.`
         };
       }
-      return {
-        found: false,
-        empleado: empByName,
-        message: `El trabajador ${empByName.nombre} (C.I. ${empByName.cedula}) está en nómina activa de Duncan pero aún no ha registrado su cuenta de acceso.`
-      };
     }
 
     return {
@@ -852,71 +771,69 @@ export const gsApi = {
 
   async resetPasswordWithIdentity(params: {
     email: string;
+    code?: string;
     cedula?: string;
     newPassword: string;
   }): Promise<{ success: boolean; user?: Usuario; message: string }> {
     const cleanEmail = (params.email || '').trim().toLowerCase();
     const cleanPass = (params.newPassword || '').trim();
-    const cleanCedula = (params.cedula || '').replace(/[^0-9]/g, '');
+    const otpCode = (params.code || '').trim();
 
     if (!cleanEmail) {
       return { success: false, message: 'El correo electrónico es requerido.' };
     }
-    if (!cleanPass || cleanPass.length < 6) {
-      return { success: false, message: 'La nueva contraseña debe contener al menos 6 caracteres.' };
+    if (!cleanPass || cleanPass.length < 8) {
+      return { success: false, message: 'La nueva contraseña debe contener al menos 8 caracteres.' };
+    }
+    if (!otpCode) {
+      return { success: false, message: 'Se requiere el código de verificación OTP enviado a su correo.' };
     }
 
-    const list = getLocal<Usuario>(SK.USUARIOS);
-    const userIdx = list.findIndex(u => u.email.toLowerCase() === cleanEmail);
+    // 1. Verificación y restablecimiento mediante backend seguro Apps Script
+    try {
+      const resPost = await postGAS('recuperarPassword', {
+        email: cleanEmail,
+        code: otpCode,
+        newPassword: cleanPass
+      });
 
-    if (userIdx === -1) {
-      return { success: false, message: 'No existe ninguna cuenta registrada con este correo electrónico.' };
-    }
+      if (resPost && (resPost.status === 'success' || resPost.data?.status === 'success')) {
+        const list = getLocal<Usuario>(SK.USUARIOS);
+        const userIdx = list.findIndex(u => u.email.toLowerCase() === cleanEmail);
+        let user: Usuario | undefined;
+        if (userIdx !== -1) {
+          user = list[userIdx];
+          // Nunca almacenar contraseñas en texto plano
+          delete user.password;
+          list[userIdx] = user;
+          setLocal(SK.USUARIOS, list);
+        }
 
-    const user = list[userIdx];
+        await this.logAudit({
+          usuario: user ? user.nombre : cleanEmail,
+          accion: 'RESTABLECER_CONTRASENA',
+          entidad: 'Usuarios',
+          entidadId: user?._id || 'auth_reset',
+          detalles: `Contraseña restablecida de forma segura vía OTP para ${cleanEmail}`,
+        });
 
-    // Validación de identidad por cédula si la cuenta tiene cédula registrada
-    if (user.cedula && cleanCedula) {
-      const userCedClean = user.cedula.replace(/[^0-9]/g, '');
-      if (userCedClean !== cleanCedula) {
-        return { success: false, message: 'La cédula de identidad no coincide con los datos registrados para esta cuenta.' };
+        return {
+          success: true,
+          user,
+          message: '¡Contraseña restablecida exitosamente! Ya puede iniciar sesión con su nueva clave.'
+        };
       }
-    } else if (cleanCedula && !user.cedula) {
-      user.cedula = `V-${cleanCedula}`;
+
+      return {
+        success: false,
+        message: resPost?.message || 'Código OTP inválido o expirado. Solicite un nuevo código.'
+      };
+    } catch (e: any) {
+      return {
+        success: false,
+        message: e?.message || 'Error al comunicarse con el servidor de autenticación.'
+      };
     }
-
-    user.password = cleanPass;
-    list[userIdx] = user;
-    setLocal(SK.USUARIOS, list);
-
-    // Si coincide con usuario en sesión
-    const current = this.getCurrentUser();
-    if (current && current.email.toLowerCase() === cleanEmail) {
-      this.setCurrentUser(user);
-    }
-
-    // Sincronización en segundo plano con Google Sheets (Costo Cero)
-    postGAS('saveUsuario', user).catch(() => {});
-    postGAS('recuperarPassword', {
-      email: user.email,
-      newPassword: cleanPass,
-      cedula: user.cedula
-    }).catch(() => {});
-
-    // Registro de Auditoría Forense
-    await this.logAudit({
-      usuario: user.nombre,
-      accion: 'RESTABLECER_CONTRASENA',
-      entidad: 'Usuarios',
-      entidadId: user._id,
-      detalles: `Restablecimiento de contraseña por autogestión de usuario (Costo Cero): ${user.nombre} (${user.email})`,
-    });
-
-    return {
-      success: true,
-      user,
-      message: '¡Contraseña restablecida exitosamente! Ya puede iniciar sesión con su nueva clave.'
-    };
   },
 
   async requestRecoveryCode(emailQuery: string): Promise<{
@@ -926,64 +843,44 @@ export const gsApi = {
     sentViaEmail: boolean;
   }> {
     const cleanEmail = (emailQuery || '').trim().toLowerCase();
-    const user = this.findUserByEmail(cleanEmail);
-    if (!user) {
+    if (!cleanEmail) {
       return {
         success: false,
         sentViaEmail: false,
-        message: 'No se encontró ninguna cuenta registrada con este correo electrónico.'
+        message: 'Ingrese su dirección de correo electrónico.'
       };
     }
 
-    // Generar código OTP de 6 dígitos aleatorio
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
     try {
-      sessionStorage.setItem('sgd_recovery_otp', JSON.stringify({
-        email: cleanEmail,
-        code,
-        expiresAt: Date.now() + 15 * 60 * 1000 // 15 minutos
-      }));
-    } catch {}
+      const gasRes = await postGAS('solicitarCodigoRecuperacion', {
+        email: cleanEmail
+      });
 
-    let sentViaEmail = false;
-    // Si hay conexión con backend Google Sheets / Apps Script, enviar correo GRATIS vía MailApp
-    try {
-      if (navigator.onLine && isSheetsConfigured()) {
-        const gasRes = await postGAS('solicitarCodigoRecuperacion', {
-          email: cleanEmail,
-          code,
-          nombre: user.nombre
-        });
-        if (gasRes && (gasRes.status === 'success' || gasRes.data?.status === 'success')) {
-          sentViaEmail = true;
-        }
+      if (gasRes && (gasRes.status === 'success' || gasRes.data?.status === 'success')) {
+        return {
+          success: true,
+          sentViaEmail: true,
+          message: `Código de seguridad enviado a ${cleanEmail}. Revise su bandeja de entrada (y carpeta de spam).`
+        };
       }
-    } catch (e) {
-      console.warn('Envío de correo GAS no completado (modo local/offline activo):', e);
-    }
 
-    return {
-      success: true,
-      code,
-      sentViaEmail,
-      message: sentViaEmail
-        ? `Código enviado con éxito a su correo Gmail (${cleanEmail}). Revise su bandeja de entrada.`
-        : `Código de seguridad generado para ${cleanEmail}. Puede usarlo de inmediato.`
-    };
+      return {
+        success: false,
+        sentViaEmail: false,
+        message: gasRes?.message || 'No se pudo enviar el código de recuperación. Verifique su correo o intente más tarde.'
+      };
+    } catch (e) {
+      return {
+        success: false,
+        sentViaEmail: false,
+        message: 'No hay conexión con el servidor para emitir el código de recuperación.'
+      };
+    }
   },
 
   verifyRecoveryCode(emailQuery: string, inputCode: string): boolean {
-    try {
-      const stored = sessionStorage.getItem('sgd_recovery_otp');
-      if (!stored) return false;
-      const data = JSON.parse(stored);
-      if (data.email === emailQuery.trim().toLowerCase() && data.code === inputCode.trim()) {
-        if (Date.now() <= data.expiresAt) {
-          return true;
-        }
-      }
-    } catch {}
-    return false;
+    // La verificación real se ejecuta de forma segura y timing-safe en el backend
+    return Boolean(emailQuery && inputCode && inputCode.trim().length === 6);
   },
 
   // ── EPP / DOTACIÓN ────────────────────────────────────────

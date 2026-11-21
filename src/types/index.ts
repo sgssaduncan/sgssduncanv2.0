@@ -6,18 +6,16 @@ export type Role = 'Super Admin' | 'Propietario / Super Admin' | 'Admin' | 'Insp
 export type Rol = Role;
 
 /**
- * Validador oficial de cuentas de Propietarios y Desarrolladores
- * con acceso total irrestricto a todos los comandos, acciones y módulos.
+ * Validador de cuentas de Propietarios y Administradores Principales
+ * basándose en el rol asignado o cuenta corporativa autorizada.
  */
-export function isOwnerOrDeveloperEmail(email?: string): boolean {
+export function isOwnerOrDeveloperEmail(email?: string, rol?: string): boolean {
+  if (rol && (rol.includes('Propietario') || rol.includes('Super Admin'))) return true;
   if (!email) return false;
   const e = email.toLowerCase().trim();
   return (
-    e === 'sgssaduncan@gmail.com' ||
-    e === 'francisco.rojasp@gmail.com' ||
-    e === 'francisco.rojasp@gmail' ||
-    e.startsWith('francisco.rojasp@gmail') ||
-    e === 'aabecerra852@gmail.com'
+    e === 'admin@duncan.com.ve' ||
+    e.endsWith('@duncan.com.ve')
   );
 }
 
