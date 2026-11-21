@@ -131,7 +131,7 @@ async function fetchGAS(action: string, params: Record<string, any> = {}) {
   }
 }
 
-async function postGAS(action: string, payload: Record<string, any> = {}) {
+export async function postGAS(action: string, payload: Record<string, any> = {}) {
   const url = getSheetsUrl();
   if (!url) {
     enqueueOffline(action, payload);

@@ -1,23 +1,40 @@
 // ============================================================
-// SGD DUNCAN 2.0 — TIPOS PRINCIPALES
+// SGD DUNCAN 2.0 — DEFINICIONES DE TIPOS GLOBALES
 // ============================================================
 
-export type Rol = 'Propietario / Super Admin' | 'Super Admin' | 'Admin' | 'Inspector';
-export type EstadoInspeccion = 'en_progreso' | 'completada' | 'borrador';
-export type ResultadoInspeccion = 'C' | 'NC' | 'OM' | 'NA' | undefined;
-export type PrioridadAccion = 'Critica' | 'Alta' | 'Media' | 'Baja';
-export type EstadoAccion = 'pendiente' | 'en_ejecucion' | 'cerrada' | 'vencida';
+export type Role = 'Super Admin' | 'Propietario / Super Admin' | 'Admin' | 'Inspector';
+export type Rol = Role;
+
+export interface UserProfile {
+  id?: string;
+  _id?: string;
+  email: string;
+  displayName?: string;
+  nombre?: string;
+  role?: Role;
+  rol?: Role;
+  password?: string;
+  photoURL?: string;
+  fotoUrl?: string;
+  empresaId?: string;
+  activo?: boolean;
+}
+
+export type Usuario = UserProfile;
 
 export interface Empresa {
-  _id: string;
-  codigo: string;
+  id?: string;
+  _id?: string;
   nombre: string;
+  codigo: string;
   rif: string;
   direccion?: string;
+  logoUrl?: string;
 }
 
 export interface Localidad {
-  _id: string;
+  id?: string;
+  _id?: string;
   empresaId: string;
   nombre: string;
   region?: string;
@@ -25,57 +42,114 @@ export interface Localidad {
 }
 
 export interface Establecimiento {
-  _id: string;
-  nombre: string;
+  id?: string;
+  _id?: string;
   localidadId: string;
-  localidadNombre: string;
-  tipo: 'Distribuidora' | 'Servicentro' | 'Oficina' | 'Planta';
+  localidadNombre?: string;
+  nombre: string;
+  tipo?: 'Distribuidora' | 'Servicentro' | 'Oficina' | 'Planta' | string;
+  iniciales?: string;
   empresaId?: string;
   empresaNombre?: string;
   direccion?: string;
   activo?: boolean;
 }
 
+export type TipoRespuesta = 
+  | 'C_NC_OM_NA' 
+  | 'BUENO_DANADO_NA' 
+  | 'BUENO_MALO_NA' 
+  | 'EXISTE_NO_DESACTUALIZADO' 
+  | 'SI_NO' 
+  | 'SI_NO_NA' 
+  | 'OPERATIVO_NO' 
+  | 'SELECT' 
+  | 'TEXT' 
+  | 'DATE' 
+  | 'NUMBER' 
+  | 'ESTADO_EQUIPO';
+
+export interface ItemInspeccion {
+  id: string;
+  pregunta: string;
+  tipoRespuesta: TipoRespuesta;
+  opciones?: string[];
+  referenciaLegal?: string;
+}
+
+export interface SeccionInspeccion {
+  id: string;
+  titulo: string;
+  items: ItemInspeccion[];
+}
+
 export interface TipoInspeccion {
-  _id: string;
+  id?: string;
+  _id?: string;
   codigo: string;
   nombre: string;
   descripcion?: string;
   frecuencia?: string;
   categoria?: string;
   icono?: string;
+  secciones?: SeccionInspeccion[];
 }
 
+export type EstadoInspeccion = 'Borrador' | 'En Progreso' | 'Completada' | 'en_progreso' | 'completada' | 'borrador';
+export type ResultadoInspeccion = 'C' | 'NC' | 'OM' | 'NA' | undefined;
+
 export interface Inspeccion {
-  _id: string;
+  id?: string;
+  _id?: string;
   correlativo?: number;
   empresaId: string;
-  empresaNombre: string;
+  empresaNombre?: string;
   localidadId: string;
-  localidadNombre: string;
+  localidadNombre?: string;
   establecimientoId: string;
-  establecimientoNombre: string;
+  establecimientoNombre?: string;
   tipoInspeccionId: string;
-  tipoNombre: string;
-  tipoCodigo: string;
+  tipoNombre?: string;
+  tipoCodigo?: string;
   fecha: string;
-  inspector: string;
+  inspectorId?: string;
+  inspector?: string;
   estado: EstadoInspeccion;
   resultado?: ResultadoInspeccion;
-  puntuacion?: number;
-  observaciones?: string;
-  formResponses?: string; // JSON serialized
+  respuestas: Record<string, any>;
+  formResponses?: string;
   formObservations?: string;
   formAdditional?: string;
   formSignatures?: string;
-  creadoPor?: string;
-  actualizadoEn?: string;
+  fotos?: Record<string, string>;
+  firmas?: {
+    inspector?: string;
+    revisor?: string;
+  };
+  coordenadas?: {
+    lat: number;
+    lng: number;
+  };
   geoLat?: number;
   geoLon?: number;
+  puntuacionConformidad?: number;
+  puntuacion?: number;
+  observaciones?: string;
+  referencia?: string;
+  creadoPor?: string;
+  actualizadoEn?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
+export type EstadoPlanAccion = 'Pendiente' | 'Aprobado' | 'En ejecución' | 'Cerrado' | 'Vencido' | 'pendiente' | 'en_ejecucion' | 'cerrada' | 'vencida';
+export type PrioridadPlanAccion = 'Critica' | 'Alta' | 'Media' | 'Baja' | 'Inmediato' | 'Corto Plazo' | 'Medio Plazo' | 'Largo Plazo';
+export type PrioridadAccion = PrioridadPlanAccion;
+export type EstadoAccion = EstadoPlanAccion;
+
 export interface PlanAccion {
-  _id: string;
+  id?: string;
+  _id?: string;
   inspeccionId: string;
   empresaNombre?: string;
   establecimientoNombre?: string;
@@ -85,18 +159,26 @@ export interface PlanAccion {
   seccion?: string;
   hallazgo: string;
   descripcion?: string;
+  responsableId?: string;
   responsable: string;
   departamento?: string;
+  prioridad: PrioridadPlanAccion;
   fechaDeteccion?: string;
-  fechaLimite?: string;
-  prioridad: PrioridadAccion;
-  estado: EstadoAccion;
+  fechaLimite: string;
+  recomendacion?: string;
+  estado: EstadoPlanAccion;
+  comentariosCierre?: string;
+  fotoCierre?: string;
+  history?: any[];
   notas?: string;
   creadoEn?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Empleado {
-  _id: string;
+  id?: string;
+  _id?: string;
   codigo?: string;
   cedula: string;
   nombre: string;
@@ -108,24 +190,19 @@ export interface Empleado {
   activo?: boolean;
 }
 
-export interface Usuario {
-  _id: string;
-  email: string;
-  nombre: string;
-  rol: Rol;
-  password?: string;
-  empresaId?: string;
-  activo?: boolean;
-  fotoUrl?: string;
-}
-
 export interface AuditLog {
-  _id: string;
-  usuario: string;
-  accion: string;
+  id?: string;
+  _id?: string;
+  usuario?: string;
+  userEmail?: string;
+  accion?: string;
+  action?: string;
   entidad?: string;
+  resourceType?: string;
   entidadId?: string;
+  resourceId?: string;
   detalles?: string;
+  details?: string;
   timestamp: string;
 }
 
@@ -144,83 +221,28 @@ export interface PlanStats {
   vencidas: number;
 }
 
-export interface InitData {
-  app: { name: string; version: string };
-  catalogos: {
-    empresas: Empresa[];
-    localidades: Localidad[];
-    establecimientos: Establecimiento[];
-    tiposInspeccion: TipoInspeccion[];
-  };
-  usuarios: Usuario[];
-  stats: DashboardStats;
-  planStats: PlanStats;
-  inspeccionesRecientes: Inspeccion[];
+export interface ReportePDF {
+  id?: string;
+  tipo: string;
+  titulo?: string;
+  nombre?: string;
+  fecha?: string;
+  fechaGeneracion?: string;
+  url?: string;
+  generadoPor?: string;
+  referencia?: string;
+  pdfData?: string | any;
+  datos?: any;
+  userId?: string;
 }
 
-export interface ArticuloEPP {
-  _id: string;
-  codigo: string;
-  nombre: string;
-  categoria: 'Protección Cabeza' | 'Protección Ocular' | 'Protección Respiratoria' | 'Protección Auditiva' | 'Protección Manos' | 'Calzado y Ropa';
-  stockActual: number;
-  stockMinimo: number;
-  unidad: string;
-  talla?: string;
-}
-
-export interface DotacionEPP {
-  _id: string;
-  empleadoId?: string;
-  empleadoNombre: string;
-  cedula: string;
-  cargo: string;
-  empresaNombre: string;
-  establecimientoNombre: string;
-  articulos: { articuloId: string; nombre: string; cantidad: number; talla?: string }[];
-  fechaEntrega: string;
-  proximaEntrega?: string;
-  entregadoPor: string;
-  firmaRecibido?: string;
-}
-
-export interface EquipoLOTO {
-  _id: string;
-  tag: string;
-  nombre: string;
-  ubicacion: string;
-  tipoEnergia: 'Eléctrica' | 'Química / Ácido' | 'Neumática' | 'Mecánica' | 'Térmica';
-  dispositivoBloqueo: string;
-  procedimiento: string;
-}
-
-export interface BloqueoLOTO {
-  _id: string;
-  equipoTag: string;
-  equipoNombre: string;
-  ubicacion: string;
-  motivo: string;
-  responsable: string;
-  fechaInicio: string;
-  horaInicio: string;
-  fechaFinEstimada?: string;
-  estado: 'Activo' | 'Liberado';
-  candadosColocados: number;
-  energiaCeroVerificada: boolean;
-}
-
-export interface EvaluacionMedica {
-  _id: string;
-  empleadoId?: string;
-  empleadoNombre: string;
-  cedula: string;
-  empresaNombre: string;
-  establecimientoNombre: string;
-  tipoEvaluacion: 'Pre-empleo' | 'Periódica Anual' | 'Pre-vacacional' | 'Post-vacacional' | 'Egreso' | 'Especial Plombemia';
-  fecha: string;
-  medicoTratante: string;
-  plombemiaValor?: number; // µg/dL (Plomo en sangre para Duncan)
-  audiometria?: 'Normal' | 'Hipoacusia Leve' | 'Hipoacusia Moderada';
-  aptitud: 'Apto' | 'Apto con Restricciones' | 'No Apto Temporal';
-  observaciones?: string;
-}
+// Re-export specialized types
+export * from './permits';
+export * from './medical';
+export * from './transport';
+export * from './accidents';
+export * from './committees';
+export * from './training';
+export * from './fire';
+export * from './loto';
+export * from './dotacion';

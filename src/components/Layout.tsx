@@ -2,22 +2,87 @@ import React, { useState } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { useSGD } from '../contexts/SGDContext';
 import {
-  LayoutDashboard, ClipboardCheck, Target, Users,
-  Settings, Menu, X, Wifi, WifiOff, RefreshCw, AlertCircle,
-  ChevronRight, Package, Stethoscope, Lock, FileText, Crown, User
+  LayoutDashboard, 
+  ClipboardCheck, 
+  Target, 
+  Users,
+  Settings, 
+  Menu, 
+  X, 
+  Wifi, 
+  WifiOff, 
+  RefreshCw, 
+  AlertCircle,
+  ChevronRight, 
+  Package, 
+  Stethoscope, 
+  Lock, 
+  FileText, 
+  Crown, 
+  User,
+  Truck,
+  ShieldAlert,
+  Flame,
+  AlertTriangle,
+  GraduationCap,
+  Building,
+  BarChart2
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-const NAV_ITEMS = [
-  { to: '/',             icon: LayoutDashboard, label: 'Dashboard',       exact: true },
-  { to: '/inspecciones', icon: ClipboardCheck,  label: 'Inspecciones' },
-  { to: '/plan-accion',  icon: Target,          label: 'Plan de Acción' },
-  { to: '/dotacion',     icon: Package,         label: 'Dotación EPP' },
-  { to: '/loto',         icon: Lock,            label: 'LOTO' },
-  { to: '/medico',       icon: Stethoscope,     label: 'Evaluaciones Médicas' },
-  { to: '/reportes',     icon: FileText,        label: 'Reportes' },
-  { to: '/usuarios',     icon: Users,           label: 'Usuarios' },
-  { to: '/ajustes',      icon: Settings,        label: 'Ajustes' },
+interface NavGroup {
+  category: string;
+  items: {
+    to: string;
+    icon: any;
+    label: string;
+    badge?: string;
+    exact?: boolean;
+  }[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    category: 'VISTA GENERAL',
+    items: [
+      { to: '/', icon: LayoutDashboard, label: 'Dashboard Principal', exact: true },
+      { to: '/consolidador', icon: BarChart2, label: 'Consolidador 70 Sedes' }
+    ]
+  },
+  {
+    category: 'OPERACIONES & LOGÍSTICA',
+    items: [
+      { to: '/transporte', icon: Truck, label: 'Transporte y Carga', badge: 'V2' },
+      { to: '/inspecciones', icon: ClipboardCheck, label: 'Inspecciones Técnicas' },
+      { to: '/loto', icon: Lock, label: 'LOTO / Energía Cero' }
+    ]
+  },
+  {
+    category: 'SEGURIDAD INDUSTRIAL',
+    items: [
+      { to: '/permisos', icon: ShieldAlert, label: 'Permisos PTAR (Alto Riesgo)', badge: 'ISO' },
+      { to: '/carga-fuego', icon: Flame, label: 'Carga de Fuego & Incendios' },
+      { to: '/plan-accion', icon: Target, label: 'Plan de Acción & Hallazgos' }
+    ]
+  },
+  {
+    category: 'SALUD & PERSONAL',
+    items: [
+      { to: '/dotacion', icon: Package, label: 'Dotación EPP y Uniformes' },
+      { to: '/medico', icon: Stethoscope, label: 'Salud, Plombemia & Vacaciones' },
+      { to: '/accidentes', icon: AlertTriangle, label: 'Accidentes F-465 (INPSASEL)' },
+      { to: '/formacion', icon: GraduationCap, label: 'Formación & RACDA (2m)' },
+      { to: '/comites', icon: Building, label: 'Comités CSSL & Delegados' }
+    ]
+  },
+  {
+    category: 'SISTEMA & REPORTES',
+    items: [
+      { to: '/reportes', icon: FileText, label: 'Informes Ejecutivos' },
+      { to: '/usuarios', icon: Users, label: 'Usuarios y Accesos' },
+      { to: '/ajustes', icon: Settings, label: 'Ajustes & Google Sheets' }
+    ]
+  }
 ];
 
 export default function Layout() {
@@ -29,7 +94,7 @@ export default function Layout() {
     exact ? location.pathname === to : location.pathname.startsWith(to) && to !== '/';
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
+    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
       {/* Overlay móvil */}
       {sidebarOpen && (
         <div
@@ -40,11 +105,11 @@ export default function Layout() {
 
       {/* Sidebar */}
       <aside className={cn(
-        'fixed inset-y-0 left-0 z-30 w-64 bg-slate-900 text-white flex flex-col transition-transform duration-300 lg:static lg:translate-x-0',
+        'fixed inset-y-0 left-0 z-30 w-72 bg-slate-900 text-white flex flex-col transition-transform duration-300 lg:static lg:translate-x-0 shadow-xl',
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       )}>
         {/* Logo Oficial Duncan en Color */}
-        <div className="flex items-center justify-between px-4 py-4 border-b border-slate-800 bg-slate-950/60">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800 bg-slate-950/70">
           <div className="flex items-center gap-3">
             <img
               src="/duncan-logo-color.png"
@@ -52,8 +117,8 @@ export default function Layout() {
               className="h-8 w-auto object-contain filter drop-shadow"
             />
             <div className="border-l border-slate-700 pl-2.5">
-              <span className="font-extrabold text-[11px] text-yellow-400 tracking-wider block leading-none">SG-SSA</span>
-              <span className="text-[9px] text-slate-400 uppercase tracking-tight block mt-0.5 leading-none">v2.0 PWA</span>
+              <span className="font-black text-xs text-yellow-400 tracking-wider block leading-none">SG-SSA</span>
+              <span className="text-[10px] text-slate-400 uppercase tracking-tight block mt-0.5 leading-none">v2.0 PWA</span>
             </div>
           </div>
           <button onClick={() => setSidebarOpen(false)} className="ml-auto lg:hidden text-slate-400 hover:text-white p-1">
@@ -63,13 +128,13 @@ export default function Layout() {
 
         {/* Estado de conexión */}
         <div className={cn(
-          'mx-3 mt-3 px-3 py-2 rounded-lg text-xs flex items-center gap-2',
-          isOnline ? 'bg-emerald-900/50 text-emerald-300' : 'bg-amber-900/50 text-amber-300'
+          'mx-3 mt-3 px-3 py-2 rounded-xl text-xs flex items-center gap-2 border',
+          isOnline ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/50' : 'bg-amber-950/40 text-amber-300 border-amber-800/50'
         )}>
-          {isOnline ? <Wifi className="h-3 w-3 flex-shrink-0" /> : <WifiOff className="h-3 w-3 flex-shrink-0" />}
-          <span className="truncate">{isOnline ? (sheetsUrl ? 'Conectado a Sheets' : 'En línea (Local)') : 'Modo Offline'}</span>
+          {isOnline ? <Wifi className="h-3.5 w-3.5 flex-shrink-0" /> : <WifiOff className="h-3.5 w-3.5 flex-shrink-0" />}
+          <span className="truncate font-medium">{isOnline ? (sheetsUrl ? 'Google Sheets Conectado' : 'En línea (Local)') : 'Modo Offline Activo'}</span>
           {pendingSyncCount > 0 && (
-            <span className="ml-auto bg-amber-500 text-white text-xs rounded-full px-1.5 py-0.5 font-bold flex-shrink-0">
+            <span className="ml-auto bg-amber-500 text-slate-950 text-[10px] rounded-full px-2 py-0.5 font-black flex-shrink-0">
               {pendingSyncCount}
             </span>
           )}
@@ -80,12 +145,12 @@ export default function Layout() {
           <Link
             to="/usuarios"
             onClick={() => setSidebarOpen(false)}
-            className="mx-3 mt-2.5 p-2 bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 rounded-xl flex items-center gap-2.5 transition-all group"
+            className="mx-3 mt-2.5 p-2.5 bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 rounded-xl flex items-center gap-2.5 transition-all group shadow-sm"
             title="Administrar usuarios y accesos"
           >
-            <div className={`w-8 h-8 rounded-lg font-bold text-xs flex items-center justify-center flex-shrink-0 shadow ${
+            <div className={`w-8 h-8 rounded-lg font-black text-xs flex items-center justify-center flex-shrink-0 shadow ${
               currentUser.rol?.includes('Propietario')
-                ? 'bg-amber-400 text-slate-950 font-black'
+                ? 'bg-amber-400 text-slate-950'
                 : 'bg-blue-600 text-white'
             }`}>
               {currentUser.nombre.slice(0, 2).toUpperCase()}
@@ -96,138 +161,105 @@ export default function Layout() {
                   {currentUser.nombre}
                 </p>
                 {currentUser.rol?.includes('Propietario') && (
-                  <Crown className="w-3 h-3 text-amber-400 flex-shrink-0" />
+                  <Crown className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
                 )}
               </div>
-              <p className="text-[10px] text-amber-300/90 font-medium truncate font-mono">
-                {currentUser.email}
+              <p className="text-[10px] text-slate-400 truncate">
+                {currentUser.rol}
               </p>
             </div>
           </Link>
         )}
 
-        {/* Navegación */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2">
-          {NAV_ITEMS.map(({ to, icon: Icon, label, exact }) => (
-            <Link
-              key={to}
-              to={to}
-              onClick={() => setSidebarOpen(false)}
-              className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5 text-sm font-medium transition-colors duration-150 group',
-                isActive(to, exact)
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-              )}
-            >
-              <Icon className="h-4 w-4 flex-shrink-0" />
-              <span className="truncate">{label}</span>
-              {isActive(to, exact) && <ChevronRight className="h-3 w-3 ml-auto flex-shrink-0" />}
-            </Link>
+        {/* Menú de Navegación con Categorías */}
+        <nav className="flex-1 px-3 py-3 space-y-4 overflow-y-auto">
+          {NAV_GROUPS.map((group, gIdx) => (
+            <div key={gIdx} className="space-y-1">
+              <div className="px-3 text-[10px] font-black text-slate-400 tracking-wider">
+                {group.category}
+              </div>
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const active = isActive(item.to, item.exact);
+                  return (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      onClick={() => setSidebarOpen(false)}
+                      className={cn(
+                        'flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all group',
+                        active
+                          ? 'bg-yellow-400 text-slate-950 shadow-sm font-bold'
+                          : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                      )}
+                    >
+                      <Icon className={cn('h-4 w-4 flex-shrink-0', active ? 'text-slate-950' : 'text-slate-400 group-hover:text-yellow-400')} />
+                      <span className="flex-1 truncate">{item.label}</span>
+                      {item.badge && (
+                        <span className={cn(
+                          "text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider",
+                          active ? "bg-slate-950 text-yellow-400" : "bg-slate-800 text-yellow-400 border border-yellow-500/30"
+                        )}>
+                          {item.badge}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
           ))}
         </nav>
 
-        {/* Pie del sidebar */}
-        <div className="p-3 border-t border-slate-800 space-y-2">
-          {pendingSyncCount > 0 && isOnline && (
-            <button
-              onClick={syncNow}
-              disabled={isSyncing}
-              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-amber-300 bg-amber-900/40 rounded-lg hover:bg-amber-900/60 transition-colors"
-            >
-              <RefreshCw className={cn('h-3.5 w-3.5', isSyncing && 'animate-spin')} />
-              <span>{isSyncing ? 'Sincronizando...' : `Sincronizar (${pendingSyncCount} pendientes)`}</span>
-            </button>
-          )}
-          {!sheetsUrl && (
-            <Link to="/ajustes" onClick={() => setSidebarOpen(false)}
-              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-orange-300 bg-orange-900/30 rounded-lg hover:bg-orange-900/50 transition-colors"
-            >
-              <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
-              <span>Configurar Google Sheets</span>
-            </Link>
-          )}
-          <div className="pt-1 text-center">
-            <p className="text-[11px] font-medium text-slate-400">Acumuladores Duncan, C.A.</p>
-            <p className="text-[10px] text-slate-500">SGD 2.0 © 2026</p>
-          </div>
+        {/* Footer Sidebar */}
+        <div className="p-3 border-t border-slate-800 bg-slate-950/40 text-[11px] text-slate-400 text-center">
+          Acumuladores Duncan © 2026
         </div>
       </aside>
 
-      {/* Contenido principal */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Header móvil */}
-        <header className="lg:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-200 shadow-sm">
-          <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-2 text-slate-500 hover:text-slate-700 rounded-lg hover:bg-slate-100">
-            <Menu className="h-5 w-5" />
-          </button>
-          <div className="flex items-center gap-2">
-            <img src="/duncan-logo-bw.png" alt="Duncan Logo" className="h-6 w-auto object-contain" />
-            <span className="font-bold text-xs text-slate-700 border-l border-slate-200 pl-2">SG-SSA 2.0</span>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            {pendingSyncCount > 0 && (
-              <span className="bg-amber-500 text-white text-xs rounded-full px-2 py-0.5 font-bold">
-                {pendingSyncCount}
-              </span>
-            )}
-            {!isOnline && <WifiOff className="h-4 w-4 text-amber-500" />}
-            {currentUser && (
-              <Link to="/usuarios" className="w-7 h-7 rounded-lg bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center shadow">
-                {currentUser.nombre.slice(0, 2).toUpperCase()}
-              </Link>
-            )}
-          </div>
-        </header>
-
-        {/* Header escritorio */}
-        <header className="hidden lg:flex items-center justify-between px-6 py-3 bg-white border-b border-slate-200 shadow-xs">
+      {/* Main Content Container */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top Header */}
+        <header className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between lg:px-8">
           <div className="flex items-center gap-3">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Sistema de Gestión SSA</span>
-            <span className="text-slate-300">•</span>
-            <span className="text-xs font-bold text-slate-700">Acumuladores Duncan, C.A.</span>
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 -ml-2 rounded-lg text-slate-500 hover:bg-slate-100 lg:hidden"
+            >
+              <Menu size={20} />
+            </button>
+            <h2 className="font-bold text-slate-800 text-base hidden sm:block">
+              Sistema de Gestión Duncan 2.0 (SGD)
+            </h2>
           </div>
-          <div className="flex items-center gap-4">
-            {pendingSyncCount > 0 && isOnline && (
+
+          <div className="flex items-center gap-3">
+            {isOnline && pendingSyncCount > 0 && (
               <button
                 onClick={syncNow}
                 disabled={isSyncing}
-                className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-bold transition-colors"
               >
-                <RefreshCw className={cn('h-3.5 w-3.5 text-amber-600', isSyncing && 'animate-spin')} />
-                <span className="font-medium">{pendingSyncCount} pendientes</span>
+                <RefreshCw size={13} className={isSyncing ? "animate-spin" : ""} />
+                {isSyncing ? 'Sincronizando...' : `Sincronizar (${pendingSyncCount})`}
               </button>
             )}
-            {currentUser && (
-              <Link
-                to="/usuarios"
-                className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-colors"
-                title="Administrar usuarios y accesos"
-              >
-                <div className={`w-7 h-7 rounded-lg font-bold text-xs flex items-center justify-center ${
-                  currentUser.rol?.includes('Propietario')
-                    ? 'bg-amber-400 text-slate-950 font-black shadow-xs'
-                    : 'bg-blue-600 text-white'
-                }`}>
-                  {currentUser.nombre.slice(0, 2).toUpperCase()}
-                </div>
-                <div className="text-left">
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs font-bold text-slate-900 leading-none">{currentUser.nombre}</span>
-                    {currentUser.rol?.includes('Propietario') && <Crown className="w-3 h-3 text-amber-500 fill-amber-500" />}
-                  </div>
-                  <span className="text-[10px] text-slate-500 font-mono leading-none block mt-0.5">{currentUser.email}</span>
-                </div>
-              </Link>
-            )}
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-600 hidden md:inline">
+                {currentUser?.email}
+              </span>
+              <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center font-bold text-slate-900 text-xs shadow-sm">
+                {currentUser?.nombre?.charAt(0) || 'U'}
+              </div>
+            </div>
           </div>
         </header>
 
-        {/* Área de scroll */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-            <Outlet />
-          </div>
+        {/* Page Content */}
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+          <Outlet />
         </main>
       </div>
     </div>
