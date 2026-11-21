@@ -11,6 +11,7 @@ const ROUTE_NAMES: Record<string, string> = {
   '/carga-fuego': 'Carga de Fuego & Protección Contra Incendios',
   '/plan-accion': 'Plan de Acción & Hallazgos',
   '/dotacion': 'Dotación de EPP y Uniformes',
+  '/trabajadores': 'Gestión de Trabajadores y Nómina Activa',
   '/medico': 'Salud Ocupacional, Plombemia & Vacaciones (V-EXPRESS)',
   '/accidentes': 'Accidentes Laborales F-465 & Árbol de Causas',
   '/formacion': 'Formación de Conductores & RACDA',

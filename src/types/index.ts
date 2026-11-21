@@ -188,10 +188,24 @@ export interface Empleado {
   empresaId?: string;
   empresaNombre?: string;
   establecimientoId?: string;
+  sedeNombre?: string;
   activo?: boolean;
   fechaIngreso?: string;
   ultimoDisfruteVacacional?: string;
   diasVacacionesPendientes?: number;
+  telefono?: string;
+  email?: string;
+  genero?: 'M' | 'F';
+  fechaNacimiento?: string;
+  edad?: number;
+  direccion?: string;
+  tallaCamisa?: string;
+  tallaPantalon?: string;
+  tallaCalzado?: string;
+  contactoEmergenciaNombre?: string;
+  contactoEmergenciaTelefono?: string;
+  observaciones?: string;
+  fechaActualizacion?: string;
 }
 
 export interface AuditLog {

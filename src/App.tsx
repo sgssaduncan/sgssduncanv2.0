@@ -25,6 +25,7 @@ import ReportesPage from './pages/ReportesPage';
 import UsuariosPage from './pages/UsuariosPage';
 import AjustesPage from './pages/AjustesPage';
 import AuditoriaPage from './pages/AuditoriaPage';
+import TrabajadoresPage from './pages/TrabajadoresPage';
 import AuditNavigationTracker from './components/AuditNavigationTracker';
 
 export default function App() {
@@ -51,6 +52,7 @@ export default function App() {
             <Route path="plan-accion" element={<PlanAccionPage />} />
             
             {/* Salud y Bienestar */}
+            <Route path="trabajadores" element={<TrabajadoresPage />} />
             <Route path="dotacion" element={<DotacionPage />} />
             <Route path="medico" element={<MedicoPage />} />
             <Route path="accidentes" element={<AccidentesPage />} />

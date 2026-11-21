@@ -69,6 +69,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     category: 'SALUD & PERSONAL',
     items: [
+      { to: '/trabajadores', icon: Users, label: 'Nómina & Trabajadores', badge: 'RRHH' },
       { to: '/dotacion', icon: Package, label: 'Dotación EPP y Uniformes' },
       { to: '/medico', icon: Stethoscope, label: 'Salud, Plombemia & Vacaciones' },
       { to: '/accidentes', icon: AlertTriangle, label: 'Accidentes F-465 (INPSASEL)' },

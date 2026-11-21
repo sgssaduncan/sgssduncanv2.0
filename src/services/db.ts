@@ -279,6 +279,90 @@ export const dbService = {
     return list;
   },
 
+  async saveEmpleado(data: Omit<Empleado, 'id' | '_id'>): Promise<string> {
+    const list = getLocal<any>(SK.EMPLEADOS);
+    const id = genId('emp');
+    const newEmp: Empleado = {
+      ...data,
+      id,
+      _id: id,
+      activo: data.activo !== undefined ? data.activo : true,
+      fechaActualizacion: new Date().toISOString()
+    };
+    list.unshift(newEmp);
+    setLocal(SK.EMPLEADOS, list);
+    await this.logAction('CREATE', 'empleados', id, `Trabajador registrado: ${data.nombre} (${data.cedula})`);
+    return id;
+  },
+
+  async updateEmpleado(id: string, data: Partial<Empleado>): Promise<void> {
+    const list = getLocal<any>(SK.EMPLEADOS);
+    const idx = list.findIndex((e: any) => e.id === id || e._id === id);
+    if (idx !== -1) {
+      list[idx] = { 
+        ...list[idx], 
+        ...data, 
+        fechaActualizacion: new Date().toISOString() 
+      };
+      setLocal(SK.EMPLEADOS, list);
+      await this.logAction('UPDATE', 'empleados', id, `Trabajador actualizado: ${list[idx].nombre} (${list[idx].cedula})`);
+    }
+  },
+
+  async deleteEmpleado(id: string): Promise<void> {
+    const list = getLocal<any>(SK.EMPLEADOS);
+    const emp = list.find((e: any) => e.id === id || e._id === id);
+    const filtered = list.filter((e: any) => e.id !== id && e._id !== id);
+    setLocal(SK.EMPLEADOS, filtered);
+    await this.logAction('DELETE', 'empleados', id, `Trabajador eliminado: ${emp?.nombre || id}`);
+  },
+
+  async importEmpleados(
+    nuevos: Partial<Empleado>[],
+    replaceExisting = true
+  ): Promise<{ added: number; updated: number; total: number }> {
+    const list = getLocal<any>(SK.EMPLEADOS);
+    let added = 0;
+    let updated = 0;
+
+    for (const item of nuevos) {
+      if (!item.cedula) continue;
+      const cleanCedula = item.cedula.trim().toUpperCase();
+      const existingIdx = list.findIndex((e: any) => e.cedula?.trim().toUpperCase() === cleanCedula);
+
+      if (existingIdx !== -1) {
+        if (replaceExisting) {
+          list[existingIdx] = {
+            ...list[existingIdx],
+            ...item,
+            cedula: cleanCedula,
+            fechaActualizacion: new Date().toISOString()
+          };
+          updated++;
+        }
+      } else {
+        const id = genId('emp');
+        list.push({
+          ...item,
+          id,
+          _id: id,
+          cedula: cleanCedula,
+          nombre: (item.nombre || 'Sin Nombre').trim(),
+          cargo: (item.cargo || 'Operador').trim(),
+          departamento: item.departamento || 'Operaciones',
+          empresaNombre: item.empresaNombre || 'Distribuidora Duncan, C.A.',
+          activo: item.activo !== undefined ? item.activo : true,
+          fechaActualizacion: new Date().toISOString()
+        });
+        added++;
+      }
+    }
+
+    setLocal(SK.EMPLEADOS, list);
+    await this.logAction('BATCH_IMPORT', 'empleados', undefined, `Importación masiva: ${added} nuevos trabajadores, ${updated} actualizados`);
+    return { added, updated, total: list.length };
+  },
+
   async seedCatalogs(): Promise<void> {
     const empresas = INITIAL_EMPRESAS.map(e => ({ ...e, id: e._id }));
     const localidades = INITIAL_LOCALIDADES.map(l => ({ ...l, id: l._id }));
