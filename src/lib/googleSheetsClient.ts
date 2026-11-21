@@ -48,7 +48,7 @@ const SK = {
 export function getSheetsUrl(): string {
   return localStorage.getItem(SK.SHEETS_URL)
     || ((import.meta as any).env?.VITE_GOOGLE_SHEETS_URL as string)
-    || '';
+    || 'https://script.google.com/macros/s/AKfycbxRGmBAY7Msgz3eRGz2nGGaZs_wp0inmNPanRXANtVDGr2tjRJFpsQVud6NfFXmCI4AIQ/exec';
 }
 
 export function setSheetsUrl(url: string) {
@@ -67,6 +67,10 @@ export function isSheetsConfigured(): boolean {
 // INICIALIZACIÓN LOCAL
 // ============================================================
 function initLocalStorage() {
+  const currentStoredUrl = localStorage.getItem(SK.SHEETS_URL);
+  if (!currentStoredUrl || currentStoredUrl.includes('AKfycbwwhNM5')) {
+    localStorage.setItem(SK.SHEETS_URL, 'https://script.google.com/macros/s/AKfycbxRGmBAY7Msgz3eRGz2nGGaZs_wp0inmNPanRXANtVDGr2tjRJFpsQVud6NfFXmCI4AIQ/exec');
+  }
   if (!localStorage.getItem(SK.INSPECCIONES))     localStorage.setItem(SK.INSPECCIONES, '[]');
   if (!localStorage.getItem(SK.PLAN_ACCION))      localStorage.setItem(SK.PLAN_ACCION, '[]');
   if (!localStorage.getItem(SK.OFFLINE_QUEUE))    localStorage.setItem(SK.OFFLINE_QUEUE, '[]');
