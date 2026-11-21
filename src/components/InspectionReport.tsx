@@ -391,306 +391,153 @@ export default function InspectionReport({
         {/* Documento de Reporte */}
         <div
           ref={reportRef}
-          className={`bg-white text-black relative w-full pb-[10mm] pdf-snap-container ${isExtintores ? "is-extintores" : ""}`}
+          className="bg-white text-slate-900 relative w-full pb-8 px-4 sm:px-8 pdf-snap-container rounded-lg border border-slate-200 shadow-sm"
           style={{
-            fontFamily: "Arial, 'Helvetica Neue', Helvetica, sans-serif",
+            fontFamily: "'Segoe UI', Arial, sans-serif",
             fontSize: "9px"
           }}
         >
-          <style>{`
-            .pdf-snap-container,
-            .pdf-snap-container * {
-              font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif !important;
-              letter-spacing: normal !important;
-              word-spacing: normal !important;
-              word-break: normal !important;
-              word-wrap: break-word !important;
-              overflow-wrap: break-word !important;
-              text-rendering: geometricPrecision !important;
-              -webkit-font-smoothing: antialiased !important;
-            }
+          {/* CABECERA MEMBRETE OFICIAL DUNCAN */}
+          <div className="flex items-center justify-between pb-3 border-b border-slate-300 mb-4 pt-4" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1.5px solid #cbd5e1', paddingBottom: '10px', marginBottom: '14px' }}>
+            <div className="flex items-center gap-4" style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <img
+                src="/duncan-logo-bw.png"
+                alt="Duncan"
+                style={{ height: '36px', width: 'auto', objectFit: 'contain' }}
+              />
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#0f172a', lineHeight: '1.2' }}>
+                  {metadata.empresa?.nombre || inspection.empresaNombre || 'Distribuidora Duncan, C.A.'}
+                </div>
+                <div style={{ fontSize: '8.5px', color: '#475569', marginTop: '2px' }}>
+                  Sistema de Gestión de Seguridad, Salud y Ambiente (SG-SSA)
+                </div>
+                <div style={{ fontSize: '9.5px', fontWeight: 'bold', color: '#1e40af', marginTop: '2px' }}>
+                  INFORME OFICIAL: {(metadata.tipo?.nombre || inspection.tipoNombre || 'Inspección Técnica').toUpperCase()}
+                </div>
+              </div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#1e293b', backgroundColor: '#f1f5f9', padding: '2px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', display: 'inline-block' }}>
+                N° {inspection.correlativo || (inspection.referencia ? inspection.referencia.replace(/^REF-|^INSP-/, '') : '1001')}
+              </div>
+              <div style={{ fontSize: '8.5px', color: '#64748b', marginTop: '2px' }}>
+                {formatDate(inspection.fecha)}
+              </div>
+            </div>
+          </div>
 
-            .pdf-snap-container {
-              padding-left: 14px !important;
-              padding-right: 14px !important;
-              box-sizing: border-box !important;
-            }
+          {/* TABLA DE METADATOS Y PARÁMETROS DE CONTROL (4 COLUMNAS) */}
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8.5px', marginBottom: '14px', border: '1px solid #cbd5e1' }}>
+            <thead>
+              <tr style={{ backgroundColor: '#f1f5f9', color: '#475569', fontWeight: 'bold', borderBottom: '1px solid #cbd5e1' }}>
+                <th style={{ padding: '4px 8px', width: '20%', textAlign: 'left', borderRight: '1px solid #cbd5e1' }}>Parámetro</th>
+                <th style={{ padding: '4px 8px', width: '30%', textAlign: 'left', borderRight: '1px solid #cbd5e1' }}>Detalle</th>
+                <th style={{ padding: '4px 8px', width: '20%', textAlign: 'left', borderRight: '1px solid #cbd5e1' }}>Parámetro</th>
+                <th style={{ padding: '4px 8px', width: '30%', textAlign: 'left' }}>Detalle</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#475569', borderRight: '1px solid #cbd5e1' }}>Empresa</td>
+                <td style={{ padding: '4px 8px', borderRight: '1px solid #cbd5e1' }}>{metadata.empresa?.nombre || inspection.empresaNombre || 'Distribuidora Duncan, C.A.'}</td>
+                <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#475569', borderRight: '1px solid #cbd5e1' }}>N° Correlativo</td>
+                <td style={{ padding: '4px 8px' }}>{inspection.correlativo || (inspection.referencia ? inspection.referencia.replace(/^REF-|^INSP-/, '') : '1001')}</td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#475569', borderRight: '1px solid #cbd5e1' }}>Establecimiento</td>
+                <td style={{ padding: '4px 8px', borderRight: '1px solid #cbd5e1' }}>{metadata.establecimiento?.nombre || inspection.establecimientoNombre || 'Sede Principal'}</td>
+                <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#475569', borderRight: '1px solid #cbd5e1' }}>Fecha</td>
+                <td style={{ padding: '4px 8px' }}>{formatDate(inspection.fecha)}</td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#475569', borderRight: '1px solid #cbd5e1' }}>Localidad</td>
+                <td style={{ padding: '4px 8px', borderRight: '1px solid #cbd5e1' }}>{metadata.localidad?.nombre || inspection.localidadNombre || 'Valencia'}</td>
+                <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#475569', borderRight: '1px solid #cbd5e1' }}>Inspector</td>
+                <td style={{ padding: '4px 8px' }}>{inspection.inspector || inspection.inspectorId || 'Francisco Rojas'}</td>
+              </tr>
+              <tr>
+                <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#475569', borderRight: '1px solid #cbd5e1' }}>Resultado</td>
+                <td style={{ padding: '4px 8px', fontWeight: 'bold', color: inspection.resultado === 'C' ? '#166534' : inspection.resultado === 'NC' ? '#b91c1c' : '#c2410c', borderRight: '1px solid #cbd5e1' }}>
+                  {inspection.resultado || '—'}
+                </td>
+                <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#475569', borderRight: '1px solid #cbd5e1' }}>Puntuación</td>
+                <td style={{ padding: '4px 8px', fontWeight: 'bold' }}>
+                  {inspection.puntuacion ?? inspection.puntuacionConformidad ?? 100}%
+                </td>
+              </tr>
+            </tbody>
+          </table>
 
-            .pdf-section-header {
-              background-color: #004B93 !important;
-              color: #ffffff !important;
-              font-weight: bold !important;
-              font-size: 9px !important;
-              padding: 4px 8px !important;
-              text-transform: uppercase !important;
-              letter-spacing: 0.5px !important;
-            }
-
-            .pdf-subsection-header {
-              background-color: #f1f5f9 !important;
-              color: #002855 !important;
-              font-weight: bold !important;
-              font-size: 8px !important;
-              padding: 3px 8px !important;
-              text-transform: uppercase !important;
-            }
-          `}</style>
-          <>
-            {/* HEADER SECTION - SAP / ISO STYLE */}
-            <table style={{ width: '100%', borderCollapse: 'collapse', border: '2px solid #000', marginBottom: '10px' }}>
-               <tbody>
-                   <tr>
-                       <td style={{ width: '22%', borderRight: '1px solid #000', padding: '8px', textAlign: 'center', verticalAlign: 'middle' }}>
-                           <div style={{ backgroundColor: '#004B93', color: '#ffffff', borderRadius: '4px', padding: '5px 10px', fontWeight: 'bold', fontSize: '12px', letterSpacing: '1px', display: 'inline-block' }}>
-                             DUNCAN
-                           </div>
-                           <div style={{ fontSize: '7px', fontWeight: 'bold', color: '#334155', marginTop: '4px', lineHeight: '1.2' }}>
-                             GESTIÓN INTEGRAL<br/>SEGURIDAD Y SALUD (SSA)
-                           </div>
-                       </td>
-                       <td style={{ width: '50%', borderRight: '1px solid #000', padding: '8px', textAlign: 'center', verticalAlign: 'middle' }}>
-                           <div style={{ fontSize: '9px', fontWeight: 'bold', color: '#000', letterSpacing: '0.5px' }}>
-                             PROGRAMA DE SEGURIDAD Y SALUD EN EL TRABAJO
-                           </div>
-                           <div style={{ fontSize: '12px', color: '#002855', fontWeight: 'bold', marginTop: '3px' }}>
-                             {(metadata.tipo?.nombre || inspection.tipoNombre || "ACTA DE INSPECCIÓN TÉCNICA").toUpperCase()}
-                           </div>
-                           <div style={{ fontSize: '7px', color: '#475569', marginTop: '3px' }}>
-                             CUMPLIMIENTO LOPCYMAT ART. 53, 54, 59-62 / NORMAS COVENIN E INPSASEL VIGENTES
-                           </div>
-                       </td>
-                       <td className="nested-table-container" style={{ width: '28%', padding: '0', verticalAlign: 'middle' }}>
-                           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '7.5px' }}>
-                               <tbody>
-                                   <tr>
-                                     <td style={{ borderBottom: '1px solid #000', padding: '2.5px 5px', fontWeight: 'bold', width: '42%' }}>CÓDIGO DOC:</td>
-                                     <td style={{ borderBottom: '1px solid #000', padding: '2.5px 5px' }}>{metadata.tipo?.codigo || 'SST-F-GEN-01'}</td>
-                                   </tr>
-                                   <tr>
-                                     <td style={{ borderBottom: '1px solid #000', padding: '2.5px 5px', fontWeight: 'bold' }}>ID TRANS:</td>
-                                     <td style={{ borderBottom: '1px solid #000', padding: '2.5px 5px' }}>{inspection.referencia || (inspection.id || inspection._id || 'INSP').substring(0, 8).toUpperCase()}</td>
-                                   </tr>
-                                   <tr>
-                                     <td style={{ borderBottom: '1px solid #000', padding: '2.5px 5px', fontWeight: 'bold' }}>EMISIÓN:</td>
-                                     <td style={{ borderBottom: '1px solid #000', padding: '2.5px 5px' }}>{formatDate(inspection.fecha)}</td>
-                                   </tr>
-                                   <tr>
-                                     <td style={{ padding: '2.5px 5px', fontWeight: 'bold' }}>ESTATUS:</td>
-                                     <td style={{ padding: '2.5px 5px', fontWeight: 'bold', color: (inspection.resultado === 'C' || (inspection.puntuacion || 100) >= 70) ? '#166534' : '#b91c1c' }}>
-                                       {inspection.resultado === 'C' ? 'CONFORME' : inspection.resultado === 'NC' ? 'NO CONFORME' : 'OBS. MAYOR'}
-                                     </td>
-                                   </tr>
-                               </tbody>
-                           </table>
-                       </td>
-                   </tr>
-               </tbody>
-            </table>
-
-            {/* DATOS DE CONTROL - FIELD BOX */}
-           <div style={{ border: '1px solid #000', marginBottom: isExtintores ? '6px' : '15px' }}>
-             <div className="pdf-section-header">1.0 DATOS DE IDENTIFICACIÓN Y CONTROL</div>
-             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9px' }}>
-                 <tbody>
-                     <tr>
-                         <td style={{ width: '15%', padding: isExtintores ? '4px 6px' : '8px 10px', borderRight: '1px solid #000', borderBottom: '1px solid #000', fontWeight: 'bold', backgroundColor: '#f3f4f6', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>EMPRESA:</td>
-                         <td style={{ width: '35%', padding: isExtintores ? '4px 6px' : '8px 10px', borderRight: '1px solid #000', borderBottom: '1px solid #000', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>
-                            <div style={{ display: 'block', lineHeight: '1.2' }}>
-                              <span style={{ fontWeight: 'bold', display: 'block' }}>{metadata.empresa?.nombre || 'N/A'}</span>
-                              {metadata.empresa?.rif && (
-                                <span style={{ fontSize: isExtintores ? '7px' : '7.5px', color: '#4b5563', fontWeight: 'normal', display: 'block', marginTop: '2px' }}>({metadata.empresa.rif})</span>
-                              )}
-                            </div>
-                          </td>
-                         <td style={{ width: '15%', padding: isExtintores ? '4px 6px' : '8px 10px', borderRight: '1px solid #000', borderBottom: '1px solid #000', fontWeight: 'bold', backgroundColor: '#f3f4f6', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>LOCALIDAD:</td>
-                         <td style={{ width: '35%', padding: isExtintores ? '4px 6px' : '8px 10px', borderBottom: '1px solid #000', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>{metadata.localidad?.nombre || 'N/A'}</td>
-                     </tr>
-                     <tr>
-                         <td style={{ padding: isExtintores ? '4px 6px' : '8px 10px', borderRight: '1px solid #000', borderBottom: '1px solid #000', fontWeight: 'bold', backgroundColor: '#f3f4f6', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>INSTALACIÓN:</td>
-                         <td style={{ padding: isExtintores ? '4px 6px' : '8px 10px', borderRight: '1px solid #000', borderBottom: '1px solid #000', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>{metadata.establecimiento?.nombre || 'N/A'}</td>
-                         <td style={{ padding: isExtintores ? '4px 6px' : '8px 10px', borderRight: '1px solid #000', borderBottom: '1px solid #000', fontWeight: 'bold', backgroundColor: '#f3f4f6', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>CATEGORÍA:</td>
-                         <td style={{ padding: isExtintores ? '4px 6px' : '8px 10px', borderBottom: '1px solid #000', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>{metadata.tipo?.categoria || 'N/A'}</td>
-                     </tr>
-                     <tr>
-                         <td style={{ padding: isExtintores ? '4px 6px' : '8px 10px', borderRight: '1px solid #000', borderBottom: '1px solid #000', fontWeight: 'bold', backgroundColor: '#f3f4f6', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>INSPECTOR:</td>
-                         <td style={{ padding: isExtintores ? '4px 6px' : '8px 10px', borderRight: '1px solid #000', borderBottom: '1px solid #000', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>{(inspection.inspectorId || inspection.inspector || 'Inspector SSA').toUpperCase()}</td>
-                         <td style={{ padding: isExtintores ? '4px 6px' : '8px 10px', borderRight: '1px solid #000', borderBottom: '1px solid #000', fontWeight: 'bold', backgroundColor: '#f3f4f6', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>SISTEMA EMISOR:</td>
-                         <td style={{ padding: isExtintores ? '4px 6px' : '8px 10px', borderBottom: '1px solid #000', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>SGD DUNCAN</td>
-                     </tr>
-                     <tr>
-                         <td style={{ padding: isExtintores ? '4px 6px' : '8px 10px', borderRight: '1px solid #000', fontWeight: 'bold', backgroundColor: '#f3f4f6', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>ESTADO:</td>
-                         <td style={{ padding: isExtintores ? '4px 6px' : '8px 10px', borderRight: '1px solid #000', fontWeight: 'bold', color: inspection.estado === 'Completada' ? '#166534' : '#b91c1c', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>{(inspection.estado || 'BORRADOR').toUpperCase()}</td>
-                         <td style={{ padding: isExtintores ? '4px 6px' : '8px 10px', borderRight: '1px solid #000', fontWeight: 'bold', backgroundColor: '#f3f4f6', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>FRECUENCIA:</td>
-                         <td style={{ padding: isExtintores ? '4px 6px' : '8px 10px', verticalAlign: 'middle', fontSize: isExtintores ? '8px' : '9px' }}>{metadata.tipo?.frecuencia?.toUpperCase() || 'N/A'}</td>
-                     </tr>
-                 </tbody>
-             </table>
-           </div>
-
-           {/* INDICADORES DE DESEMPEÑO */}
-           <div style={{ border: '1px solid #000', marginBottom: '15px' }}>
-             <div className="pdf-section-header">2.0 RESUMEN NUMÉRICO Y DETERMINACIÓN DE CONFORMIDAD</div>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "8px" }}>
+          {/* TABLA PRINCIPAL DE EVALUACIÓN (ÍTEM EVALUADO / RESPUESTA) */}
+          <div style={{ border: '1px solid #cbd5e1', borderRadius: '3px', overflow: 'hidden', marginBottom: '16px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8.5px' }}>
               <thead>
-                <tr style={{ backgroundColor: '#e2e8f0', textAlign: 'center' }}>
-                  <th style={{ border: "1px solid #000", borderTop: 'none', padding: "5px 6px", textAlign: "left", width: "45%", verticalAlign: 'middle' }}>SECCIÓN / ÁREA DE EVALUACIÓN</th>
-                  <th style={{ border: "1px solid #000", borderTop: 'none', padding: "5px 6px", width: "9%", verticalAlign: 'middle' }}>TOTAL</th>
-                  <th style={{ border: "1px solid #000", borderTop: 'none', padding: "5px 6px", width: "9%", color: "#166534", verticalAlign: 'middle' }}>C</th>
-                  <th style={{ border: "1px solid #000", borderTop: 'none', padding: "5px 6px", width: "9%", color: "#b91c1c", verticalAlign: 'middle' }}>NC</th>
-                  <th style={{ border: "1px solid #000", borderTop: 'none', padding: "5px 6px", width: "9%", color: "#c2410c", verticalAlign: 'middle' }}>OM</th>
-                  <th style={{ border: "1px solid #000", borderTop: 'none', padding: "5px 6px", width: "9%", color: "#64748b", verticalAlign: 'middle' }}>NA</th>
-                  <th style={{ border: "1px solid #000", borderTop: 'none', padding: "5px 6px", width: "10%", verticalAlign: 'middle' }}>CONFORME</th>
+                <tr style={{ backgroundColor: '#1e40af', color: '#ffffff', fontWeight: 'bold' }}>
+                  <th style={{ padding: '6px 10px', textAlign: 'left', width: '82%' }}>Ítem Evaluado</th>
+                  <th style={{ padding: '6px 10px', textAlign: 'center', width: '18%' }}>Respuesta</th>
                 </tr>
               </thead>
               <tbody>
-                {(() => {
-                  let totTotal = 0, totC = 0, totNC = 0, totOM = 0, totNA = 0;
-                  const rows = (metadata.tipo?.secciones || []).map((sec: any) => {
-                    let c = 0, nc = 0, om = 0, na = 0, total = 0;
-                    (sec.items || []).forEach((item: any) => {
+                {(metadata.tipo?.secciones || []).map((sec: any, secIdx: number) => (
+                  <React.Fragment key={sec.id || secIdx}>
+                    <tr style={{ backgroundColor: '#e2e8f0', color: '#0f172a', fontWeight: 'bold', borderTop: secIdx > 0 ? '1px solid #cbd5e1' : 'none', borderBottom: '1px solid #cbd5e1' }}>
+                      <td colSpan={2} style={{ padding: '4px 10px', textTransform: 'uppercase', letterSpacing: '0.2px' }}>
+                        SECCIÓN: {secIdx + 1}. {(sec.titulo || sec.title || '').replace(/^SECCIÓN:s*/i, '')}
+                      </td>
+                    </tr>
+                    {(sec.items || []).map((item: any, itIdx: number) => {
                       const rawVal = inspection.respuestas?.[item.id];
-                      if (rawVal === undefined || rawVal === null || rawVal === '') return;
-                      total++;
-                      const val = String(rawVal).toUpperCase().trim();
-                      if (['C', 'BUENO', 'SI', 'SÍ', 'OPERATIVO', 'OK', 'CONFORME', 'EXISTE'].includes(val)) c++;
-                      else if (['NC', 'DANADO', 'DAÑADO', 'NO', 'NO OPERATIVO', 'NO CONFORME', 'CRITICO', 'CRÍTICO', 'NO_EXISTE'].includes(val)) nc++;
-                      else if (val === 'OM') om++;
-                      else if (['NA', 'N/A', 'NO APLICA'].includes(val)) na++;
-                      else c++;
-                    });
-                    totTotal += total;
-                    totC += c;
-                    totNC += nc;
-                    totOM += om;
-                    totNA += na;
-                    const applicable = total - na;
-                    const perc = applicable > 0 ? Math.round((c / applicable) * 100) : 100;
+                      let displayVal = '—';
+                      let color = '#334155';
+                      if (rawVal !== undefined && rawVal !== null && rawVal !== '') {
+                        const valUpper = String(rawVal).toUpperCase().trim();
+                        if (['C', 'BUENO', 'SI', 'SÍ', 'OPERATIVO', 'OK', 'CONFORME', 'EXISTE'].includes(valUpper)) {
+                          displayVal = 'C';
+                          color = '#166534';
+                        } else if (['NC', 'DANADO', 'DAÑADO', 'NO', 'NO OPERATIVO', 'NO CONFORME', 'CRITICO', 'CRÍTICO', 'NO_EXISTE'].includes(valUpper)) {
+                          displayVal = 'NC';
+                          color = '#b91c1c';
+                        } else if (valUpper === 'OM') {
+                          displayVal = 'OM';
+                          color = '#c2410c';
+                        } else if (['NA', 'N/A', 'NO APLICA'].includes(valUpper)) {
+                          displayVal = 'NA';
+                          color = '#64748b';
+                        } else {
+                          displayVal = String(rawVal);
+                        }
+                      }
 
-                    return (
-                      <tr key={sec.id} style={{ textAlign: 'center' }}>
-                        <td style={{ border: "1px solid #000", padding: "5px 6px", textAlign: 'left', fontWeight: 'bold' }}>{(sec.titulo || sec.title || '').toUpperCase()}</td>
-                        <td style={{ border: "1px solid #000", padding: "5px 6px" }}>{total}</td>
-                        <td style={{ border: "1px solid #000", padding: "5px 6px", color: '#166534', fontWeight: 'bold' }}>{c}</td>
-                        <td style={{ border: "1px solid #000", padding: "5px 6px", color: '#b91c1c', fontWeight: 'bold' }}>{nc}</td>
-                        <td style={{ border: "1px solid #000", padding: "5px 6px", color: '#c2410c', fontWeight: 'bold' }}>{om}</td>
-                        <td style={{ border: "1px solid #000", padding: "5px 6px", color: '#64748b' }}>{na}</td>
-                        <td style={{ border: "1px solid #000", padding: "5px 6px", fontWeight: "bold" }}>
-                          <span style={{ color: perc >= 90 ? '#166534' : perc >= 70 ? '#c2410c' : '#b91c1c' }}>{perc}%</span>
-                        </td>
-                      </tr>
-                    );
-                  });
-
-                  const globalScore = inspection.puntuacion ?? inspection.puntuacionConformidad ?? 100;
-                  const nivelColor = globalScore >= 90 ? '#166534' : globalScore >= 70 ? '#c2410c' : '#b91c1c';
-
-                  return (
-                    <>
-                      {rows}
-                      <tr style={{ backgroundColor: '#f1f5f9', fontWeight: 'bold', textAlign: 'center' }}>
-                        <td style={{ border: "1px solid #000", padding: "5px 6px", textAlign: 'left' }}>PUNTUACIÓN GLOBAL Y TOTALES AUDITADOS:</td>
-                        <td style={{ border: "1px solid #000", padding: "5px 6px" }}>{totTotal}</td>
-                        <td style={{ border: "1px solid #000", padding: "5px 6px", color: '#166534' }}>{totC}</td>
-                        <td style={{ border: "1px solid #000", padding: "5px 6px", color: '#b91c1c' }}>{totNC}</td>
-                        <td style={{ border: "1px solid #000", padding: "5px 6px", color: '#c2410c' }}>{totOM}</td>
-                        <td style={{ border: "1px solid #000", padding: "5px 6px", color: '#64748b' }}>{totNA}</td>
-                        <td style={{ border: "1px solid #000", padding: "5px 6px", fontSize: '9px', color: nivelColor }}>
-                          {globalScore}%
-                        </td>
-                      </tr>
-                    </>
-                  );
-                })()}
+                      return (
+                        <tr key={item.id || itIdx} style={{ backgroundColor: itIdx % 2 === 0 ? '#ffffff' : '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '5px 10px', color: '#1e293b' }}>
+                            {item.pregunta || item.label}
+                            {item.referenciaLegal && (
+                              <span style={{ fontSize: '7.5px', color: '#64748b', fontStyle: 'italic', marginLeft: '6px' }}>
+                                ({item.referenciaLegal})
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ padding: '5px 10px', textAlign: 'center', fontWeight: 'bold', color: color }}>
+                            {displayVal}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </React.Fragment>
+                ))}
               </tbody>
             </table>
           </div>
 
-          {/* CUERPO TÉCNICO DE LA INSPECCIÓN */}
-          <div className="pdf-section-header" style={{ border: '1px solid #000', borderBottom: 'none' }}>3.0 HALLAZGOS Y EVIDENCIAS DE CAMPO</div>
-          <div style={{ border: '1px solid #000', marginBottom: isExtintores ? '6px' : '20px' }}>
-            {(metadata.tipo?.secciones || []).map((sec: any, i: number) => (
-              <div key={sec.id} style={{ pageBreakInside: "auto" }}>
-                <div className="pdf-subsection-header" style={{ borderBottom: '1px solid #000', borderTop: i > 0 ? '1px solid #000' : 'none' }}>
-                  {`3.${i + 1} ${(sec.titulo || sec.title || '').toUpperCase()}`}
-                </div>
-                <table style={{ width: "100%", tableLayout: "fixed", borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr style={{ backgroundColor: "#f9fafb" }}>
-                      <th style={{ borderBottom: "1px solid #000", borderRight: '1px solid #000', padding: isExtintores ? "4px 6px" : "8px 10px", textAlign: "left", fontSize: isExtintores ? "8px" : "9px", width: "75%", verticalAlign: 'middle' }}>REQUERIMIENTO / PUNTO DE CONTROL</th>
-                      <th style={{ borderBottom: "1px solid #000", padding: isExtintores ? "4px 6px" : "8px 10px", textAlign: "center", fontSize: isExtintores ? "8px" : "9px", width: "25%", verticalAlign: 'middle' }}>RESULTADO</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(sec.items || []).map((item: any) => {
-                       const rawResponse = inspection.respuestas?.[item.id] || "N/A";
-                       const val = String(rawResponse).toUpperCase();
-                       let smallVal = val;
-                       const isPositive = ["C", "SI", "BUENO", "OPERATIVO", "OK", "CONFORME", "EXISTE"].includes(val);
-                       const isNegative = ["NC", "NO", "DANADO", "MALO", "DETERIORADO", "NO OPERATIVO", "CRITICO", "NO_EXISTE", "DESACTUALIZADO"].includes(val);
-                       const isNeutral = ["OM"].includes(val);
-                       const isNA = ["N/A", "NA"].includes(val);
-                       
-                       let c = "#000";
-                       let isTextBased = !isPositive && !isNegative && !isNeutral && !isNA;
-                       
-                       if (isPositive) { 
-                         c = "#166534"; 
-                         smallVal = val === "C" ? "CONFORME (C)" : (val === "SI" ? "SÍ" : val); 
-                       }
-                       else if (isNegative) { 
-                         c = "#b91c1c"; 
-                         smallVal = val === "NC" ? "NO CONFORME (NC)" : (val === "NO_EXISTE" ? "NO EXISTE" : val); 
-                       }
-                       else if (isNeutral) { 
-                         c = "#c2410c"; 
-                         smallVal = "OBSERVACIÓN (OM)"; 
-                       }
-                       else if (isNA) {
-                         smallVal = "N/A";
-                         c = "#6b7280";
-                       }
-                       else if (isTextBased) {
-                         smallVal = String(rawResponse);
-                       }
-                       
-                       return (
-                        <React.Fragment key={item.id}>
-                          <tr style={{ borderBottom: "0.5px solid #ccc", pageBreakInside: "avoid" }}>
-                            <td style={{ borderRight: "1px solid #000", padding: isExtintores ? "6px 8px" : "10px 12px", verticalAlign: 'middle', wordBreak: "break-word", overflowWrap: "break-word" }}>
-                               <div style={{ width: '100%', fontSize: isExtintores ? "8.5px" : "9.5px", lineHeight: '1.3' }}>
-                                 {inspection.fotos?.[item.id] && (
-                                   <span style={{ float: 'right', marginLeft: '6px', marginTop: '1px' }}>
-                                     <Camera size={11} style={{ color: '#004B93', display: 'inline-block', verticalAlign: 'middle' }} />
-                                   </span>
-                                 )}
-                                 <span style={{ display: 'inline', wordBreak: 'normal', overflowWrap: 'anywhere' }}>{item.pregunta || item.label}</span>
-                                 {item.referenciaLegal && (
-                                   <div style={{ fontSize: '7px', color: '#666', fontStyle: 'italic', marginTop: '2px' }}>Ref: {item.referenciaLegal}</div>
-                                 )}
-                               </div>
-                               
-                              {isTextBased && rawResponse !== "N/A" && rawResponse !== "" && String(rawResponse).length > 20 && (
-                                <div style={{ marginTop: "4px", color: "#222", fontSize: '8px', borderLeft: '2px solid #004B93', paddingLeft: '6px', backgroundColor: '#f8fafc', padding: '4px 6px' }}><strong>Dato Registrado:</strong> {rawResponse}</div>
-                              )}
-                            </td>
-                            <td style={{ textAlign: "center", color: c, fontWeight: "bold", padding: isExtintores ? "6px 8px" : "10px 12px", verticalAlign: "middle", fontSize: isExtintores ? "8.5px" : "9.5px", wordBreak: "break-word", overflowWrap: "break-word" }}>
-                              {smallVal}
-                            </td>
-                          </tr>
-                        </React.Fragment>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ))}
-          </div>
-
           {/* OBSERVACIONES TÉCNICAS */}
           {inspection.observaciones && (
-            <div style={{ marginBottom: isExtintores ? "6px" : "25px", border: '1px solid #000', pageBreakInside: "avoid" }}>
-              <div className="pdf-section-header">4.0 OBSERVACIONES TÉCNICAS Y RECOMENDACIONES</div>
-              <div style={{ padding: isExtintores ? "5px" : "10px", fontSize: '9px', lineHeight: '1.4', backgroundColor: "#fff", whiteSpace: 'pre-wrap' }}>
+            <div style={{ marginBottom: "14px", border: '1px solid #cbd5e1', borderRadius: '3px', overflow: 'hidden' }}>
+              <div style={{ backgroundColor: '#f1f5f9', padding: '4px 8px', fontWeight: 'bold', fontSize: '8.5px', color: '#1e293b', borderBottom: '1px solid #cbd5e1' }}>
+                OBSERVACIONES Y RECOMENDACIONES
+              </div>
+              <div style={{ padding: "8px 10px", fontSize: '8px', lineHeight: '1.4', backgroundColor: "#fff", whiteSpace: 'pre-wrap' }}>
                 {inspection.observaciones}
               </div>
             </div>
@@ -698,23 +545,23 @@ export default function InspectionReport({
 
           {/* EVIDENCIA FOTOGRÁFICA */}
           {inspection.fotos && Object.keys(inspection.fotos).length > 0 && (
-            <div style={{ marginBottom: isExtintores ? "6px" : "25px", border: '1px solid #000', pageBreakInside: "avoid" }}>
-              <div className="pdf-section-header">REGISTRO FOTOGRÁFICO</div>
-              <div style={{ padding: isExtintores ? "5px" : "10px", backgroundColor: "#fff", display: 'flex', flexWrap: 'wrap', gap: isExtintores ? '6px' : '15px', justifyContent: 'center' }}>
+            <div style={{ marginBottom: "14px", border: '1px solid #cbd5e1', borderRadius: '3px', overflow: 'hidden' }}>
+              <div style={{ backgroundColor: '#f1f5f9', padding: '4px 8px', fontWeight: 'bold', fontSize: '8.5px', color: '#1e293b', borderBottom: '1px solid #cbd5e1' }}>
+                REGISTRO FOTOGRÁFICO
+              </div>
+              <div style={{ padding: "8px", backgroundColor: "#fff", display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center' }}>
                 {Object.entries(inspection.fotos).map(([fotoId, url], i) => {
                   let itemName = fotoId;
                   (metadata.tipo?.secciones || []).forEach((sec: any) => {
                     const found = (sec.items || []).find((it: any) => it.id === fotoId);
                     if (found) itemName = found.pregunta || found.label || fotoId;
                   });
-                  const numFotos = Object.keys(inspection.fotos || {}).length;
-                  const itemWidth = isExtintores 
-                    ? `${Math.min(30, Math.floor(95 / numFotos))}%` 
-                    : '45%';
                   return (
-                    <div key={i} style={{ width: itemWidth, border: '1px solid #ddd', padding: isExtintores ? '3px' : '6px', textAlign: 'center', backgroundColor: '#f8fafc', pageBreakInside: 'avoid' }}>
-                      <img src={url} alt={`Evidencia ${i + 1}`} style={{ maxWidth: '100%', maxHeight: isExtintores ? '80px' : '180px', width: 'auto', height: 'auto', margin: '0 auto', display: 'block' }} />
-                      <div style={{ fontSize: isExtintores ? '7px' : '9px', marginTop: isExtintores ? '3px' : '6px', fontWeight: 'bold', color: '#333' }}>{itemName.replace(/^\d+\.\d+\s+¿?/, '').replace(/\?$/, '')}</div>
+                    <div key={i} style={{ width: '45%', border: '1px solid #e2e8f0', padding: '4px', textAlign: 'center', backgroundColor: '#f8fafc', borderRadius: '3px' }}>
+                      <img src={url} alt={`Evidencia ${i + 1}`} style={{ maxWidth: '100%', maxHeight: '160px', width: 'auto', height: 'auto', margin: '0 auto', display: 'block', borderRadius: '2px' }} />
+                      <div style={{ fontSize: '7.5px', marginTop: '4px', fontWeight: 'bold', color: '#334155' }}>
+                        {itemName.replace(/^\d+\.\d+\s+¿?/, '').replace(/\?$/, '')}
+                      </div>
                     </div>
                   );
                 })}
@@ -722,64 +569,40 @@ export default function InspectionReport({
             </div>
           )}
 
-          {/* CIERRE Y PROTOCOLO DE FIRMAS */}
-          <div style={{ border: '1px solid #000', pageBreakInside: "avoid" }}>
-            <div className="pdf-subsection-header" style={{ borderBottom: '1px solid #000', textAlign: 'center' }}>5.0 PROTOCOLO DE VALIDACIÓN Y CIERRE</div>
-            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "center" }}>
-              <tbody>
-                <tr>
-                  <td className="signature-box" style={{ width: "50%", padding: isExtintores ? "6px 10px" : "15px 10px", borderRight: '1px solid #000' }}>
-                    <div style={{ height: isExtintores ? "40px" : "65px", marginBottom: isExtintores ? "4px" : "8px", display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {inspection.firmas?.inspector ? (
-                        <img
-                          src={inspection.firmas.inspector}
-                          alt="Firma Inspector"
-                          style={{ maxHeight: isExtintores ? "40px" : "65px", maxWidth: "100%", width: 'auto', height: 'auto' }}
-                        />
-                      ) : <div style={{ height: isExtintores ? "40px" : "65px", borderBottom: '1px dashed #ccc', width: '150px' }} />}
-                    </div>
-                    <div style={{ borderTop: "1px solid #000", margin: "0 auto", width: "85%", paddingTop: "3px", fontSize: '8.5px' }}>
-                      <strong>{(inspection.inspectorId || inspection.inspector || 'Inspector SSA').toUpperCase()}</strong><br/>
-                      FIRMA AUTORIZADA: INSPECTOR SST
-                    </div>
-                  </td>
-                  <td className="signature-box" style={{ width: "50%", padding: isExtintores ? "6px 10px" : "15px 10px" }}>
-                    <div style={{ height: isExtintores ? "40px" : "65px", marginBottom: isExtintores ? "4px" : "8px", display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {inspection.firmas?.revisor ? (
-                        <img
-                          src={inspection.firmas.revisor}
-                          alt="Firma Revisor"
-                          style={{ maxHeight: isExtintores ? "40px" : "65px", maxWidth: "100%", width: 'auto', height: 'auto' }}
-                        />
-                      ) : <div style={{ height: isExtintores ? "40px" : "65px", borderBottom: '1px dashed #ccc', width: '150px' }} />}
-                    </div>
-                    <div style={{ borderTop: "1px solid #000", margin: "0 auto", width: "85%", paddingTop: "3px", fontSize: '8.5px' }}>
-                      <strong>VALIDACIÓN RESPONSABLE</strong><br/>
-                      FIRMA Y SELLO: GERENCIA / JEFATURA
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          {/* PROTOCOLO DE FIRMAS OFICIALES */}
+          <div style={{ marginTop: '20px', paddingTop: '10px', display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
+            <div style={{ width: '38%' }}>
+              {inspection.firmas?.inspector && (
+                <div style={{ height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <img src={inspection.firmas.inspector} alt="Firma Inspector" style={{ maxHeight: '40px', maxWidth: '100%' }} />
+                </div>
+              )}
+              <div style={{ borderTop: '1px solid #0f172a', paddingTop: '4px', marginTop: inspection.firmas?.inspector ? '2px' : '30px' }}>
+                <div style={{ fontSize: '8.5px', fontWeight: 'bold', color: '#0f172a' }}>
+                  {inspection.inspector || inspection.inspectorId || 'Francisco Rojas'}
+                </div>
+                <div style={{ fontSize: '7.5px', color: '#64748b' }}>
+                  Elaborado por (Inspector SSA)
+                </div>
+              </div>
+            </div>
 
-          {/* FOOTER - CORPORATE STANDARD */}
-          <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', borderStyle: 'none', marginTop: isExtintores ? '8px' : '15px' }}>
-            <tbody>
-              <tr>
-                <td style={{ width: '30%', textAlign: 'left', border: 'none', borderStyle: 'none', padding: '0', fontSize: '6.5px', fontWeight: 'bold', color: '#000', backgroundColor: 'transparent' }}>
-                  ERP REGISTRY: SST-090-SYS-INSP
-                </td>
-                <td style={{ width: '40%', textAlign: 'center', border: 'none', borderStyle: 'none', padding: '0', fontSize: '6.5px', fontWeight: 'bold', color: '#000', backgroundColor: 'transparent' }}>
-                  DOCUMENTO GENERADO POR SISTEMA SGD-DUNCAN - PÁGINA 1 / 1
-                </td>
-                <td style={{ width: '30%', textAlign: 'right', border: 'none', borderStyle: 'none', padding: '0', fontSize: '6.5px', fontWeight: 'bold', color: '#000', backgroundColor: 'transparent' }}>
-                  DESARROLLADO POR ERGOEXPRESS, C.A. - RIF: J-50251246-2
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          </>
+            <div style={{ width: '38%' }}>
+              {inspection.firmas?.revisor && (
+                <div style={{ height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <img src={inspection.firmas.revisor} alt="Firma Revisor" style={{ maxHeight: '40px', maxWidth: '100%' }} />
+                </div>
+              )}
+              <div style={{ borderTop: '1px solid #0f172a', paddingTop: '4px', marginTop: inspection.firmas?.revisor ? '2px' : '30px' }}>
+                <div style={{ fontSize: '8.5px', fontWeight: 'bold', color: '#0f172a' }}>
+                  Supervisor de Área / Sede
+                </div>
+                <div style={{ fontSize: '7.5px', color: '#64748b' }}>
+                  Revisado y Conforme
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* MODAL PRINT PREVIEW */}
