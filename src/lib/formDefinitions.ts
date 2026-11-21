@@ -1786,23 +1786,124 @@ export const MTCG_SSA_FORM: InspectionFormDef = {
 // REGISTRY OF ALL FORM DEFINITIONS
 // ============================================================
 export const FORM_REGISTRY: Record<string, InspectionFormDef> = {
+  // Extintores
   EXT: EXT_FORM,
+  ti_ext: EXT_FORM,
+
+  // SSA Distribuidoras
   DD: DD_FORM,
+  ti_dd: DD_FORM,
+
+  // Orden y Limpieza
   OL: OL_FORM,
+  ti_ol: OL_FORM,
+
+  // SSA Servicentros
   SC: SC_FORM,
+  ti_sc: SC_FORM,
+
+  // Herramientas y Equipos
   HEQ: HEQ_FORM,
+  HE: HEQ_FORM,
+  ti_he: HEQ_FORM,
+
+  // Montacargas Operacional
   MTCG: MTCG_FORM,
+  MC: MTCG_FORM,
+  ti_mc: MTCG_FORM,
+
+  // Inspección Diaria Vehículo / Vehículo Transporte
   VHT: VHT_FORM,
+  IDV: VHT_FORM,
+  ti_idv: VHT_FORM,
+
+  // Evaluación Transporte de Carga
   VTC: VTC_FORM,
+  ETC: VTC_FORM,
+  ti_etc: VTC_FORM,
+
+  // Fuente Lavaojos Portátil
   FLP: FLP_FORM,
+  ti_flp: FLP_FORM,
+
+  // Fuente y Ducha de Emergencia
   FYD: FYD_FORM,
+  FD: FYD_FORM,
+  ti_fd: FYD_FORM,
+
+  // Kit para Derrames
   KPD: KPD_FORM,
+  KD: KPD_FORM,
+  ti_kd: KPD_FORM,
+
+  // Lámparas de Emergencia
   LEM: LEM_FORM,
+  LE: LEM_FORM,
+  ti_le: LEM_FORM,
+
+  // Detección de Incendios
   DI: DI_FORM,
+  ti_di: DI_FORM,
+
+  // Permisos de Bomberos
   PB: PB_FORM,
+  ti_pb: PB_FORM,
+
+  // Dotación de Personal
   DP: DP_FORM,
+  DOT: DP_FORM,
+
+  // Montacargas SSA
   MTCG_SSA: MTCG_SSA_FORM,
+  MCSSA: MTCG_SSA_FORM,
+  ti_mc_ssa: MTCG_SSA_FORM,
+
+  // Inspección General / Base
+  GEN: DD_FORM,
+  ti_gen: DD_FORM,
 };
+
+/**
+ * Resuelve de forma robusta la definición del formulario a partir de cualquier
+ * código, ID o texto descriptivo del tipo de inspección.
+ */
+export function getFormDefinition(identifier?: string): InspectionFormDef | null {
+  if (!identifier) return null;
+  const raw = identifier.trim();
+  const upper = raw.toUpperCase();
+  const lower = raw.toLowerCase();
+
+  // 1. Coincidencia directa por código exacto, mayúsculas o minúsculas
+  if (FORM_REGISTRY[upper]) return FORM_REGISTRY[upper];
+  if (FORM_REGISTRY[raw]) return FORM_REGISTRY[raw];
+  if (FORM_REGISTRY[lower]) return FORM_REGISTRY[lower];
+
+  // 2. Coincidencia semántica inteligente por palabras clave
+  if (lower.includes('ducha') || lower.includes('lavaojo') || lower.includes('fuente')) {
+    if (lower.includes('portatil') || lower.includes('portátil')) return FLP_FORM;
+    return FYD_FORM;
+  }
+  if (lower.includes('extintor')) return EXT_FORM;
+  if (lower.includes('montacarga')) {
+    if (lower.includes('ssa')) return MTCG_SSA_FORM;
+    return MTCG_FORM;
+  }
+  if (lower.includes('derrame') || lower.includes('kpd') || lower.includes('kit')) return KPD_FORM;
+  if (lower.includes('lampara') || lower.includes('lámpara') || lower.includes('iluminacion')) return LEM_FORM;
+  if (lower.includes('vehiculo') || lower.includes('vehículo') || lower.includes('transporte')) {
+    if (lower.includes('carga')) return VTC_FORM;
+    return VHT_FORM;
+  }
+  if (lower.includes('herramienta') || lower.includes('equipo')) return HEQ_FORM;
+  if (lower.includes('incendio') || lower.includes('deteccion') || lower.includes('alarma')) return DI_FORM;
+  if (lower.includes('orden') || lower.includes('limpieza')) return OL_FORM;
+  if (lower.includes('distribuidora')) return DD_FORM;
+  if (lower.includes('servicentro')) return SC_FORM;
+  if (lower.includes('bombero')) return PB_FORM;
+  if (lower.includes('dotacion') || lower.includes('dotación') || lower.includes('epp')) return DP_FORM;
+
+  return null;
+}
 
 // Helper: get total items count
 export function getTotalItems(form: InspectionFormDef): number {

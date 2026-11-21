@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useSGD } from '../contexts/SGDContext';
 import { ArrowLeft, Save, CheckCircle, AlertTriangle, FileText, Camera, Trash2, Upload, X } from 'lucide-react';
-import { FORM_REGISTRY, calculateScore } from '../lib/formDefinitions';
+import { FORM_REGISTRY, getFormDefinition, calculateScore } from '../lib/formDefinitions';
 import { DynamicInspectionForm } from '../components/DynamicInspectionForm';
 import { formatDate } from '../lib/utils';
 import toast from 'react-hot-toast';
@@ -16,7 +16,9 @@ export default function InspeccionFormPage() {
 
   const formDef = useMemo(() => {
     if (!inspeccion) return null;
-    return FORM_REGISTRY[inspeccion.tipoCodigo] || FORM_REGISTRY.EXT;
+    return getFormDefinition(inspeccion.tipoCodigo) ||
+           getFormDefinition(inspeccion.tipoInspeccionId) ||
+           getFormDefinition(inspeccion.tipoNombre);
   }, [inspeccion]);
 
   const initialResponses = useMemo(() => {
@@ -59,8 +61,14 @@ export default function InspeccionFormPage() {
 
   if (!formDef) {
     return (
-      <div className="py-16 text-center text-slate-500">
-        <p className="font-semibold text-lg">Formulario no configurado para este tipo</p>
+      <div className="py-16 text-center text-slate-500 card p-8 max-w-md mx-auto my-12 border border-slate-200">
+        <div className="w-12 h-12 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center mx-auto mb-3">
+          <AlertTriangle className="h-6 w-6" />
+        </div>
+        <p className="font-bold text-lg text-slate-800">Formulario no encontrado</p>
+        <p className="text-xs text-slate-500 mt-1">
+          No se encontró la plantilla para "{inspeccion.tipoNombre || inspeccion.tipoCodigo}".
+        </p>
         <Link to="/inspecciones" className="btn-primary mt-4 inline-flex items-center gap-2">
           <ArrowLeft className="h-4 w-4" /> Volver a Inspecciones
         </Link>
