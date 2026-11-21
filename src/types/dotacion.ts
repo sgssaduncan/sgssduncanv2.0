@@ -32,6 +32,7 @@ export interface InventarioItem {
   stockMinimo?: number;
   unidad?: string;
   createdAt?: string;
+  tieneTalla?: boolean;
   
   // Venezuelan SST Compliance (LOPCYMAT & NT-03-2016)
   normaCovenin?: string;

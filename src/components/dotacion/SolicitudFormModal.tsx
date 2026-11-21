@@ -22,7 +22,8 @@ import toast from 'react-hot-toast';
 import {
   obtenerOpcionesTalla,
   obtenerTallaSugerida,
-  detectarTipoImplemento
+  detectarTipoImplemento,
+  requiereTalla
 } from '../../lib/tallasCatalog';
 
 interface SolicitudFormModalProps {
@@ -73,7 +74,11 @@ export default function SolicitudFormModal({
       currentItems.map(it => {
         if (!it.itemId) return it;
         const inv = (inventario || []).find(i => i.id === it.itemId);
-        if (!it.talla || it.talla.trim() === '') {
+        const necesita = requiereTalla(inv);
+        if (!necesita) {
+          return { ...it, talla: 'N/A' };
+        }
+        if (!it.talla || it.talla.trim() === '' || it.talla === 'N/A') {
           const sugerida = obtenerTallaSugerida(inv, selectedEmpleado);
           return { ...it, talla: sugerida || it.talla };
         }
@@ -103,12 +108,13 @@ export default function SolicitudFormModal({
 
   const handleItemChange = (idx: number, newItemId: string) => {
     const inv = (inventario || []).find(i => i.id === newItemId);
-    const sugerida = obtenerTallaSugerida(inv, selectedEmpleado);
+    const necesita = requiereTalla(inv);
+    const sugerida = necesita ? obtenerTallaSugerida(inv, selectedEmpleado) : 'N/A';
     const newItems = [...items];
     newItems[idx] = {
       ...newItems[idx],
       itemId: newItemId,
-      talla: sugerida || '',
+      talla: sugerida || (necesita ? '' : 'N/A'),
       esCustom: false
     };
     setItems(newItems);
@@ -134,9 +140,16 @@ export default function SolicitudFormModal({
       return;
     }
 
-    const itemsValid = itemsList.every(i => i.itemId && i.talla.trim() !== '' && i.cantidad > 0);
+    const itemsValid = itemsList.every(i => {
+      if (!i.itemId || i.cantidad <= 0) return false;
+      const inv = (inventario || []).find(x => x.id === i.itemId);
+      const necesita = requiereTalla(inv);
+      if (!necesita) return true;
+      return (i.talla || '').trim() !== '';
+    });
+
     if (!itemsValid) {
-      toast.error('Complete todos los campos requeridos (artículo, talla y cantidad mayor a cero).');
+      toast.error('Complete todos los campos requeridos (artículo, talla en implementos que la requieran, y cantidad mayor a cero).');
       return;
     }
 
@@ -166,14 +179,20 @@ export default function SolicitudFormModal({
     // Notification of items without immediate stock
     const outOfStockItems = itemsList.filter(it => {
       const inv = (inventario || []).find(i => i.id === it.itemId);
-      const stockItem = (inv?.stock || []).find(s => s.talla.toUpperCase() === it.talla.toUpperCase());
+      if (!inv) return false;
+      const necesita = requiereTalla(inv);
+      if (!necesita) {
+        const totalStock = (inv.stock || []).reduce((acc, s) => acc + (s.cantidad || 0), 0);
+        return totalStock < it.cantidad;
+      }
+      const stockItem = (inv.stock || []).find(s => s.talla.toUpperCase() === (it.talla || '').toUpperCase());
       return !stockItem || stockItem.cantidad < it.cantidad;
     });
 
     if (outOfStockItems.length > 0) {
       const nombresFaltantes = outOfStockItems.map(it => {
         const inv = (inventario || []).find(i => i.id === it.itemId);
-        return `• ${inv?.nombre || 'Artículo'} (Talla: ${it.talla})`;
+        return `• ${inv?.nombre || 'Artículo'} (Talla: ${it.talla || 'Única'})`;
       }).join('\n');
 
       const confirmar = window.confirm(
@@ -201,7 +220,15 @@ export default function SolicitudFormModal({
         solicitanteId: user?.uid || '',
         fechaSolicitud: new Date().toISOString().split('T')[0],
         estado: estadoInicial,
-        items: items.map(i => ({ itemId: i.itemId, cantidad: i.cantidad, talla: i.talla })),
+        items: items.map(i => {
+          const inv = (inventario || []).find(x => x.id === i.itemId);
+          const necesita = requiereTalla(inv);
+          return {
+            itemId: i.itemId,
+            cantidad: i.cantidad,
+            talla: necesita ? (i.talla.trim() || 'N/A') : (i.talla.trim() || 'N/A')
+          };
+        }),
         motivo,
         firmaSolicitante: firmaSolicitanteObj,
         firmaSupervisor: apruebaComoSupervisor ? firmaSolicitanteObj : undefined,
@@ -469,14 +496,20 @@ export default function SolicitudFormModal({
               <div className="space-y-3">
                 {items.map((it, idx) => {
                   const selectedInv = (inventario || []).find(i => i.id === it.itemId);
+                  const necesitaTalla = requiereTalla(selectedInv);
                   const opcionesTallas = obtenerOpcionesTalla(selectedInv, selectedEmpleado);
                   const tipoDetectado = selectedInv ? detectarTipoImplemento(selectedInv.nombre, selectedInv.categoria, selectedEmpleado?.genero) : null;
                   
+                  const stockTotal = (selectedInv?.stock || []).reduce((acc, s) => acc + (s.cantidad || 0), 0);
                   const stockSeleccionado = (selectedInv?.stock || []).find(
                     s => s.talla.toUpperCase() === (it.talla || '').toUpperCase()
                   )?.cantidad ?? 0;
 
-                  const isSinStock = !!it.talla && stockSeleccionado === 0 && !it.esCustom;
+                  const isSinStock = selectedInv
+                    ? necesitaTalla
+                      ? !!it.talla && stockSeleccionado === 0 && !it.esCustom
+                      : stockTotal === 0
+                    : false;
 
                   return (
                     <div
@@ -504,12 +537,38 @@ export default function SolicitudFormModal({
                           </select>
                         </div>
 
-                        {/* Selector de Talla */}
+                        {/* Selector de Talla o Indicador de Talla Única */}
                         <div className="w-full md:w-56">
-                          <label className="block text-[10px] font-bold text-slate-500 mb-0.5">
-                            Talla Estandarizada <span className="text-red-500">*</span>
-                          </label>
-                          {!it.esCustom ? (
+                          <div className="flex items-center justify-between mb-0.5">
+                            <label className="block text-[10px] font-bold text-slate-500">
+                              Talla / Medida
+                            </label>
+                            {selectedInv ? (
+                              necesitaTalla ? (
+                                <span className="text-[9.5px] font-bold text-red-500">* Requerida</span>
+                              ) : (
+                                <span className="text-[9.5px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                                  No Aplica / Única
+                                </span>
+                              )
+                            ) : null}
+                          </div>
+
+                          {!selectedInv ? (
+                            <select
+                              disabled
+                              className="w-full border border-slate-200 rounded-lg p-2 text-xs bg-slate-100 text-slate-400 outline-none"
+                            >
+                              <option value="">Primero elija un implemento...</option>
+                            </select>
+                          ) : !necesitaTalla ? (
+                            <div className="w-full bg-slate-100 border border-slate-200 rounded-lg p-2 text-xs font-semibold text-slate-700 flex items-center justify-between shadow-2xs">
+                              <span className="text-[11px] font-medium text-slate-600">Talla Única / Estándar</span>
+                              <span className="text-[10px] bg-white border border-slate-300 text-slate-700 font-bold px-1.5 py-0.5 rounded shadow-2xs">
+                                N/A
+                              </span>
+                            </div>
+                          ) : !it.esCustom ? (
                             <select
                               value={it.talla}
                               onChange={e => handleTallaChange(idx, e.target.value)}
@@ -518,16 +577,16 @@ export default function SolicitudFormModal({
                                 !it.talla ? "border-amber-300 text-amber-800" : "border-slate-300 text-slate-900 focus:border-duncan-blue"
                               )}
                               required
-                              disabled={!it.itemId}
                             >
                               <option value="">
-                                {!it.itemId ? 'Primero elija un implemento...' : `Seleccione Talla (${opcionesTallas.length} opciones)...`}
+                                {`Seleccione Talla (${opcionesTallas.length} opciones)...`}
                               </option>
                               {opcionesTallas.map(opt => (
                                 <option key={opt.talla} value={opt.talla}>
                                   {opt.label}
                                 </option>
                               ))}
+                              <option value="N/A">🔘 No Aplica / Estándar (N/A)</option>
                               <option value="__CUSTOM__">✏️ Otra Medida / Personalizada...</option>
                             </select>
                           ) : (
@@ -608,6 +667,11 @@ export default function SolicitudFormModal({
                             <span className="font-medium">
                               Tipo: <strong className="text-slate-700">{tipoDetectado || 'Implemento General'}</strong>
                             </span>
+                            {!necesitaTalla && (
+                              <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200 font-semibold">
+                                Talla Universal / Ajustable
+                              </span>
+                            )}
                             {selectedInv.documentoEficacia && (
                               <span className="text-[10px] bg-slate-200/70 px-1.5 py-0.5 rounded text-slate-600">
                                 {selectedInv.documentoEficacia}
@@ -616,7 +680,7 @@ export default function SolicitudFormModal({
                           </div>
 
                           {/* Quick Worker Size Assign Chip */}
-                          {selectedEmpleado && (
+                          {necesitaTalla && selectedEmpleado && (
                             <div className="flex items-center gap-1.5">
                               {tipoDetectado === 'CALZADO' && selectedEmpleado.tallaCalzado && (
                                 <button

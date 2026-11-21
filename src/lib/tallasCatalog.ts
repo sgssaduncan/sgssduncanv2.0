@@ -235,7 +235,7 @@ export function detectarTipoImplemento(nombre: string = '', categoria: string = 
     return 'RESPIRADORES';
   }
 
-  // Cascos, Lentes, Auditivos
+  // Cascos, Lentes, Auditivos, Filtros, Arneses, Delantales, Accesorios y Protecciones de Talla Única / Estándar
   if (
     txt.includes('casco') ||
     txt.includes('lente') ||
@@ -245,7 +245,23 @@ export function detectarTipoImplemento(nombre: string = '', categoria: string = 
     txt.includes('tapon') ||
     txt.includes('tapón') ||
     txt.includes('copa') ||
-    txt.includes('delantal')
+    txt.includes('delantal') ||
+    txt.includes('mandil') ||
+    txt.includes('filtro') ||
+    txt.includes('cartucho') ||
+    txt.includes('prefiltro') ||
+    txt.includes('arnes') ||
+    txt.includes('arnés') ||
+    txt.includes('eslinga') ||
+    txt.includes('linea de vida') ||
+    txt.includes('línea de vida') ||
+    txt.includes('barbiquejo') ||
+    txt.includes('bloqueo') ||
+    txt.includes('candado') ||
+    txt.includes('loto') ||
+    txt.includes('facial') ||
+    txt.includes('monogafa') ||
+    txt.includes('sobrelente')
   ) {
     return 'UNICA';
   }
@@ -399,3 +415,54 @@ export function obtenerTallaSugerida(item?: InventarioItem, empleado?: Empleado)
 
   return '';
 }
+
+/**
+ * Determina con precisión si un implemento o equipo de seguridad requiere selección de talla
+ * por parte del solicitante (e.g. Calzados, Pantalones, Camisas, Franelas, Chemises, Chaquetas).
+ * Equipos como Cascos, Lentes, Caretas, Protectores Auditivos, Filtros, Cartuchos, Delantales,
+ * Candados LOTO, etc., NO requieren talla obligatoria y aplican como Única / Estándar / N/A.
+ */
+export function requiereTalla(item?: InventarioItem): boolean {
+  if (!item) return false;
+  if ((item as any).tieneTalla === false) return false;
+  if ((item as any).tieneTalla === true) return true;
+
+  // Si en el stock registrado sólo existe 'UNICA', 'AJUSTABLE', 'ESTÁNDAR' o 'N/A', no requiere selección de talla
+  if (Array.isArray(item.stock) && item.stock.length > 0) {
+    const tallasValidas = item.stock.filter(s => s && s.talla && s.talla.trim() !== '');
+    if (tallasValidas.length > 0) {
+      const soloTallasUnicas = tallasValidas.every(s =>
+        ['UNICA', 'ÚNICA', 'AJUSTABLE', 'ESTÁNDAR', 'ESTANDAR', 'N/A'].includes(s.talla.trim().toUpperCase())
+      );
+      if (soloTallasUnicas) return false;
+    }
+  }
+
+  const tipo = detectarTipoImplemento(item.nombre, item.categoria);
+  switch (tipo) {
+    case 'CALZADO':
+    case 'PANTALON_DAMAS':
+    case 'PANTALON_CABALLEROS':
+    case 'CAMISAS':
+    case 'FRANELAS':
+    case 'CHEMISES':
+    case 'BRAGAS':
+    case 'CHAQUETAS':
+      return true;
+    case 'GUANTES':
+    case 'CHALECOS':
+    case 'FAJAS_LUMBARES':
+    case 'RESPIRADORES': {
+      // Si el item tiene tallas específicas en stock distintas de Única/Ajustable, puede requerir talla
+      const hasSpecificSizes = (item.stock || []).some(
+        s => s && s.talla && !['UNICA', 'ÚNICA', 'AJUSTABLE', 'ESTÁNDAR', 'ESTANDAR', 'N/A', ''].includes(s.talla.trim().toUpperCase())
+      );
+      return hasSpecificSizes;
+    }
+    case 'UNICA':
+    case 'PROTECCION_GENERAL':
+    default:
+      return false;
+  }
+}
+
