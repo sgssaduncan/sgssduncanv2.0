@@ -101,6 +101,14 @@ export const INITIAL_TIPOS_INSPECCION: TipoInspeccion[] = [
 
 export const INITIAL_USUARIOS: Usuario[] = [
   {
+    _id: 'usr_admin_becerra',
+    email: 'aabecerra852@gmail.com',
+    nombre: 'A. Becerra (Administrador del Sistema)',
+    rol: 'Propietario / Super Admin',
+    password: 'Panelas369*',
+    activo: true,
+  },
+  {
     _id: 'usr_francisco',
     email: 'francisco.rojasp@gmail.com',
     nombre: 'Francisco Rojas',

@@ -27,6 +27,7 @@ import AjustesPage from './pages/AjustesPage';
 import AuditoriaPage from './pages/AuditoriaPage';
 import TrabajadoresPage from './pages/TrabajadoresPage';
 import AuditNavigationTracker from './components/AuditNavigationTracker';
+import LoginPage from './pages/LoginPage';
 
 export default function App() {
   return (
@@ -35,6 +36,10 @@ export default function App() {
         <AuditNavigationTracker />
         <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
         <Routes>
+          {/* Ruta pública de Autenticación */}
+          <Route path="/login" element={<LoginPage />} />
+
+          {/* Rutas Protegidas bajo Layout */}
           <Route path="/" element={<Layout />}>
             <Route index element={<DashboardPage />} />
             

@@ -2,7 +2,7 @@
 // SGD DUNCAN 2.0 — DEFINICIONES DE TIPOS GLOBALES
 // ============================================================
 
-export type Role = 'Super Admin' | 'Propietario / Super Admin' | 'Admin' | 'Inspector';
+export type Role = 'Super Admin' | 'Propietario / Super Admin' | 'Admin' | 'Inspector' | 'Supervisor';
 export type Rol = Role;
 
 export interface UserProfile {
@@ -18,6 +18,10 @@ export interface UserProfile {
   fotoUrl?: string;
   empresaId?: string;
   activo?: boolean;
+  cedula?: string;
+  cargo?: string;
+  localidad?: string;
+  createdAt?: string;
 }
 
 export type Usuario = UserProfile;

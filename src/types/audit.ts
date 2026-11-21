@@ -23,6 +23,7 @@ export type AuditModule =
 export type AuditAction =
   | 'INICIO_SESION'
   | 'CIERRE_SESION'
+  | 'REGISTRO_USUARIO'
   | 'FALLO_AUTENTICACION'
   | 'ACCESO_VISTA'
   | 'CREAR'

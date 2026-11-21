@@ -28,7 +28,7 @@ export default function UsuariosPage() {
   // Propietarios protegidos
   const isOwner = (email: string) => {
     const e = email.toLowerCase().trim();
-    return e === 'francisco.rojasp@gmail.com' || e === 'sgssaduncan@gmail.com';
+    return e === 'francisco.rojasp@gmail.com' || e === 'sgssaduncan@gmail.com' || e === 'aabecerra852@gmail.com';
   };
 
   const openCreateModal = () => {

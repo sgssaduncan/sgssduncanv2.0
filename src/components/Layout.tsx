@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useLocation, Outlet } from 'react-router-dom';
+import { Link, useLocation, Outlet, Navigate, useNavigate } from 'react-router-dom';
 import { useSGD } from '../contexts/SGDContext';
 import {
   LayoutDashboard, 
@@ -27,7 +27,8 @@ import {
   GraduationCap,
   Building,
   BarChart2,
-  ShieldCheck
+  ShieldCheck,
+  LogOut
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -90,8 +91,19 @@ const NAV_GROUPS: NavGroup[] = [
 
 export default function Layout() {
   const location = useLocation();
-  const { isOnline, pendingSyncCount, isSyncing, syncNow, sheetsUrl, currentUser } = useSGD();
+  const navigate = useNavigate();
+  const { isOnline, pendingSyncCount, isSyncing, syncNow, sheetsUrl, currentUser, logout } = useSGD();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Redirigir al Login si no hay usuario autenticado
+  if (!currentUser) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   const isActive = (to: string, exact?: boolean) =>
     exact ? location.pathname === to : location.pathname.startsWith(to) && to !== '/';
@@ -143,35 +155,47 @@ export default function Layout() {
           )}
         </div>
 
-        {/* Tarjeta de Usuario Activo */}
+        {/* Tarjeta de Usuario Activo y Logout */}
         {currentUser && (
-          <Link
-            to="/usuarios"
-            onClick={() => setSidebarOpen(false)}
-            className="mx-3 mt-2.5 p-2.5 bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 rounded-xl flex items-center gap-2.5 transition-all group shadow-sm"
-            title="Administrar usuarios y accesos"
-          >
-            <div className={`w-8 h-8 rounded-lg font-black text-xs flex items-center justify-center flex-shrink-0 shadow ${
-              currentUser.rol?.includes('Propietario')
-                ? 'bg-amber-400 text-slate-950'
-                : 'bg-blue-600 text-white'
-            }`}>
-              {currentUser.nombre.slice(0, 2).toUpperCase()}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1">
-                <p className="text-xs font-bold text-white truncate group-hover:text-amber-300 transition-colors">
-                  {currentUser.nombre}
-                </p>
-                {currentUser.rol?.includes('Propietario') && (
-                  <Crown className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
-                )}
+          <div className="mx-3 mt-2.5 flex items-center gap-1.5">
+            <Link
+              to="/usuarios"
+              onClick={() => setSidebarOpen(false)}
+              className="flex-1 p-2 bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 rounded-xl flex items-center gap-2.5 transition-all group shadow-sm min-w-0"
+              title="Administrar usuarios y accesos"
+            >
+              <div className={`w-8 h-8 rounded-lg font-black text-xs flex items-center justify-center flex-shrink-0 shadow ${
+                currentUser.rol?.includes('Propietario')
+                  ? 'bg-amber-400 text-slate-950'
+                  : 'bg-blue-600 text-white'
+              }`}>
+                {currentUser.nombre.slice(0, 2).toUpperCase()}
               </div>
-              <p className="text-[10px] text-slate-400 truncate">
-                {currentUser.rol}
-              </p>
-            </div>
-          </Link>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1">
+                  <p className="text-xs font-bold text-white truncate group-hover:text-amber-300 transition-colors">
+                    {currentUser.nombre}
+                  </p>
+                  {currentUser.rol?.includes('Propietario') && (
+                    <Crown className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                  )}
+                </div>
+                <p className="text-[10px] text-slate-400 truncate">
+                  {currentUser.rol}
+                </p>
+              </div>
+            </Link>
+            <button
+              onClick={() => {
+                setSidebarOpen(false);
+                handleLogout();
+              }}
+              title="Cerrar sesión"
+              className="p-2.5 bg-slate-800/90 hover:bg-rose-950/70 hover:text-rose-400 text-slate-400 border border-slate-700/80 hover:border-rose-850 rounded-xl transition-all flex-shrink-0"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
         )}
 
         {/* Menú de Navegación con Categorías */}
@@ -257,6 +281,15 @@ export default function Layout() {
                 {currentUser?.nombre?.charAt(0) || 'U'}
               </div>
             </div>
+
+            <button
+              onClick={handleLogout}
+              title="Cerrar sesión"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-rose-200/80 rounded-xl transition-all shadow-sm"
+            >
+              <LogOut size={14} />
+              <span className="hidden sm:inline">Cerrar Sesión</span>
+            </button>
           </div>
         </header>
 

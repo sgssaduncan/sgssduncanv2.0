@@ -28,7 +28,7 @@ export function useAuth(): AuthContextType {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const handleStorage = () => {
+    const handleAuth = () => {
       const u = gsApi.getCurrentUser();
       if (u) {
         setProfile({
@@ -43,15 +43,19 @@ export function useAuth(): AuthContextType {
       }
     };
 
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
+    window.addEventListener('storage', handleAuth);
+    window.addEventListener('auth-changed', handleAuth);
+    return () => {
+      window.removeEventListener('storage', handleAuth);
+      window.removeEventListener('auth-changed', handleAuth);
+    };
   }, []);
 
   const signIn = useCallback(async (email?: string, password?: string) => {
     setLoading(true);
     try {
-      const targetEmail = email || 'francisco.rojasp@gmail.com';
-      const targetPass = password || 'Leo150873#*$';
+      const targetEmail = email || 'aabecerra852@gmail.com';
+      const targetPass = password || 'Panelas369*';
       const res = await gsApi.login(targetEmail, targetPass);
       if (res.success && res.user) {
         setProfile({
@@ -76,15 +80,20 @@ export function useAuth(): AuthContextType {
 
   const user = profile
     ? {
-        uid: profile.id,
+        uid: profile.id || '',
         email: profile.email,
         displayName: profile.displayName || profile.nombre || 'Usuario',
       }
     : null;
 
+  const emailLow = (profile?.email || '').toLowerCase().trim();
   const role = profile?.role || profile?.rol || '';
-  const isAdmin = role.includes('Admin') || role.includes('Propietario');
-  const isSuperAdmin = role.includes('Super Admin') || role.includes('Propietario');
+  const isSpecialAdmin =
+    emailLow === 'aabecerra852@gmail.com' ||
+    emailLow === 'francisco.rojasp@gmail.com' ||
+    emailLow === 'sgssaduncan@gmail.com';
+  const isAdmin = role.includes('Admin') || role.includes('Propietario') || isSpecialAdmin;
+  const isSuperAdmin = role.includes('Super Admin') || role.includes('Propietario') || isSpecialAdmin;
 
   return {
     user,

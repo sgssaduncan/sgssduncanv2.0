@@ -5,7 +5,7 @@ import {
 } from '../lib/googleSheetsClient';
 import { INITIAL_EMPRESAS, INITIAL_LOCALIDADES, INITIAL_TIPOS_INSPECCION } from '../data/seedData';
 import { auditService } from '../services/auditService';
-import type { Inspeccion, PlanAccion, Empresa, Localidad, Establecimiento, TipoInspeccion, Empleado, Usuario, DashboardStats, PlanStats } from '../types';
+import type { Inspeccion, PlanAccion, Empresa, Localidad, Establecimiento, TipoInspeccion, Empleado, Usuario, DashboardStats, PlanStats, Role, Rol } from '../types';
 
 interface SGDContextType {
   // Datos
@@ -39,6 +39,15 @@ interface SGDContextType {
   getInspeccionById: (id: string) => Inspeccion | undefined;
   // Usuarios y Sesión
   login: (email: string, pass: string) => Promise<{ success: boolean; user?: Usuario; message?: string }>;
+  register: (userData: {
+    nombre: string;
+    email: string;
+    password: string;
+    rol?: Rol;
+    cargo?: string;
+    cedula?: string;
+    localidad?: string;
+  }) => Promise<{ success: boolean; user?: Usuario; message?: string }>;
   logout: () => void;
   switchUser: (u: Usuario) => void;
   saveUsuario: (u: Partial<Usuario>) => Promise<{ success: boolean; id?: string; message?: string }>;
@@ -61,6 +70,19 @@ export function SGDProvider({ children }: { children: React.ReactNode }) {
   const [pendingSyncCount, setPendingSyncCount] = useState(getOfflineQueueCount());
   const [isSyncing, setIsSyncing] = useState(false);
   const syncInProgress = useRef(false);
+
+  useEffect(() => {
+    const handleAuthChanged = () => {
+      const u = gsApi.getCurrentUser();
+      setCurrentUser(u);
+    };
+    window.addEventListener('auth-changed', handleAuthChanged);
+    window.addEventListener('storage', handleAuthChanged);
+    return () => {
+      window.removeEventListener('auth-changed', handleAuthChanged);
+      window.removeEventListener('storage', handleAuthChanged);
+    };
+  }, []);
 
   const refreshData = useCallback(async () => {
     try {
@@ -174,6 +196,31 @@ export function SGDProvider({ children }: { children: React.ReactNode }) {
     return res;
   };
 
+  const register = async (userData: {
+    nombre: string;
+    email: string;
+    password: string;
+    rol?: Rol;
+    cargo?: string;
+    cedula?: string;
+    localidad?: string;
+  }) => {
+    const res = await gsApi.registerUser(userData);
+    if (res.success && res.user) {
+      setCurrentUser(res.user);
+      auditService.log({
+        modulo: 'AUTENTICACION',
+        accion: 'REGISTRO_USUARIO',
+        entidadTipo: 'Usuario',
+        entidadId: res.user.id || res.user._id,
+        descripcion: `Nuevo usuario registrado e iniciado sesión: ${res.user.nombre} (${res.user.email}) - Rol: ${res.user.rol}`,
+        detalles: { email: res.user.email, rol: res.user.rol }
+      }).catch(console.warn);
+    }
+    await refreshData();
+    return res;
+  };
+
   const logout = () => {
     if (currentUser) {
       auditService.log({
@@ -243,7 +290,7 @@ export function SGDProvider({ children }: { children: React.ReactNode }) {
       updateSheetsUrl, syncNow, refreshData,
       createInspeccion, saveFormData, completeInspeccion,
       deleteInspeccion, updatePlanAccion, logAudit, getInspeccionById,
-      login, logout, switchUser, saveUsuario, deleteUsuario,
+      login, register, logout, switchUser, saveUsuario, deleteUsuario,
     }}>
       {children}
     </SGDContext.Provider>

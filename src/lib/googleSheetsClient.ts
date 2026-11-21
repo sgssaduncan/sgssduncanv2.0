@@ -20,7 +20,7 @@ import {
   INITIAL_LOTO_EQUIPOS,
   INITIAL_EVALUACIONES_MEDICAS,
 } from '../data/seedData';
-import type { Usuario } from '../types';
+import type { Usuario, Role, Rol } from '../types';
 
 // ============================================================
 // CLAVES DE ALMACENAMIENTO LOCAL
@@ -92,23 +92,18 @@ function initLocalStorage() {
   if (!localStorage.getItem(SK.ESTABLECIMIENTOS)) localStorage.setItem(SK.ESTABLECIMIENTOS, JSON.stringify(INITIAL_ESTABLECIMIENTOS));
   try {
     let existing: Usuario[] = JSON.parse(localStorage.getItem(SK.USUARIOS) || '[]');
-    // Asegurar que Francisco y Sgssa estén presentes con credenciales y rol correcto
+    // Asegurar que las cuentas administradoras maestras estén presentes con credenciales y rol correcto
     INITIAL_USUARIOS.forEach(admin => {
       const idx = existing.findIndex(u => u.email.toLowerCase() === admin.email.toLowerCase());
       if (idx === -1) {
         existing.push(admin);
       } else {
-        existing[idx] = { ...existing[idx], ...admin };
+        existing[idx] = { ...existing[idx], ...admin, activo: true };
       }
     });
     localStorage.setItem(SK.USUARIOS, JSON.stringify(existing));
   } catch {
     localStorage.setItem(SK.USUARIOS, JSON.stringify(INITIAL_USUARIOS));
-  }
-
-  // Inicializar usuario activo por defecto
-  if (!localStorage.getItem(SK.CURRENT_USER)) {
-    localStorage.setItem(SK.CURRENT_USER, JSON.stringify(INITIAL_USUARIOS[0]));
   }
 }
 initLocalStorage();
@@ -484,7 +479,7 @@ export const gsApi = {
 
     if (localUser) {
       if (localUser.activo === false) {
-        return { success: false, message: 'Esta cuenta se encuentra inactiva. Contacte al administrador.' };
+        return { success: false, message: 'Esta cuenta se encuentra inactiva. Contacte al administrador del sistema.' };
       }
       gsApi.setCurrentUser(localUser);
       // Intento en segundo plano de sincronizar con GAS
@@ -502,7 +497,78 @@ export const gsApi = {
       }
     } catch {}
 
-    return { success: false, message: 'Correo o contraseña incorrectos' };
+    return { success: false, message: 'Credenciales inválidas. Verifique su correo electrónico y contraseña.' };
+  },
+
+  async registerUser(userData: {
+    nombre: string;
+    email: string;
+    password: string;
+    rol?: Rol;
+    cargo?: string;
+    cedula?: string;
+    localidad?: string;
+  }): Promise<{ success: boolean; user?: Usuario; message?: string }> {
+    const emailClean = (userData.email || '').trim().toLowerCase();
+    const cleanPass = (userData.password || '').trim();
+
+    if (!userData.nombre || !userData.nombre.trim()) {
+      return { success: false, message: 'El nombre completo es requerido.' };
+    }
+
+    if (!emailClean || !emailClean.includes('@')) {
+      return { success: false, message: 'Ingrese una dirección de correo electrónico válida.' };
+    }
+
+    if (!emailClean.endsWith('@gmail.com')) {
+      return { success: false, message: 'El registro en el sistema requiere una cuenta de correo Gmail (@gmail.com).' };
+    }
+
+    if (!cleanPass || cleanPass.length < 6) {
+      return { success: false, message: 'La contraseña debe contener al menos 6 caracteres.' };
+    }
+
+    const list = getLocal<Usuario>(SK.USUARIOS);
+    const existingIdx = list.findIndex(u => u.email.toLowerCase() === emailClean);
+
+    if (existingIdx !== -1) {
+      return { success: false, message: 'Este correo Gmail ya se encuentra registrado. Inicie sesión con su contraseña.' };
+    }
+
+    // Determinación de rol: cuentas clave son Super Admin
+    const esAdmin = emailClean === 'aabecerra852@gmail.com' ||
+                    emailClean === 'francisco.rojasp@gmail.com' ||
+                    emailClean === 'sgssaduncan@gmail.com';
+    const rolFinal: Rol = esAdmin ? 'Propietario / Super Admin' : (userData.rol || 'Inspector');
+
+    const nuevoUsuario: Usuario = {
+      _id: 'usr_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
+      email: emailClean,
+      nombre: userData.nombre.trim(),
+      rol: rolFinal,
+      password: cleanPass,
+      activo: true,
+      cedula: userData.cedula?.trim(),
+      cargo: userData.cargo?.trim() || (rolFinal === 'Propietario / Super Admin' ? 'Administrador del Sistema' : 'Inspector SSA'),
+      localidad: userData.localidad?.trim() || 'Planta Principal Los Ruices',
+      createdAt: new Date().toISOString()
+    };
+
+    list.push(nuevoUsuario);
+    setLocal(SK.USUARIOS, list);
+    this.setCurrentUser(nuevoUsuario);
+
+    // Intento de sincronización con backend GAS
+    postGAS('saveUsuario', nuevoUsuario).catch(() => {});
+    await this.logAudit({
+      usuario: nuevoUsuario.nombre,
+      accion: 'REGISTRO_USUARIO',
+      entidad: 'Usuarios',
+      entidadId: nuevoUsuario._id,
+      detalles: `Registro de nuevo usuario con cuenta Gmail: ${nuevoUsuario.nombre} (${nuevoUsuario.email}) - Rol: ${nuevoUsuario.rol}`,
+    });
+
+    return { success: true, user: nuevoUsuario };
   },
 
   getCurrentUser(): Usuario | null {
@@ -510,7 +576,7 @@ export const gsApi = {
       const stored = localStorage.getItem(SK.CURRENT_USER);
       if (stored) return JSON.parse(stored);
     } catch {}
-    return INITIAL_USUARIOS[0];
+    return null;
   },
 
   setCurrentUser(user: Usuario | null) {
@@ -519,10 +585,14 @@ export const gsApi = {
     } else {
       localStorage.removeItem(SK.CURRENT_USER);
     }
+    try {
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new CustomEvent('auth-changed', { detail: user }));
+    } catch {}
   },
 
   logout() {
-    localStorage.removeItem(SK.CURRENT_USER);
+    this.setCurrentUser(null);
   },
 
   // ── EPP / DOTACIÓN ────────────────────────────────────────
