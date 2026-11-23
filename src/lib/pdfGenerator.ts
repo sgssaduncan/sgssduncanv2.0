@@ -57,6 +57,27 @@ export function generarInspeccionPDF(inspection: Inspeccion, metadataInput?: any
       try { const p = JSON.parse((inspection as any).responses); if (p && typeof p === 'object') respuestas = { ...p }; } catch {}
     }
   }
+  if (Object.keys(respuestas).length === 0 && typeof window !== 'undefined') {
+    const keys = [
+      inspection.id,
+      (inspection as any)._id,
+      inspection.correlativo ? String(inspection.correlativo) : null,
+      (inspection as any).referencia
+    ].filter(Boolean) as string[];
+
+    for (const k of keys) {
+      try {
+        const raw = localStorage.getItem(`sgd_inspection_responses_${k}`) || localStorage.getItem(`sgd_draft_resp_${k}`);
+        if (raw) {
+          const p = JSON.parse(raw);
+          if (p && typeof p === 'object' && Object.keys(p).length > 0) {
+            respuestas = { ...p };
+            break;
+          }
+        }
+      } catch {}
+    }
+  }
 
   let respuestasAdicionales: Record<string, any> = {};
   if (inspection.respuestasAdicionales && typeof inspection.respuestasAdicionales === 'object') {

@@ -23,11 +23,35 @@ export default function InspeccionFormPage() {
 
   const initialResponses = useMemo(() => {
     try {
-      return inspeccion?.formResponses ? JSON.parse(inspeccion.formResponses) : {};
+      // 1. Direct object
+      if (inspeccion?.respuestas && typeof inspeccion.respuestas === 'object' && Object.keys(inspeccion.respuestas).length > 0) {
+        return inspeccion.respuestas;
+      }
+      // 2. Parsed formResponses
+      if (inspeccion?.formResponses) {
+        const p = JSON.parse(inspeccion.formResponses);
+        if (p && typeof p === 'object' && Object.keys(p).length > 0) return p;
+      }
+      // 3. Backup keys in localStorage
+      const keys = [
+        id,
+        inspeccion?._id,
+        inspeccion?.id,
+        inspeccion?.correlativo ? String(inspeccion.correlativo) : null
+      ].filter(Boolean) as string[];
+
+      for (const k of keys) {
+        const raw = localStorage.getItem(`sgd_inspection_responses_${k}`) || localStorage.getItem(`sgd_draft_resp_${k}`);
+        if (raw) {
+          const p = JSON.parse(raw);
+          if (p && typeof p === 'object' && Object.keys(p).length > 0) return p;
+        }
+      }
     } catch {
       return {};
     }
-  }, [inspeccion]);
+    return {};
+  }, [inspeccion, id]);
 
   const initialObservations = useMemo(() => {
     try {
@@ -85,16 +109,39 @@ export default function InspeccionFormPage() {
   }) => {
     setSaving(true);
     try {
+      const targetId = inspeccion._id || inspeccion.id || String(inspeccion.correlativo) || id || '';
+      const correl = inspeccion.correlativo || (id && !isNaN(Number(id)) ? Number(id) : undefined);
+
+      // Respaldo redundante inmediato en localStorage
+      const backupKeys = [targetId, inspeccion._id, inspeccion.id, String(correl), id].filter(Boolean) as string[];
+      for (const k of backupKeys) {
+        try {
+          localStorage.setItem(`sgd_inspection_responses_${k}`, JSON.stringify(data.responses));
+          localStorage.setItem(`sgd_draft_resp_${k}`, JSON.stringify(data.responses));
+          localStorage.setItem(`sgd_inspection_score_${k}`, JSON.stringify({
+            puntuacion: data.score.puntuacion,
+            resultado: data.score.resultado
+          }));
+        } catch {}
+      }
+
       await saveFormData({
-        inspeccionId: inspeccion._id,
+        inspeccionId: targetId,
+        _id: inspeccion._id || targetId,
+        id: inspeccion.id || targetId,
+        correlativo: correl,
+        referencia: inspeccion.referencia || `INSP-${correl || targetId}`,
         responses: JSON.stringify(data.responses),
+        respuestas: data.responses,
         observations: JSON.stringify(data.observations),
         additional: JSON.stringify(data.additional),
         signatures: JSON.stringify(data.signatures),
         puntuacion: data.score.puntuacion,
         resultado: data.score.resultado,
       });
-      toast.success('Progreso guardado correctamente');
+
+      const dictamen = data.score.resultado === 'C' ? 'Conforme' : data.score.resultado === 'OM' ? 'Oportunidad de Mejora' : 'No Conforme';
+      toast.success(`Progreso guardado (${data.score.puntuacion}% · ${dictamen})`);
     } catch (err) {
       toast.error('Error al guardar el progreso');
     } finally {
@@ -111,20 +158,41 @@ export default function InspeccionFormPage() {
   }) => {
     setCompleting(true);
     try {
+      const targetId = inspeccion._id || inspeccion.id || String(inspeccion.correlativo) || id || '';
+      const correl = inspeccion.correlativo || (id && !isNaN(Number(id)) ? Number(id) : undefined);
+
+      const backupKeys = [targetId, inspeccion._id, inspeccion.id, String(correl), id].filter(Boolean) as string[];
+      for (const k of backupKeys) {
+        try {
+          localStorage.setItem(`sgd_inspection_responses_${k}`, JSON.stringify(data.responses));
+          localStorage.setItem(`sgd_draft_resp_${k}`, JSON.stringify(data.responses));
+          localStorage.setItem(`sgd_inspection_score_${k}`, JSON.stringify({
+            puntuacion: data.score.puntuacion,
+            resultado: data.score.resultado
+          }));
+        } catch {}
+      }
+
       // Guardar primero
       await saveFormData({
-        inspeccionId: inspeccion._id,
+        inspeccionId: targetId,
+        _id: inspeccion._id || targetId,
+        id: inspeccion.id || targetId,
+        correlativo: correl,
+        referencia: inspeccion.referencia || `INSP-${correl || targetId}`,
         responses: JSON.stringify(data.responses),
+        respuestas: data.responses,
         observations: JSON.stringify(data.observations),
         additional: JSON.stringify(data.additional),
         signatures: JSON.stringify(data.signatures),
         puntuacion: data.score.puntuacion,
         resultado: data.score.resultado,
       });
+
       // Completar
-      await completeInspeccion(inspeccion._id);
+      await completeInspeccion(targetId);
       toast.success('¡Inspección completada con éxito!');
-      navigate(`/inspecciones/${inspeccion._id}`);
+      navigate(`/inspecciones/${targetId}`);
     } catch (err) {
       toast.error('Error al completar la inspección');
     } finally {
@@ -171,6 +239,7 @@ export default function InspeccionFormPage() {
         initialObservations={initialObservations}
         initialAdditional={initialAdditional}
         onSave={handleSave}
+        inspeccionId={inspeccion._id || inspeccion.id || String(inspeccion.correlativo) || id}
       />
     </div>
   );

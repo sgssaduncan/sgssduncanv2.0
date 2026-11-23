@@ -361,20 +361,115 @@ export const gsApi = {
     };
 
     const remote = await fetchGAS('getInspecciones');
+    const local = getLocal<any>(SK.INSPECCIONES) || [];
+
     if (remote && Array.isArray(remote)) {
       const sanitized = remote.map(sanitizeInsp);
-      setLocal(SK.INSPECCIONES, sanitized);
-      return sanitized;
+
+      // Mapeo de inspecciones locales para Merge Inteligente Resiliente
+      const localMap = new Map<string, any>();
+      local.forEach((loc: any) => {
+        if (loc._id) localMap.set(String(loc._id).trim(), loc);
+        if (loc.id) localMap.set(String(loc.id).trim(), loc);
+        if (loc.correlativo) localMap.set(String(loc.correlativo).trim(), loc);
+        if (loc.referencia) localMap.set(String(loc.referencia).trim(), loc);
+      });
+
+      // Fusionar remoto con local: Si el remoto viene vacío de respuestas pero el local tiene respuestas,
+      // NUNCA sobreescribir con vacío. Preservar las respuestas y datos calculados.
+      const merged = sanitized.map((rem: any) => {
+        const remId = String(rem._id || rem.id || '').trim();
+        const remCorrel = String(rem.correlativo || '').trim();
+        const remRef = String(rem.referencia || '').trim();
+
+        const loc = localMap.get(remId) || (remCorrel ? localMap.get(remCorrel) : null) || (remRef ? localMap.get(remRef) : null);
+
+        // También verificar respaldos independientes en localStorage
+        let backupResponses: any = null;
+        try {
+          const keys = [remId, remCorrel, remRef].filter(Boolean);
+          for (const k of keys) {
+            const raw = localStorage.getItem(`sgd_inspection_responses_${k}`) || localStorage.getItem(`sgd_draft_resp_${k}`);
+            if (raw) {
+              const p = JSON.parse(raw);
+              if (p && typeof p === 'object' && Object.keys(p).length > 0) {
+                backupResponses = p;
+                break;
+              }
+            }
+          }
+        } catch {}
+
+        const remRespCount = rem.respuestas && typeof rem.respuestas === 'object' ? Object.keys(rem.respuestas).length : 0;
+        const locRespCount = loc && loc.respuestas && typeof loc.respuestas === 'object' ? Object.keys(loc.respuestas).length : 0;
+
+        if (remRespCount === 0) {
+          if (locRespCount > 0) {
+            rem.respuestas = loc.respuestas;
+            rem.formResponses = loc.formResponses;
+            if (loc.puntuacion !== undefined && (rem.puntuacion === undefined || rem.puntuacion === 0)) {
+              rem.puntuacion = loc.puntuacion;
+            }
+            if (loc.resultado && !rem.resultado) rem.resultado = loc.resultado;
+            if (loc.formObservations) rem.formObservations = loc.formObservations;
+            if (loc.formAdditional) rem.formAdditional = loc.formAdditional;
+            if (loc.formSignatures) rem.formSignatures = loc.formSignatures;
+            if (loc.estado === 'completada' && rem.estado !== 'completada') rem.estado = 'completada';
+          } else if (backupResponses) {
+            rem.respuestas = backupResponses;
+            rem.formResponses = JSON.stringify(backupResponses);
+          }
+        }
+
+        return rem;
+      });
+
+      // Preservar cualquier inspección creada localmente que aún no esté en Google Sheets
+      local.forEach((loc: any) => {
+        const locId = String(loc._id || loc.id || '').trim();
+        const locCorrel = String(loc.correlativo || '').trim();
+        const exists = merged.some((m: any) =>
+          (locId && (String(m._id) === locId || String(m.id) === locId)) ||
+          (locCorrel && String(m.correlativo) === locCorrel)
+        );
+        if (!exists) {
+          merged.push(loc);
+        }
+      });
+
+      setLocal(SK.INSPECCIONES, merged);
+      return merged;
     }
-    const local = getLocal<any>(SK.INSPECCIONES) || [];
+
     return local.map(sanitizeInsp);
   },
 
   async getInspeccion(id: string) {
     if (!id) return null;
-    const remote = await fetchGAS('getInspeccion', { id });
-    if (remote) return remote;
-    return getLocal<any>(SK.INSPECCIONES).find((i: any) => String(i._id) === String(id)) || null;
+    const strId = String(id).trim();
+    const local = getLocal<any>(SK.INSPECCIONES) || [];
+    const locFound = local.find((i: any) =>
+      String(i._id) === strId ||
+      String(i.id) === strId ||
+      String(i.correlativo) === strId ||
+      String(i.referencia) === strId ||
+      String(i.referencia) === `INSP-${strId}` ||
+      (i._id && String(i._id).toLowerCase() === strId.toLowerCase())
+    );
+
+    const remote = await fetchGAS('getInspeccion', { id: strId });
+    if (remote) {
+      const remSanitized = remote;
+      const remRespCount = remSanitized.respuestas && typeof remSanitized.respuestas === 'object' ? Object.keys(remSanitized.respuestas).length : 0;
+      if (remRespCount === 0 && locFound && locFound.respuestas && Object.keys(locFound.respuestas).length > 0) {
+        remSanitized.respuestas = locFound.respuestas;
+        remSanitized.formResponses = locFound.formResponses;
+        if (locFound.puntuacion !== undefined) remSanitized.puntuacion = locFound.puntuacion;
+        if (locFound.resultado) remSanitized.resultado = locFound.resultado;
+      }
+      return remSanitized;
+    }
+    return locFound || null;
   },
 
   async createInspeccion(payload: { empresaId: string; localidadId: string; establecimientoId: string; tipoInspeccionId: string; fecha: string; inspector: string; observaciones?: string; }) {
@@ -403,33 +498,99 @@ export const gsApi = {
     return newId;
   },
 
-  async saveFormData(payload: { inspeccionId: string; responses: string; observations: string; additional: string; signatures: string; puntuacion: number; resultado: string; }) {
-    const list = getLocal<any>(SK.INSPECCIONES);
-    const idx = list.findIndex((i: any) => String(i._id) === String(payload.inspeccionId));
-    
-    let parsedResp: Record<string, any> = {};
-    try { parsedResp = JSON.parse(payload.responses || '{}'); } catch {}
+  async saveFormData(payload: {
+    inspeccionId: string;
+    responses: string;
+    observations: string;
+    additional: string;
+    signatures: string;
+    puntuacion: number;
+    resultado: string;
+    _id?: string;
+    id?: string;
+    correlativo?: number | string;
+    referencia?: string;
+    respuestas?: Record<string, any>;
+  }) {
+    const list = getLocal<any>(SK.INSPECCIONES) || [];
+    const targetId = String(payload.inspeccionId || payload._id || payload.id || payload.correlativo || '').trim();
+    const targetCorrel = String(payload.correlativo || targetId);
 
-    if (idx !== -1) {
-      list[idx] = { 
-        ...list[idx], 
-        formResponses: payload.responses,
-        respuestas: parsedResp, 
-        formObservations: payload.observations, 
-        formAdditional: payload.additional, 
-        formSignatures: payload.signatures, 
-        puntuacion: payload.puntuacion, 
-        resultado: payload.resultado, 
-        actualizadoEn: new Date().toISOString() 
-      };
-      setLocal(SK.INSPECCIONES, list);
+    let parsedResp: Record<string, any> = {};
+    if (payload.respuestas && typeof payload.respuestas === 'object' && Object.keys(payload.respuestas).length > 0) {
+      parsedResp = { ...payload.respuestas };
+    } else {
+      try { parsedResp = JSON.parse(payload.responses || '{}'); } catch {}
     }
 
-    // Enviar con compatibilidad dual para Google Apps Script
+    const idx = list.findIndex((i: any) => {
+      const iId = String(i._id || i.id || '').trim();
+      const iCorrel = String(i.correlativo || '').trim();
+      const iRef = String(i.referencia || '').trim();
+      return (
+        iId === targetId ||
+        iCorrel === targetId ||
+        iCorrel === targetCorrel ||
+        iRef === targetId ||
+        iRef === `INSP-${targetId}` ||
+        (targetId && iId.toLowerCase() === targetId.toLowerCase())
+      );
+    });
+
+    const updatedFields = {
+      formResponses: payload.responses,
+      respuestas: parsedResp,
+      formObservations: payload.observations,
+      formAdditional: payload.additional,
+      formSignatures: payload.signatures,
+      puntuacion: payload.puntuacion,
+      resultado: payload.resultado,
+      actualizadoEn: new Date().toISOString()
+    };
+
+    if (idx !== -1) {
+      list[idx] = { ...list[idx], ...updatedFields };
+    } else {
+      list.push({
+        _id: payload._id || targetId,
+        id: payload.id || targetId,
+        correlativo: payload.correlativo || targetCorrel || (1000 + list.length + 1),
+        referencia: payload.referencia || `INSP-${payload.correlativo || targetCorrel}`,
+        estado: 'en_progreso',
+        ...updatedFields
+      });
+    }
+    setLocal(SK.INSPECCIONES, list);
+
+    // Respaldo redundante inmutable en localStorage para blindaje total contra desincronización
+    try {
+      const keys = [
+        targetId,
+        payload.inspeccionId,
+        payload._id,
+        payload.id,
+        payload.correlativo ? String(payload.correlativo) : null
+      ].filter(Boolean) as string[];
+
+      for (const k of keys) {
+        localStorage.setItem(`sgd_inspection_responses_${k}`, payload.responses);
+        localStorage.setItem(`sgd_draft_resp_${k}`, payload.responses);
+        localStorage.setItem(`sgd_inspection_score_${k}`, JSON.stringify({
+          puntuacion: payload.puntuacion,
+          resultado: payload.resultado
+        }));
+      }
+    } catch (e) {
+      console.warn('Error guardando backup de respuestas en localStorage:', e);
+    }
+
+    // Enviar con compatibilidad multi-identificador a Google Apps Script
     const gasPayload = {
-      _id: payload.inspeccionId,
-      id: payload.inspeccionId,
-      inspeccionId: payload.inspeccionId,
+      _id: payload._id || targetId,
+      id: payload.id || targetId,
+      inspeccionId: payload.inspeccionId || targetId,
+      correlativo: payload.correlativo || targetCorrel,
+      referencia: payload.referencia || `INSP-${payload.correlativo || targetCorrel}`,
       respuestas: parsedResp,
       responses: payload.responses,
       observaciones: payload.observations,
@@ -444,39 +605,63 @@ export const gsApi = {
     return true;
   },
 
-  async completeInspeccion(payload: { id: string }) {
-    const list = getLocal<any>(SK.INSPECCIONES);
-    const idx  = list.findIndex((i: any) => String(i._id) === String(payload.id));
+  async completeInspeccion(payload: { id: string; _id?: string; correlativo?: number | string }) {
+    const list = getLocal<any>(SK.INSPECCIONES) || [];
+    const targetId = String(payload.id || payload._id || payload.correlativo || '').trim();
+    let foundCorrel: any = payload.correlativo;
+    const idx = list.findIndex((i: any) => {
+      const match = String(i._id) === targetId || String(i.id) === targetId || String(i.correlativo) === targetId;
+      if (match && !foundCorrel) foundCorrel = i.correlativo;
+      return match;
+    });
+
     if (idx !== -1) {
       list[idx].estado = 'completada';
       list[idx].actualizadoEn = new Date().toISOString();
       setLocal(SK.INSPECCIONES, list);
       // Auto-generar plan de acción por NC/OM
       try {
-        const responses = JSON.parse(list[idx].formResponses || '{}');
-        const plans = getLocal<any>(SK.PLAN_ACCION);
-        const hoy = new Date().toISOString().split('T')[0];
-        const limite = new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0];
-        for (const [key, val] of Object.entries(responses)) {
-          if (val === 'NC' || val === 'OM') {
-            plans.push({
-              _id: genId('plan'), inspeccionId: payload.id,
-              empresaNombre: list[idx].empresaNombre, establecimientoNombre: list[idx].establecimientoNombre,
-              tipoInspeccionCodigo: list[idx].tipoCodigo, tipoInspeccionNombre: list[idx].tipoNombre,
-              item: key, seccion: 'Hallazgo en campo',
-              hallazgo: `${val} en ítem: ${key}`,
-              descripcion: `Subsanar no conformidad en inspección ${list[idx].tipoNombre}.`,
-              responsable: 'Supervisor de Sede', departamento: 'Operaciones',
-              fechaDeteccion: hoy, fechaLimite: limite,
-              prioridad: val === 'OM' ? 'Critica' : 'Media', estado: 'pendiente',
-              notas: `Auto-generado desde ${list[idx].establecimientoNombre}`,
-            });
-          }
+        let responses = list[idx].respuestas;
+        if (!responses && list[idx].formResponses) {
+          responses = JSON.parse(list[idx].formResponses || '{}');
         }
-        setLocal(SK.PLAN_ACCION, plans);
+        if (responses && typeof responses === 'object') {
+          const plans = getLocal<any>(SK.PLAN_ACCION) || [];
+          const hoy = new Date().toISOString().split('T')[0];
+          const limite = new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0];
+          for (const [key, val] of Object.entries(responses)) {
+            if (val === 'NC' || val === 'OM') {
+              plans.push({
+                _id: genId('plan'),
+                inspeccionId: list[idx]._id || targetId,
+                empresaNombre: list[idx].empresaNombre,
+                establecimientoNombre: list[idx].establecimientoNombre,
+                tipoInspeccionCodigo: list[idx].tipoCodigo,
+                tipoInspeccionNombre: list[idx].tipoNombre,
+                item: key,
+                seccion: 'Hallazgo en campo',
+                hallazgo: `${val} en ítem: ${key}`,
+                descripcion: `Subsanar no conformidad en inspección ${list[idx].tipoNombre}.`,
+                responsable: list[idx].inspector || 'Supervisor de Sede',
+                departamento: 'Operaciones',
+                fechaDeteccion: hoy,
+                fechaLimite: limite,
+                prioridad: val === 'NC' ? 'Critica' : 'Media',
+                estado: 'pendiente',
+                notas: `Auto-generado desde ${list[idx].establecimientoNombre}`,
+              });
+            }
+          }
+          setLocal(SK.PLAN_ACCION, plans);
+        }
       } catch (e) { console.error('Error generando plan local:', e); }
     }
-    await postGAS('completeInspeccion', payload);
+    await postGAS('completeInspeccion', {
+      id: targetId,
+      _id: targetId,
+      inspeccionId: targetId,
+      correlativo: foundCorrel
+    });
     return true;
   },
 

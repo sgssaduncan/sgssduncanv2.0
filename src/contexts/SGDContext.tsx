@@ -156,12 +156,52 @@ export function SGDProvider({ children }: { children: React.ReactNode }) {
   };
 
   const saveFormData = async (payload: any): Promise<boolean> => {
+    const targetId = String(payload.inspeccionId || payload._id || payload.id || payload.correlativo || '').trim();
+    let parsedResp = payload.respuestas;
+    if (!parsedResp && payload.responses) {
+      try { parsedResp = JSON.parse(payload.responses); } catch {}
+    }
+
+    // Actualizar de inmediato el estado en memoria de React para reactividad instantánea
+    setInspecciones(prev => prev.map(item => {
+      const match =
+        String(item._id) === targetId ||
+        String(item.id) === targetId ||
+        String(item.correlativo) === targetId ||
+        (payload.correlativo && String(item.correlativo) === String(payload.correlativo)) ||
+        (payload._id && String(item._id) === String(payload._id));
+      if (match) {
+        return {
+          ...item,
+          respuestas: parsedResp || item.respuestas,
+          formResponses: payload.responses || item.formResponses,
+          puntuacion: payload.puntuacion !== undefined ? payload.puntuacion : item.puntuacion,
+          resultado: payload.resultado || item.resultado,
+          formObservations: payload.observations || item.formObservations,
+          formAdditional: payload.additional || item.formAdditional,
+          formSignatures: payload.signatures || item.formSignatures,
+          actualizadoEn: new Date().toISOString()
+        };
+      }
+      return item;
+    }));
+
     const ok = await gsApi.saveFormData(payload);
-    await refreshData();
+    try {
+      await refreshData();
+    } catch (e) {
+      console.warn('refreshData error after saveFormData:', e);
+    }
     return ok;
   };
 
   const completeInspeccion = async (id: string): Promise<boolean> => {
+    setInspecciones(prev => prev.map(item => {
+      if (String(item._id) === String(id) || String(item.id) === String(id) || String(item.correlativo) === String(id)) {
+        return { ...item, estado: 'completada' as any, actualizadoEn: new Date().toISOString() };
+      }
+      return item;
+    }));
     const ok = await gsApi.completeInspeccion({ id });
     await refreshData();
     return ok;
@@ -181,8 +221,66 @@ export function SGDProvider({ children }: { children: React.ReactNode }) {
 
   const logAudit = async (payload: any) => gsApi.logAudit(payload);
 
-  const getInspeccionById = (id: string) =>
-    inspecciones.find(i => String(i._id) === String(id));
+  const getInspeccionById = (id: string): Inspeccion | undefined => {
+    if (!id) return undefined;
+    const strId = String(id).trim();
+
+    // 1. Buscar en estado React
+    let found = inspecciones.find(i =>
+      String(i._id) === strId ||
+      String(i.id) === strId ||
+      String(i.correlativo) === strId ||
+      String(i.referencia) === strId ||
+      String(i.referencia) === `INSP-${strId}` ||
+      (i._id && String(i._id).toLowerCase() === strId.toLowerCase())
+    );
+
+    // 2. Si no está en estado, buscar en localStorage
+    if (!found) {
+      try {
+        const rawLocal = typeof window !== 'undefined' ? localStorage.getItem('sgd_inspecciones') : null;
+        const localList = rawLocal ? JSON.parse(rawLocal) : [];
+        found = localList.find((i: any) =>
+          String(i._id) === strId ||
+          String(i.id) === strId ||
+          String(i.correlativo) === strId ||
+          String(i.referencia) === strId ||
+          String(i.referencia) === `INSP-${strId}` ||
+          (i._id && String(i._id).toLowerCase() === strId.toLowerCase())
+        );
+      } catch (e) {
+        console.warn('Error en getInspeccionById desde localStorage:', e);
+      }
+    }
+
+    if (!found) return undefined;
+
+    // 3. Hidratación de respuestas desde respaldos si vienen vacías
+    const hasAnswers = (found.respuestas && typeof found.respuestas === 'object' && Object.keys(found.respuestas).length > 0) ||
+                       (found.formResponses && found.formResponses !== '{}');
+
+    if (!hasAnswers) {
+      const keys = [strId, found._id, found.id, found.correlativo ? String(found.correlativo) : null].filter(Boolean) as string[];
+      for (const k of keys) {
+        try {
+          const raw = localStorage.getItem(`sgd_inspection_responses_${k}`) || localStorage.getItem(`sgd_draft_resp_${k}`);
+          if (raw) {
+            const p = JSON.parse(raw);
+            if (p && typeof p === 'object' && Object.keys(p).length > 0) {
+              found = {
+                ...found,
+                respuestas: p,
+                formResponses: raw
+              };
+              break;
+            }
+          }
+        } catch {}
+      }
+    }
+
+    return found;
+  };
 
   const login = async (email: string, pass: string) => {
     const res = await gsApi.login(email, pass);

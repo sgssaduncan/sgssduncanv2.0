@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { CheckCircle2, Info, XCircle, AlertTriangle, MinusCircle, ChevronDown, ChevronUp, Save, BarChart3 } from "lucide-react";
 import type { InspectionFormDef, FormSection, FormItem, ResponseType } from "../lib/formDefinitions";
 import { calculateScore } from "../lib/formDefinitions";
@@ -16,6 +16,7 @@ interface Props {
     score: ReturnType<typeof calculateScore>;
   }) => void;
   readOnly?: boolean;
+  inspeccionId?: string;
 }
 
 // Response button component
@@ -242,11 +243,45 @@ function SectionCard({
   );
 }
 
-export function DynamicInspectionForm({ formDef, initialResponses, initialObservations, initialAdditional, onSave, readOnly }: Props) {
-  const [responses, setResponses] = useState<Record<string, string>>(initialResponses || {});
+export function DynamicInspectionForm({ formDef, initialResponses, initialObservations, initialAdditional, onSave, readOnly, inspeccionId }: Props) {
+  const [responses, setResponses] = useState<Record<string, string>>(() => {
+    if (initialResponses && Object.keys(initialResponses).length > 0) return initialResponses;
+    if (typeof window !== "undefined") {
+      const keys = [inspeccionId, formDef?.code].filter(Boolean) as string[];
+      for (const k of keys) {
+        const raw = localStorage.getItem(`sgd_inspection_responses_${k}`) || localStorage.getItem(`sgd_draft_resp_${k}`);
+        if (raw) {
+          try {
+            const p = JSON.parse(raw);
+            if (p && typeof p === "object" && Object.keys(p).length > 0) return p;
+          } catch {}
+        }
+      }
+    }
+    return {};
+  });
   const [observations, setObservations] = useState<Record<string, string>>(initialObservations || {});
   const [additional, setAdditional] = useState<Record<string, string>>(initialAdditional || {});
   const [signatures, setSignatures] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (initialResponses && Object.keys(initialResponses).length > 0) {
+      setResponses(prev => Object.keys(prev).length === 0 ? initialResponses : { ...initialResponses, ...prev });
+    }
+  }, [initialResponses]);
+
+  // Persistencia inmediata en tiempo real en localStorage
+  useEffect(() => {
+    if (Object.keys(responses).length > 0 && typeof window !== "undefined") {
+      const keys = [inspeccionId, formDef?.code].filter(Boolean) as string[];
+      for (const k of keys) {
+        try {
+          localStorage.setItem(`sgd_draft_resp_${k}`, JSON.stringify(responses));
+          localStorage.setItem(`sgd_inspection_responses_${k}`, JSON.stringify(responses));
+        } catch {}
+      }
+    }
+  }, [responses, inspeccionId, formDef?.code]);
 
   const score = useMemo(() => calculateScore(formDef, responses), [formDef, responses]);
 

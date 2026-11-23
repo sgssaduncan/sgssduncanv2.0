@@ -26,13 +26,38 @@ export default function ReportePage() {
   // Extraer respuestas, firmas y adicionales de forma segura
   let parsedResponses: Record<string, any> = {};
   try {
-    if (inspeccion.respuestas && typeof inspeccion.respuestas === 'object') {
+    if (inspeccion.respuestas && typeof inspeccion.respuestas === 'object' && Object.keys(inspeccion.respuestas).length > 0) {
       parsedResponses = { ...inspeccion.respuestas };
     } else if (inspeccion.formResponses) {
-      parsedResponses = JSON.parse(inspeccion.formResponses);
+      const p = JSON.parse(inspeccion.formResponses);
+      if (p && typeof p === 'object') parsedResponses = { ...p };
     }
   } catch (e) {
     parsedResponses = {};
+  }
+
+  // Si aún está vacío, recuperar desde respaldos de localStorage
+  if (Object.keys(parsedResponses).length === 0 && typeof window !== 'undefined') {
+    const backupKeys = [
+      id,
+      inspeccion._id,
+      inspeccion.id,
+      inspeccion.correlativo ? String(inspeccion.correlativo) : null,
+      inspeccion.referencia
+    ].filter(Boolean) as string[];
+
+    for (const k of backupKeys) {
+      try {
+        const raw = localStorage.getItem(`sgd_inspection_responses_${k}`) || localStorage.getItem(`sgd_draft_resp_${k}`);
+        if (raw) {
+          const p = JSON.parse(raw);
+          if (p && typeof p === 'object' && Object.keys(p).length > 0) {
+            parsedResponses = { ...p };
+            break;
+          }
+        }
+      } catch {}
+    }
   }
 
   let parsedFirmas: Record<string, string> = {};
