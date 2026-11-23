@@ -286,7 +286,7 @@ function parseExcelFile(buffer: ArrayBuffer, fileName: string): ParsedWorkerResu
 
       const cargo = (colMap['cargo'] !== undefined ? String(row[colMap['cargo']] || '') : 'Operador').trim() || 'Operador';
       const departamento = (colMap['departamento'] !== undefined ? String(row[colMap['departamento']] || '') : 'Operaciones').trim() || 'Operaciones';
-      const empresaNombre = (colMap['empresaNombre'] !== undefined ? String(row[colMap['empresaNombre']] || '') : 'Acumuladores Duncan, C.A.').trim() || 'Acumuladores Duncan, C.A.';
+      const empresaNombre = (colMap['empresaNombre'] !== undefined ? String(row[colMap['empresaNombre']] || '') : 'Grupo Duncan').trim() || 'Grupo Duncan';
       const sucursal = colMap['sucursal'] !== undefined ? String(row[colMap['sucursal']] || '').trim() : undefined;
       const nombreNomina = colMap['nombreNomina'] !== undefined ? String(row[colMap['nombreNomina']] || '').trim() : undefined;
       const codigoEmpleado = colMap['codigoEmpleado'] !== undefined ? String(row[colMap['codigoEmpleado']] || '').trim() : undefined;
@@ -528,7 +528,7 @@ async function parsePdfFile(buffer: ArrayBuffer, fileName: string): Promise<Pars
               nombre,
               cargo,
               departamento,
-              empresaNombre: 'Acumuladores Duncan, C.A.',
+              empresaNombre: 'Grupo Duncan',
               activo: true
             });
           }

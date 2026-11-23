@@ -312,8 +312,8 @@ export default function Layout() {
         </nav>
 
         {/* Footer Sidebar */}
-        <div className="p-3 border-t border-slate-800 bg-slate-950/40 text-[11px] text-slate-400 text-center">
-          Acumuladores Duncan © 2026
+        <div className="p-3 border-t border-slate-800 bg-slate-950/40 text-[11px] text-slate-400 text-center font-medium">
+          Grupo Duncan © 2026
         </div>
       </aside>
 

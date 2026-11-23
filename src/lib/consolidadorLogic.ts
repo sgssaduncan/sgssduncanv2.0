@@ -89,6 +89,7 @@ export interface PDFReportConfig {
   incDepartments: boolean;
   incRanking: boolean;
   mode: 'single' | 'comparative';
+  empresaNombre?: string;
 }
 
 export function normalizeLocalityName(name: string): string {
@@ -439,7 +440,10 @@ export function exportFullAnalyticalPDF(metrics: GlobalMetrics, config: PDFRepor
     doc.setTextColor(245, 158, 11);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(26);
-    doc.text('ACUMULADORES DUNCAN, C.A.', 24, 45);
+    const coverEmpresa = config.empresaNombre && config.empresaNombre !== 'TODAS'
+      ? config.empresaNombre.toUpperCase()
+      : 'GRUPO DUNCAN (CONSOLIDADO CORPORATIVO)';
+    doc.text(coverEmpresa, 24, 45);
 
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(20);
@@ -600,7 +604,7 @@ export function exportFullAnalyticalPDF(metrics: GlobalMetrics, config: PDFRepor
 // =============================================================================
 // GENERADOR OFICIAL DE PRESENTACIÓN DE DIAPOSITIVAS (PDF WIDESCREEN 16:9)
 // =============================================================================
-export function exportPresentationDeckPDF(metrics: GlobalMetrics) {
+export function exportPresentationDeckPDF(metrics: GlobalMetrics, config?: PDFReportConfig) {
   // Dimensiones 16:9 panorámico oficial: 338.67mm x 190.5mm
   const doc = new jsPDF({
     orientation: 'landscape',
@@ -609,6 +613,9 @@ export function exportPresentationDeckPDF(metrics: GlobalMetrics) {
   });
 
   const totalSlides = 7;
+  const deckEmpresa = config?.empresaNombre && config.empresaNombre !== 'TODAS'
+    ? config.empresaNombre.toUpperCase()
+    : 'GRUPO DUNCAN';
 
   const drawSlideHeader = (slideNum: number, title: string, category: string) => {
     // Fondo de lámina oscuro
@@ -641,7 +648,7 @@ export function exportPresentationDeckPDF(metrics: GlobalMetrics) {
     doc.line(18, 178, 320, 178);
     doc.setFontSize(8);
     doc.setTextColor(148, 163, 184);
-    doc.text('ACUMULADORES DUNCAN, C.A. • GERENCIA CORPORATIVA SSA • CONFIDENCIAL', 18, 184);
+    doc.text(`${deckEmpresa} • GERENCIA CORPORATIVA SSA • CONFIDENCIAL`, 18, 184);
     doc.text(`Período de Auditoría: ${metrics.period}`, 275, 184);
   };
 
@@ -656,7 +663,7 @@ export function exportPresentationDeckPDF(metrics: GlobalMetrics) {
   doc.setTextColor(245, 158, 11);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(30);
-  doc.text('ACUMULADORES DUNCAN, C.A.', 28, 52);
+  doc.text(deckEmpresa, 28, 52);
 
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(22);

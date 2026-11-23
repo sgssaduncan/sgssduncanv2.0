@@ -4,6 +4,7 @@ import { useSGD } from '../contexts/SGDContext';
 import { ArrowLeft } from 'lucide-react';
 import InspectionReport from '../components/InspectionReport';
 import type { Inspeccion } from '../types';
+import { resolveEmpresaInfo } from '../lib/empresaResolver';
 
 export default function ReportePage() {
   const { id } = useParams<{ id: string }>();
@@ -89,12 +90,20 @@ export default function ReportePage() {
     }
   });
 
+  // Resolver dinámicamente la empresa de Grupo Duncan asociada a la inspección
+  const resolvedEmp = resolveEmpresaInfo({
+    empresaId: inspeccion.empresaId,
+    empresaNombre: inspeccion.empresaNombre,
+    establecimientoId: inspeccion.establecimientoId,
+    establecimientoNombre: inspeccion.establecimientoNombre,
+  });
+
   // Mapear campos si faltan para compatibilidad total con el template avanzado
   const inspectionFull: Inspeccion = {
     ...inspeccion,
     id: inspeccion._id || inspeccion.id,
-    empresaId: inspeccion.empresaId || 'emp_ddca',
-    empresaNombre: inspeccion.empresaNombre || 'Distribuidora Duncan, C.A.',
+    empresaId: inspeccion.empresaId || resolvedEmp.id,
+    empresaNombre: inspeccion.empresaNombre || resolvedEmp.nombre,
     localidadId: inspeccion.localidadId || 'loc_caracas',
     localidadNombre: inspeccion.localidadNombre || 'Caracas',
     establecimientoId: inspeccion.establecimientoId || 'est_dist_ccs',

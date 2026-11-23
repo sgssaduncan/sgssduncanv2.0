@@ -37,6 +37,7 @@ import { dbService } from "../services/db";
 import { useAuth } from '../hooks/useAuth';
 import { getFormDefinition, calculateScore } from "../lib/formDefinitions";
 import { INITIAL_EMPRESAS, INITIAL_LOCALIDADES, INITIAL_ESTABLECIMIENTOS, INITIAL_TIPOS_INSPECCION } from '../data/seedData';
+import { resolveEmpresaInfo } from "../lib/empresaResolver";
 import { generarInspeccionPDF } from "../lib/pdfGenerator";
 
 import { QRCodeSVG } from "qrcode.react";
@@ -78,18 +79,22 @@ export default function InspectionReport({
         dbService.getEmpresas(),
         dbService.getTiposInspeccion(),
       ]);
-      // Resolver empresa de forma inteligente
-      let empName = (inspection as any).empresaNombre || '';
-      if (!empName || empName === 'emp_ddca' || empName.toLowerCase().includes('lámpara') || empName.toLowerCase().includes('lampara')) {
-        empName = 'Distribuidora Duncan, C.A.';
-      }
+      // Resolver empresa de forma inteligente y dinámica según la sede y datos de la inspección
+      const resolvedEmp = resolveEmpresaInfo({
+        empresaId: inspection.empresaId,
+        empresaNombre: (inspection as any).empresaNombre,
+        establecimientoId: inspection.establecimientoId,
+        establecimientoNombre: (inspection as any).establecimientoNombre,
+        sedeNombre: (inspection as any).sedeNombre,
+      });
 
-      const empresa = empresas.find((e) => e.id === inspection.empresaId || (e as any)._id === inspection.empresaId) || {
-        _id: inspection.empresaId || 'emp_ddca',
-        id: inspection.empresaId || 'emp_ddca',
-        codigo: 'DDCA',
-        nombre: empName,
-        rif: 'J-00100047-0',
+      const empresa = {
+        _id: resolvedEmp._id,
+        id: resolvedEmp.id,
+        codigo: resolvedEmp.codigo,
+        nombre: resolvedEmp.nombre,
+        rif: resolvedEmp.rif,
+        direccion: resolvedEmp.direccion,
       };
 
       // Resolver localidad
@@ -491,7 +496,7 @@ export default function InspectionReport({
               />
               <div>
                 <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#0f172a', lineHeight: '1.2' }}>
-                  {metadata.empresa?.nombre || inspection.empresaNombre || 'Distribuidora Duncan, C.A.'}
+                  {metadata.empresa?.nombre || inspection.empresaNombre || 'Grupo Duncan'}
                 </div>
                 <div style={{ fontSize: '8.5px', color: '#475569', marginTop: '2px' }}>
                   Sistema de Gestión de Seguridad, Salud y Ambiente (SG-SSA)
@@ -524,7 +529,7 @@ export default function InspectionReport({
             <tbody>
               <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
                 <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#475569', borderRight: '1px solid #cbd5e1' }}>Empresa</td>
-                <td style={{ padding: '4px 8px', borderRight: '1px solid #cbd5e1' }}>{metadata.empresa?.nombre || inspection.empresaNombre || 'Distribuidora Duncan, C.A.'}</td>
+                <td style={{ padding: '4px 8px', borderRight: '1px solid #cbd5e1' }}>{metadata.empresa?.nombre || inspection.empresaNombre || 'Grupo Duncan'}</td>
                 <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#475569', borderRight: '1px solid #cbd5e1' }}>N° Correlativo</td>
                 <td style={{ padding: '4px 8px' }}>{inspection.correlativo || (inspection.referencia ? inspection.referencia.replace(/^REF-|^INSP-/, '') : '1001')}</td>
               </tr>

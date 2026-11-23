@@ -35,6 +35,7 @@ import VexpressMorbilidadReport from './VexpressMorbilidadReport';
 import VexpressRepososManager from './VexpressRepososManager';
 import VexpressReferenciasManager from './VexpressReferenciasManager';
 import VexpressVacacionesManager from './VexpressVacacionesManager';
+import { resolveEmpresaInfo } from '../lib/empresaResolver';
 
 type MedicalTab = 'solicitudes' | 'consultas-diarias' | 'control-pa' | 'aptitud-apf' | 'goniometria' | 'reposos' | 'referencias' | 'vacaciones' | 'morbilidad';
 
@@ -459,7 +460,13 @@ export default function MedicalEvaluationsManager() {
                 <div>
                   <h2 className="text-xl font-bold">Autorización de Evaluación Médica Ocupacional</h2>
                   <p className="text-xs text-slate-400 print:text-slate-600">
-                    Acumuladores Duncan, C.A. • RIF: J-00000350-5 • Servicio Médico SSA
+                    {resolveEmpresaInfo({
+                      empresaNombre: selectedEval.empresaNombre,
+                      establecimientoNombre: selectedEval.establecimientoNombre,
+                    }).nombre} • RIF: {resolveEmpresaInfo({
+                      empresaNombre: selectedEval.empresaNombre,
+                      establecimientoNombre: selectedEval.establecimientoNombre,
+                    }).rif} • Servicio Médico SSA
                   </p>
                 </div>
               </div>

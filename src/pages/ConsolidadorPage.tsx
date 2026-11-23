@@ -59,6 +59,7 @@ import {
 } from '../lib/consolidadorLogic';
 import toast from 'react-hot-toast';
 import CatalogoCriteriosModal from '../components/CatalogoCriteriosModal';
+import { INITIAL_EMPRESAS } from '../data/seedData';
 
 export default function ConsolidadorPage() {
   const { inspecciones, refreshData } = useSGD();
@@ -81,6 +82,7 @@ export default function ConsolidadorPage() {
   const [filterAmbito, setFilterAmbito] = useState<'TODOS' | 'DISTRIBUIDORA' | 'SERVICENTRO'>('TODOS');
   const [filterRegion, setFilterRegion] = useState<string>('TODAS');
   const [filterStatus, setFilterStatus] = useState<'TODOS' | 'CONFORME' | 'ALERTA' | 'RIESGO'>('TODOS');
+  const [filterEmpresa, setFilterEmpresa] = useState<string>('TODAS');
   const [isSyncing, setIsSyncing] = useState(false);
 
   // Estados de Modales
@@ -101,17 +103,34 @@ export default function ConsolidadorPage() {
     incFlota: true,
     incDepartments: true,
     incRanking: true,
-    mode: 'single'
+    mode: 'single',
+    empresaNombre: 'TODAS'
   });
+
+  // Filtrado de inspecciones por Empresa de Grupo Duncan
+  const filteredInspecciones = useMemo(() => {
+    if (filterEmpresa === 'TODAS') return inspecciones;
+    const low = filterEmpresa.toLowerCase();
+    return inspecciones.filter(i => {
+      const emp = (i.empresaNombre || '').toLowerCase();
+      const est = (i.establecimientoNombre || '').toLowerCase();
+      if (low.includes('fundic')) return emp.includes('fundic') || est.includes('fundic');
+      if (low.includes('ayacucho') || low.includes('transporte')) return emp.includes('ayacucho') || est.includes('ayacucho');
+      if (low.includes('1286')) return emp.includes('1286') || est.includes('1286');
+      if (low.includes('distribuidora')) return emp.includes('distribuidora') || est.includes('distribuidora') || est.includes('servicentro');
+      if (low.includes('acumuladores')) return emp.includes('acumuladores') || est.includes('planta');
+      return emp.includes(low);
+    });
+  }, [inspecciones, filterEmpresa]);
 
   // Métricas Consolidadas reactivas 100% nativas
   const metrics: GlobalMetrics = useMemo(() => {
-    return computeConsolidatedMetrics(selectedPeriod, inspecciones);
-  }, [selectedPeriod, inspecciones]);
+    return computeConsolidatedMetrics(selectedPeriod, filteredInspecciones);
+  }, [selectedPeriod, filteredInspecciones]);
 
   const completedCount = useMemo(() => {
-    return inspecciones.filter(i => i.estado === 'Completada').length;
-  }, [inspecciones]);
+    return filteredInspecciones.filter(i => i.estado === 'Completada').length;
+  }, [filteredInspecciones]);
 
   // Autoplay para el Visor de Presentaciones
   useEffect(() => {
@@ -154,7 +173,7 @@ export default function ConsolidadorPage() {
   // Ejecutar Emisión de Reporte PDF Completo
   const handleGenerateFullPDF = () => {
     try {
-      exportFullAnalyticalPDF(metrics, pdfConfig);
+      exportFullAnalyticalPDF(metrics, { ...pdfConfig, empresaNombre: filterEmpresa });
       setShowPDFModal(false);
       toast.success('Reporte PDF Analítico Completo generado exitosamente.');
     } catch (err) {
@@ -166,7 +185,7 @@ export default function ConsolidadorPage() {
   // Generar Presentación Ejecutiva en PDF (16:9 Panorámica)
   const handleGeneratePresentationPDF = () => {
     try {
-      exportPresentationDeckPDF(metrics);
+      exportPresentationDeckPDF(metrics, { ...pdfConfig, empresaNombre: filterEmpresa });
       toast.success('Presentación de Diapositivas (PDF 16:9) generada exitosamente.');
     } catch (err) {
       console.error(err);
@@ -477,16 +496,32 @@ export default function ConsolidadorPage() {
           </div>
         </div>
 
-        {/* Búsqueda Rápida Responsiva */}
-        <div className="relative w-full sm:w-auto sm:min-w-[240px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Filtrar sede o región..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
-          />
+        {/* Filtros de Empresa y Búsqueda Rápida Responsiva */}
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          {/* Selector de Empresa de Grupo Duncan */}
+          <select
+            value={filterEmpresa}
+            onChange={e => setFilterEmpresa(e.target.value)}
+            className="px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-amber-400 focus:outline-none focus:border-amber-400 font-bold"
+            title="Filtrar por Empresa de Grupo Duncan"
+          >
+            <option value="TODAS">Todas las Empresas (Grupo Duncan)</option>
+            {INITIAL_EMPRESAS.map(emp => (
+              <option key={emp._id} value={emp.nombre}>{emp.nombre}</option>
+            ))}
+          </select>
+
+          {/* Búsqueda Rápida Responsiva */}
+          <div className="relative flex-1 sm:w-auto sm:min-w-[200px]">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Filtrar sede o región..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+            />
+          </div>
         </div>
       </div>
 
@@ -1548,7 +1583,7 @@ export default function ConsolidadorPage() {
             {currentSlideIndex === 0 && (
               <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-12 text-center space-y-4 sm:space-y-5 shadow-2xl">
                 <span className="text-[10px] sm:text-xs font-black text-amber-400 uppercase tracking-widest bg-amber-400/10 px-3 sm:px-4 py-1.5 rounded-full border border-amber-400/30">
-                  Acumuladores Duncan, C.A.
+                  {filterEmpresa !== 'TODAS' ? filterEmpresa : 'Grupo Duncan'}
                 </span>
                 <h1 className="text-2xl sm:text-5xl font-black text-white uppercase tracking-tight">
                   Informe Consolidado Ejecutivo SSA

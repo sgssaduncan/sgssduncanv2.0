@@ -4,6 +4,7 @@ import { formatDate } from './utils';
 import { getFormDefinition, calculateScore } from './formDefinitions';
 import { DUNCAN_LOGO_BW } from './logos';
 import { INITIAL_EMPRESAS, INITIAL_LOCALIDADES, INITIAL_ESTABLECIMIENTOS, INITIAL_TIPOS_INSPECCION } from '../data/seedData';
+import { resolveEmpresaInfo } from './empresaResolver';
 import { auditService } from '../services/auditService';
 import type { Inspeccion, AccidenteF465, CalculoCargaFuegoArea, ChecklistTransporte, VehiculoFlota } from '../types';
 
@@ -94,10 +95,14 @@ export function generarInspeccionPDF(inspection: Inspeccion, metadataInput?: any
   }
 
   // 1. Detección y normalización inteligente de metadatos (evita columnas invertidas/códigos crudos)
-  let empresaNombre = (inspection.empresaNombre || metadataInput?.empresa?.nombre || '').trim();
-  if (!empresaNombre || empresaNombre === 'emp_ddca' || empresaNombre.toLowerCase().includes('lámpara') || empresaNombre.toLowerCase().includes('lampara')) {
-    empresaNombre = 'Distribuidora Duncan, C.A.';
-  }
+  const resolvedEmpresa = resolveEmpresaInfo({
+    empresaId: inspection.empresaId || metadataInput?.empresa?._id || metadataInput?.empresa?.id,
+    empresaNombre: inspection.empresaNombre || metadataInput?.empresa?.nombre,
+    establecimientoId: inspection.establecimientoId || metadataInput?.establecimiento?._id,
+    establecimientoNombre: inspection.establecimientoNombre || metadataInput?.establecimiento?.nombre,
+    sedeNombre: (inspection as any).sedeNombre,
+  });
+  let empresaNombre = resolvedEmpresa.nombre;
 
   let localidadNombre = (inspection.localidadNombre || metadataInput?.localidad?.nombre || '').trim();
   if (!localidadNombre || localidadNombre.startsWith('loc_') || localidadNombre === 'emp_ddca') {
@@ -558,11 +563,20 @@ export function generarConsolidadoEjecutivoPDF(
     console.warn('Error insertando logo en consolidado PDF', e);
   }
 
+  // Resolver empresa del consolidado
+  const isSpecificEmpresa = Boolean(filtroEmpresaNombre && filtroEmpresaNombre !== 'TODAS' && filtroEmpresaNombre !== 'Todas las Empresas');
+  const resolvedEmpresa = resolveEmpresaInfo({
+    empresaNombre: isSpecificEmpresa ? filtroEmpresaNombre : null
+  });
+  const displayEmpresa = isSpecificEmpresa 
+    ? resolvedEmpresa.nombre 
+    : 'GRUPO DUNCAN (CONSOLIDADO CORPORATIVO)';
+
   // Títulos
   doc.setTextColor(15, 23, 42);
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text((filtroEmpresaNombre || 'ACUMULADORES DUNCAN, C.A.').toUpperCase(), 56, 11);
+  doc.text(displayEmpresa.toUpperCase(), 56, 11);
 
   doc.setFontSize(8.5);
   doc.setFont('helvetica', 'normal');
@@ -640,7 +654,7 @@ export function generarConsolidadoEjecutivoPDF(
 
   doc.text('_____________________________________', 125, sigY);
   doc.text('Gerencia Corporativa de Operaciones', 128, sigY + 5);
-  doc.text('Acumuladores Duncan, C.A.', 138, sigY + 9);
+  doc.text(displayEmpresa, 128, sigY + 9);
 
   const fileName = `SGD_Duncan_Reporte_Ejecutivo_${new Date().toISOString().slice(0, 10)}.pdf`;
   auditService.logExport('PDF', fileName, 'ConsolidadoEjecutivo', undefined, {
@@ -672,7 +686,11 @@ export function generarInformeAccidentePDF(accidente: AccidenteF465): PDFGenerat
     console.warn('Error insertando logo en informe de accidente', e);
   }
 
-  const empresaNombre = (accidente.sedeEmpresa?.includes('DISTRIBUIDORA') ? 'DISTRIBUIDORA DUNCAN, C.A.' : 'ACUMULADORES DUNCAN, C.A.');
+  const resolvedAccEmp = resolveEmpresaInfo({
+    empresaNombre: (accidente as any).empresaNombre,
+    sedeNombre: accidente.sedeEmpresa,
+  });
+  const empresaNombre = resolvedAccEmp.nombre.toUpperCase();
 
   doc.setTextColor(15, 23, 42);
   doc.setFontSize(12);
@@ -921,8 +939,8 @@ export function generarInformeAccidentePDF(accidente: AccidenteF465): PDFGenerat
   doc.text('Comité de Seguridad y Salud Laboral', 86, currentY + 7.5);
 
   doc.text('_____________________________________', 148, currentY);
-  doc.text('Gerencia de Operaciones Duncan', 151, currentY + 4);
-  doc.text('Acumuladores / Distribuidora Duncan', 149, currentY + 7.5);
+  doc.text('Gerencia de Operaciones', 151, currentY + 4);
+  doc.text(resolvedAccEmp.nombre, 151, currentY + 7.5);
 
   // Footer dinámico
   const totalPages = doc.getNumberOfPages();
@@ -969,10 +987,18 @@ export function generarCertificadoCargaFuegoPDF(carga: CalculoCargaFuegoArea): P
     console.warn('Error insertando logo en carga de fuego', e);
   }
 
+  const resolvedCargaEmp = resolveEmpresaInfo({
+    empresaNombre: (carga as any).empresaNombre,
+    sedeNombre: carga.sedeNombre,
+  });
+  const headerEmpresa = ((carga as any).empresaNombre || carga.sedeNombre)
+    ? resolvedCargaEmp.nombre.toUpperCase()
+    : 'GRUPO DUNCAN • SEGURIDAD INDUSTRIAL';
+
   doc.setTextColor(15, 23, 42);
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text('GRUPO EMPRESARIAL DUNCAN, C.A.', 56, 11);
+  doc.text(headerEmpresa, 56, 11);
 
   doc.setFontSize(8.5);
   doc.setFont('helvetica', 'normal');
@@ -1100,7 +1126,7 @@ export function generarCertificadoCargaFuegoPDF(carga: CalculoCargaFuegoArea): P
 
   doc.text('_____________________________________', 125, currentY);
   doc.text('Gerente de Operaciones / Responsable Sede', 123, currentY + 4);
-  doc.text('Acumuladores Duncan, C.A.', 138, currentY + 7.5);
+  doc.text(resolvedCargaEmp.nombre, 125, currentY + 7.5);
 
   // Footer
   doc.setFontSize(7);
@@ -1143,10 +1169,20 @@ export function generarHojaRutaTransportePDF(checklist: ChecklistTransporte, veh
     console.warn('Error insertando logo en hoja de ruta', e);
   }
 
+  const resolvedTranspEmp = resolveEmpresaInfo({
+    empresaNombre: (checklist as any).empresaNombre || (vehiculo as any)?.empresaNombre,
+    sedeNombre: checklist.sedeOrigen,
+  });
+  const headerTranspEmp = ((checklist as any).empresaNombre || (vehiculo as any)?.empresaNombre)
+    ? resolvedTranspEmp.nombre.toUpperCase()
+    : (checklist.sedeOrigen?.toLowerCase().includes('ayacucho') || vehiculo?.tipoVehiculo?.toLowerCase().includes('ayacucho'))
+      ? 'TRANSPORTE AYACUCHO, C.A.'
+      : resolvedTranspEmp.nombre.toUpperCase();
+
   doc.setTextColor(15, 23, 42);
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text('DISTRIBUIDORA DUNCAN, C.A.', 56, 11);
+  doc.text(headerTranspEmp, 56, 11);
 
   doc.setFontSize(8.5);
   doc.setFont('helvetica', 'normal');
@@ -1315,7 +1351,7 @@ export function generarHojaRutaTransportePDF(checklist: ChecklistTransporte, veh
 
   doc.text('_____________________________________', 125, currentY);
   doc.text('Despacho / Inspector de Flota SSA', 126, currentY + 4);
-  doc.text('Distribuidora Duncan, C.A.', 137, currentY + 7.5);
+  doc.text(headerTranspEmp, 126, currentY + 7.5);
 
   // Footer
   doc.setFontSize(7);

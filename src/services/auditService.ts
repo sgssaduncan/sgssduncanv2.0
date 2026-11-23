@@ -48,7 +48,7 @@ function getCurrentSessionUser() {
         email: parsed.email || 'usuario@duncan.com.ve',
         rol: parsed.rol || parsed.role || 'Inspector',
         sede: parsed.establecimientoNombre || parsed.sede || 'Planta Principal Los Ruices',
-        empresa: parsed.empresaNombre || 'Acumuladores Duncan, C.A.'
+        empresa: parsed.empresaNombre || 'Grupo Duncan'
       };
     }
   } catch {
