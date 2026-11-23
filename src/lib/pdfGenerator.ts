@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatDate } from './utils';
-import { getFormDefinition, calculateScore } from './formDefinitions';
+import { getFormDefinition, calculateScore, resolveItemResponse, classifyResponse } from './formDefinitions';
 import { DUNCAN_LOGO_BW } from './logos';
 import { INITIAL_EMPRESAS, INITIAL_LOCALIDADES, INITIAL_ESTABLECIMIENTOS, INITIAL_TIPOS_INSPECCION } from '../data/seedData';
 import { resolveEmpresaInfo } from './empresaResolver';
@@ -330,20 +330,15 @@ export function generarInspeccionPDF(inspection: Inspeccion, metadataInput?: any
     tableData.push([`SECCIÓN: ${secNumber}. ${secTitle.replace(/^SECCIÓN:\s*/i, '').toUpperCase()}`, '']);
 
     (sec.items || []).forEach((item: any) => {
-      // Búsqueda resiliente de la respuesta por ID o por alias (ej: 1.1, 1_1, item_1_1)
-      const rawVal = respuestas[item.id] ?? 
-                     respuestas[String(item.id).replace('.', '_')] ?? 
-                     respuestas[`item_${String(item.id).replace('.', '_')}`];
-
+      // Búsqueda ultra-resiliente de la respuesta por ID canónico, numérico, alias o label
+      const rawVal = resolveItemResponse(respuestas, item);
+      const classification = classifyResponse(rawVal);
       let displayVal = '—';
-      if (rawVal !== undefined && rawVal !== null && rawVal !== '') {
-        const valUpper = String(rawVal).toUpperCase().trim();
-        if (['C', 'BUENO', 'SI', 'SÍ', 'OPERATIVO', 'OK', 'CONFORME', 'EXISTE'].includes(valUpper)) displayVal = 'C';
-        else if (['NC', 'DANADO', 'DAÑADO', 'NO', 'NO OPERATIVO', 'NO CONFORME', 'CRITICO', 'CRÍTICO', 'NO_EXISTE'].includes(valUpper)) displayVal = 'NC';
-        else if (['OM', 'OPORTUNIDAD DE MEJORA', 'REGULAR', 'OBSERVACION', 'OBSERVACIÓN'].includes(valUpper)) displayVal = 'OM';
-        else if (['NA', 'N/A', 'NO APLICA'].includes(valUpper)) displayVal = 'NA';
-        else displayVal = String(rawVal);
-      }
+      if (classification === 'C') displayVal = 'C';
+      else if (classification === 'NC') displayVal = 'NC';
+      else if (classification === 'OM') displayVal = 'OM';
+      else if (classification === 'NA') displayVal = 'NA';
+      else if (rawVal !== undefined && rawVal !== null && rawVal !== '') displayVal = String(rawVal);
 
       const itemLabel = item.pregunta || item.label || `Ítem ${item.id}`;
       tableData.push([itemLabel, displayVal]);

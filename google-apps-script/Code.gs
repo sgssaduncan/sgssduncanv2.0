@@ -750,28 +750,63 @@ function ensureDefaultUsers(sheet) {
     }
   }
 
-  // Verificar si la hoja de usuarios tiene al menos una cuenta de inicio
+  // Asegurar que las cuentas maestras de administración existan siempre
   data = sheet.getDataRange().getValues();
-  if (data.length <= 1) {
-    // Si la hoja está totalmente vacía de usuarios, inicializar con cuenta de ScriptProperties o admin seguro
-    var initEmail = getSecProperty('INITIAL_ADMIN_EMAIL', 'admin@duncan.com.ve');
-    var initPass = getSecProperty('INITIAL_ADMIN_PASSWORD', 'Duncan2026*Secure');
-    var hashed = hashPassword(initPass);
-    var initRow = [
-      'usr_init_admin',
-      sanitizeCell(initEmail),
-      'V-10000001',
-      'Administrador Inicial Duncan',
-      'Gerente de Seguridad de la Información',
-      'Oficinas Centrales Los Ruices',
-      'Propietario / Super Admin',
-      hashed.hash,
-      hashed.salt,
-      true,
-      new Date().toISOString()
+  var headersLower = data[0].map(function(h) { return String(h).trim().toLowerCase(); });
+  var colEmail = headersLower.indexOf('email');
+
+  if (colEmail !== -1) {
+    var defaultAdmins = [
+      {
+        id: 'usr_hugo_vera',
+        email: 'vera.hugo712@gmail.com',
+        cedula: 'V-14785236',
+        nombre: 'Hugo Vera',
+        cargo: 'Administrador SSA Duncan',
+        localidad: 'Valencia / Central',
+        rol: 'Admin',
+        pass: 'Tarugo369#*$'
+      },
+      {
+        id: 'usr_init_admin',
+        email: getSecProperty('INITIAL_ADMIN_EMAIL', 'admin@duncan.com.ve'),
+        cedula: 'V-10000001',
+        nombre: 'Administrador Duncan Master',
+        cargo: 'Gerente General SST Duncan',
+        localidad: 'Oficinas Centrales Los Ruices',
+        rol: 'Propietario / Super Admin',
+        pass: getSecProperty('INITIAL_ADMIN_PASSWORD', 'Duncan2026*Secure')
+      }
     ];
-    sheet.appendRow(initRow);
-    SpreadsheetApp.flush();
+
+    for (var a = 0; a < defaultAdmins.length; a++) {
+      var adm = defaultAdmins[a];
+      var foundIdx = -1;
+      for (var r = 1; r < data.length; r++) {
+        if (String(data[r][colEmail] || '').trim().toLowerCase() === adm.email.toLowerCase()) {
+          foundIdx = r + 1;
+          break;
+        }
+      }
+      if (foundIdx === -1) {
+        var h = hashPassword(adm.pass);
+        var newAdminRow = [
+          adm.id,
+          sanitizeCell(adm.email),
+          adm.cedula,
+          adm.nombre,
+          adm.cargo,
+          adm.localidad,
+          adm.rol,
+          h.hash,
+          h.salt,
+          true,
+          new Date().toISOString()
+        ];
+        sheet.appendRow(newAdminRow);
+        SpreadsheetApp.flush();
+      }
+    }
   }
 }
 
@@ -1042,7 +1077,27 @@ function handleCreateInspeccion(payload, session) {
       sanitizeCell(payload.inspector || (session ? session.nombre : '')),
       sanitizeCell(payload.inspectorCargo || ''),
       sanitizeCell(payload.acompanante || ''),
-      sanitizeCell(payload.fecha || Utilities.formatDate(new Date(), 'America/Carfunction handleSaveFormData(payload, session) {
+      sanitizeCell(payload.fecha || Utilities.formatDate(new Date(), 'America/Caracas', "yyyy-MM-dd'T'HH:mm:ss'Z'")),
+      sanitizeCell(payload.horaInicio || ''),
+      sanitizeCell(payload.horaFin || ''),
+      'borrador',
+      '',
+      '',
+      '{}',
+      '[]',
+      '',
+      '[]',
+      Utilities.formatDate(new Date(), 'America/Caracas', "yyyy-MM-dd'T'HH:mm:ss'Z'")
+    ];
+
+    sheet.appendRow(row);
+    SpreadsheetApp.flush();
+
+    return { _id: newId, correlativo: correlativo };
+  });
+}
+
+function handleSaveFormData(payload, session) {
   return withScriptLock(15000, function() {
     var ss = getSpreadsheet();
     var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
@@ -1180,6 +1235,11 @@ function handleCompleteInspeccion(payload, session) {
 
     var colEstado = colMap['estado'] || -1;
     var colActualizado = colMap['actualizadoen'] || colMap['updatedat'] || -1;
+    var colPuntos = colMap['puntos'] || colMap['puntuacion'] || colMap['score'] || -1;
+    var colResultado = colMap['resultado'] || -1;
+    var colRespuestas = colMap['respuestas'] || colMap['formresponses'] || colMap['responses'] || -1;
+    var colObservaciones = colMap['observacionesgenerales'] || colMap['observaciones'] || colMap['formobservations'] || -1;
+    var colFirmas = colMap['firmainspector'] || colMap['firmas'] || colMap['signatures'] || -1;
 
     if (colEstado > 0) {
       sheet.getRange(rowIndex, colEstado).setValue('completada');
@@ -1188,23 +1248,31 @@ function handleCompleteInspeccion(payload, session) {
       sheet.getRange(rowIndex, colActualizado).setValue(Utilities.formatDate(new Date(), 'America/Caracas', "yyyy-MM-dd'T'HH:mm:ss'Z'"));
     }
 
-    SpreadsheetApp.flush();
-    return { success: true, _id: id, correlativo: correlativo, estado: 'completada' };
-  });
-}
-
-pdates.fotos = JSON.stringify(sanitizeObject(payload.fotos));
-    if (payload.puntos) updates.puntos = JSON.stringify(sanitizeObject(payload.puntos));
-
-    for (var key in updates) {
-      var col = headers.indexOf(key) + 1;
-      if (col > 0) {
-        sheet.getRange(rowIndex, col).setValue(updates[key]);
+    var puntosVal = payload.puntos !== undefined ? payload.puntos : payload.puntuacion;
+    if (colPuntos > 0 && puntosVal !== undefined && puntosVal !== null && puntosVal !== '') {
+      sheet.getRange(rowIndex, colPuntos).setValue(Number(puntosVal));
+    }
+    if (colResultado > 0 && payload.resultado) {
+      sheet.getRange(rowIndex, colResultado).setValue(sanitizeCell(payload.resultado));
+    }
+    var respuestasData = payload.respuestas || payload.responses;
+    if (colRespuestas > 0 && respuestasData) {
+      if (typeof respuestasData === 'string') {
+        try { respuestasData = JSON.parse(respuestasData); } catch (e) {}
       }
+      sheet.getRange(rowIndex, colRespuestas).setValue(JSON.stringify(sanitizeObject(respuestasData)));
+    }
+    var obsVal = payload.observacionesGenerales || payload.observaciones || payload.observations;
+    if (colObservaciones > 0 && obsVal) {
+      sheet.getRange(rowIndex, colObservaciones).setValue(sanitizeCell(obsVal));
+    }
+    var firmasVal = payload.firmas || payload.signatures;
+    if (colFirmas > 0 && firmasVal) {
+      sheet.getRange(rowIndex, colFirmas).setValue(JSON.stringify(sanitizeObject(firmasVal)));
     }
 
     SpreadsheetApp.flush();
-    return { success: true, _id: id, estado: 'completada' };
+    return { success: true, _id: id, correlativo: correlativo, estado: 'completada' };
   });
 }
 

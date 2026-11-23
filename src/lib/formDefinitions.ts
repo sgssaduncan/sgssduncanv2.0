@@ -16,15 +16,20 @@ function buildSectionsFromCriteria(criteria: CriterioEvaluacion[]): FormSection[
       });
     }
     const sec = sectionsMap.get(c.conjunto)!;
+    // Identificador canónico único oficial en SGD: `${c.conjunto}.${c.num}` (ej: "1.1", "1.2", "2.1")
+    const canonicalId = `${c.conjunto}.${c.num}`;
     sec.items.push({
-      id: c.num,
+      id: canonicalId,
       label: c.preguntaResumida || c.pregunta,
       responseType: "C_NC_OM_NA",
       preguntaOriginal: c.pregunta,
       aspectoLegal: c.aspectoLegal,
       grupoPilar: c.grupoPilar,
       areaResponsable: c.areaResponsable,
-      aspecto: c.aspecto
+      aspecto: c.aspecto,
+      itemIndex: c.item,
+      num: c.num,
+      conjunto: c.conjunto
     });
   });
 
@@ -60,6 +65,9 @@ export interface FormItem {
   grupoPilar?: 'INFRA' | 'LEGAL' | 'SSA' | 'VEHCP' | string;
   areaResponsable?: string;
   aspecto?: string;
+  itemIndex?: number;
+  num?: string;
+  conjunto?: number;
 }
 
 export interface FormSection {
@@ -1492,6 +1500,72 @@ export interface ScoreResult {
   porcentajeNoAplica: number;
 }
 
+/**
+ * Normaliza y clasifica cualquier texto o código de respuesta en los 4 cuadrantes estándar:
+ * C (Conforme: +1.0 pto)
+ * NC (No Conforme: 0 ptos)
+ * OM (Oportunidad de Mejora: +0.5 ptos positivos)
+ * NA (No Aplica: Excluido de la base evaluable)
+ */
+export function classifyResponse(raw: string | undefined | null): 'C' | 'NC' | 'OM' | 'NA' | null {
+  if (raw === undefined || raw === null || raw === '') return null;
+  const v = String(raw).trim().toUpperCase();
+  if (['C', 'BUENO', 'SI', 'SÍ', 'OPERATIVO', 'OK', 'CONFORME', 'EXISTE', '1'].includes(v)) return 'C';
+  if (['OM', 'OPORTUNIDAD DE MEJORA', 'REGULAR', 'REQUIERE ATENCION', 'OBSERVACION', 'OBSERVACIÓN', 'MEJORA'].includes(v)) return 'OM';
+  if (['NC', 'DANADO', 'DAÑADO', 'NO', 'NO OPERATIVO', 'NO CONFORME', 'CRITICO', 'CRÍTICO', 'NO_EXISTE', '0'].includes(v)) return 'NC';
+  if (['NA', 'N/A', 'NO APLICA'].includes(v)) return 'NA';
+  return null;
+}
+
+/**
+ * Búsqueda ultra-resiliente de la respuesta asociada a un ítem.
+ * Soporta IDs canónicos ("1.1"), claves numéricas simples ("1"), alias ("1_1", "item_1_1"),
+ * índice correlativo general (1..173) y prefijos extraídos del label ("1.1 ¿...").
+ */
+export function resolveItemResponse(
+  responses: Record<string, any> | undefined | null,
+  item: FormItem
+): string | undefined {
+  if (!responses || typeof responses !== 'object') return undefined;
+
+  // 1. Coincidencia directa por id canónico (ej: "1.1")
+  if (responses[item.id] !== undefined && responses[item.id] !== null && responses[item.id] !== '') {
+    return String(responses[item.id]);
+  }
+
+  // 2. Coincidencia por alias con guión bajo (ej: "1_1")
+  const underId = item.id.replace(/\./g, '_');
+  if (responses[underId] !== undefined && responses[underId] !== null && responses[underId] !== '') {
+    return String(responses[underId]);
+  }
+
+  // 3. Coincidencia con prefijo "item_" (ej: "item_1_1", "item_1.1")
+  if (responses[`item_${underId}`] !== undefined && responses[`item_${underId}`] !== null && responses[`item_${underId}`] !== '') {
+    return String(responses[`item_${underId}`]);
+  }
+  if (responses[`item_${item.id}`] !== undefined && responses[`item_${item.id}`] !== null && responses[`item_${item.id}`] !== '') {
+    return String(responses[`item_${item.id}`]);
+  }
+
+  // 4. Coincidencia por prefijo numérico extraído del label (ej: "1.1 ¿Son suficientes...?" -> "1.1")
+  const prefixMatch = item.label ? item.label.match(/^(\d+\.\d+)/) : null;
+  if (prefixMatch && responses[prefixMatch[1]] !== undefined && responses[prefixMatch[1]] !== null && responses[prefixMatch[1]] !== '') {
+    return String(responses[prefixMatch[1]]);
+  }
+
+  // 5. Coincidencia por índice secuencial del criterio (1 a 173) si existe
+  if (item.itemIndex !== undefined && responses[String(item.itemIndex)] !== undefined && responses[String(item.itemIndex)] !== null && responses[String(item.itemIndex)] !== '') {
+    return String(responses[String(item.itemIndex)]);
+  }
+
+  // 6. Coincidencia por num si no hay ambigüedad (ej: en formularios simples)
+  if (item.num !== undefined && responses[item.num] !== undefined && responses[item.num] !== null && responses[item.num] !== '') {
+    return String(responses[item.num]);
+  }
+
+  return undefined;
+}
+
 // Helper: calculate score from responses incorporating 0.5 pts for OM and complete indicators
 export function calculateScore(
   form: InspectionFormDef,
@@ -1502,26 +1576,10 @@ export function calculateScore(
   let observaciones = 0; // Oportunidad de Mejora (OM) -> Vale 0.5 puntos positivos
   let noAplica = 0;
 
-  // Función normalizadora de respuestas individuales
-  const classifyResponse = (raw: string | undefined): 'C' | 'NC' | 'OM' | 'NA' | null => {
-    if (raw === undefined || raw === null || raw === '') return null;
-    const v = String(raw).trim().toUpperCase();
-    if (['C', 'BUENO', 'SI', 'SÍ', 'OPERATIVO', 'OK', 'CONFORME', 'EXISTE'].includes(v)) return 'C';
-    if (['OM', 'OPORTUNIDAD DE MEJORA', 'REGULAR', 'REQUIERE ATENCION', 'OBSERVACION', 'OBSERVACIÓN'].includes(v)) return 'OM';
-    if (['NC', 'DANADO', 'DAÑADO', 'NO', 'NO OPERATIVO', 'NO CONFORME', 'CRITICO', 'CRÍTICO', 'NO_EXISTE'].includes(v)) return 'NC';
-    if (['NA', 'N/A', 'NO APLICA'].includes(v)) return 'NA';
-    return null;
-  };
-
   // Recorrer las secciones y preguntas del formulario
   for (const section of form.sections) {
     for (const item of section.items) {
-      // Buscar respuesta directa o por alias (1.1, 1_1, secX_itemY)
-      const direct = responses[item.id];
-      const alt1 = responses[item.id.replace('.', '_')];
-      const alt2 = responses[`item_${item.id.replace('.', '_')}`];
-      const resolvedVal = direct ?? alt1 ?? alt2;
-
+      const resolvedVal = resolveItemResponse(responses, item);
       const classification = classifyResponse(resolvedVal);
       if (classification === 'C') conformes++;
       else if (classification === 'NC') noConformes++;

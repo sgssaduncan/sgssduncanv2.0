@@ -35,7 +35,7 @@ import type {
 } from "../types";
 import { dbService } from "../services/db";
 import { useAuth } from '../hooks/useAuth';
-import { getFormDefinition, calculateScore } from "../lib/formDefinitions";
+import { getFormDefinition, calculateScore, resolveItemResponse, classifyResponse } from "../lib/formDefinitions";
 import { INITIAL_EMPRESAS, INITIAL_LOCALIDADES, INITIAL_ESTABLECIMIENTOS, INITIAL_TIPOS_INSPECCION } from '../data/seedData';
 import { resolveEmpresaInfo } from "../lib/empresaResolver";
 import { generarInspeccionPDF } from "../lib/pdfGenerator";
@@ -636,28 +636,24 @@ export default function InspectionReport({
                       </td>
                     </tr>
                     {(sec.items || []).map((item: any, itIdx: number) => {
-                      const rawVal = parsedRespuestas[item.id] ?? 
-                                     parsedRespuestas[String(item.id).replace('.', '_')] ?? 
-                                     parsedRespuestas[`item_${String(item.id).replace('.', '_')}`];
+                      const rawVal = resolveItemResponse(parsedRespuestas, item);
+                      const classification = classifyResponse(rawVal);
                       let displayVal = '—';
                       let color = '#334155';
-                      if (rawVal !== undefined && rawVal !== null && rawVal !== '') {
-                        const valUpper = String(rawVal).toUpperCase().trim();
-                        if (['C', 'BUENO', 'SI', 'SÍ', 'OPERATIVO', 'OK', 'CONFORME', 'EXISTE'].includes(valUpper)) {
-                          displayVal = 'C';
-                          color = '#166534';
-                        } else if (['NC', 'DANADO', 'DAÑADO', 'NO', 'NO OPERATIVO', 'NO CONFORME', 'CRITICO', 'CRÍTICO', 'NO_EXISTE'].includes(valUpper)) {
-                          displayVal = 'NC';
-                          color = '#b91c1c';
-                        } else if (['OM', 'OPORTUNIDAD DE MEJORA', 'REGULAR', 'OBSERVACION', 'OBSERVACIÓN'].includes(valUpper)) {
-                          displayVal = 'OM';
-                          color = '#c2410c';
-                        } else if (['NA', 'N/A', 'NO APLICA'].includes(valUpper)) {
-                          displayVal = 'NA';
-                          color = '#64748b';
-                        } else {
-                          displayVal = String(rawVal);
-                        }
+                      if (classification === 'C') {
+                        displayVal = 'C';
+                        color = '#166534';
+                      } else if (classification === 'NC') {
+                        displayVal = 'NC';
+                        color = '#b91c1c';
+                      } else if (classification === 'OM') {
+                        displayVal = 'OM';
+                        color = '#c2410c';
+                      } else if (classification === 'NA') {
+                        displayVal = 'NA';
+                        color = '#64748b';
+                      } else if (rawVal !== undefined && rawVal !== null && rawVal !== '') {
+                        displayVal = String(rawVal);
                       }
 
                       return (

@@ -32,7 +32,7 @@ interface SGDContextType {
   refreshData: () => Promise<void>;
   createInspeccion: (payload: any) => Promise<string>;
   saveFormData: (payload: any) => Promise<boolean>;
-  completeInspeccion: (id: string) => Promise<boolean>;
+  completeInspeccion: (id: string, extraData?: any) => Promise<boolean>;
   deleteInspeccion: (id: string) => Promise<boolean>;
   updatePlanAccion: (payload: any) => Promise<boolean>;
   logAudit: (payload: any) => Promise<void>;
@@ -195,14 +195,33 @@ export function SGDProvider({ children }: { children: React.ReactNode }) {
     return ok;
   };
 
-  const completeInspeccion = async (id: string): Promise<boolean> => {
+  const completeInspeccion = async (id: string, extraData?: any): Promise<boolean> => {
+    const target = inspecciones.find(i => String(i._id) === String(id) || String(i.id) === String(id) || String(i.correlativo) === String(id));
     setInspecciones(prev => prev.map(item => {
       if (String(item._id) === String(id) || String(item.id) === String(id) || String(item.correlativo) === String(id)) {
-        return { ...item, estado: 'completada' as any, actualizadoEn: new Date().toISOString() };
+        return {
+          ...item,
+          estado: 'completada' as any,
+          actualizadoEn: new Date().toISOString(),
+          puntuacion: extraData?.puntuacion !== undefined ? extraData.puntuacion : item.puntuacion,
+          resultado: extraData?.resultado || item.resultado,
+          respuestas: extraData?.respuestas || item.respuestas,
+          formResponses: extraData?.responses || item.formResponses
+        };
       }
       return item;
     }));
-    const ok = await gsApi.completeInspeccion({ id });
+    const ok = await gsApi.completeInspeccion({
+      id,
+      _id: target?._id || id,
+      correlativo: target?.correlativo,
+      puntuacion: extraData?.puntuacion ?? target?.puntuacion,
+      resultado: extraData?.resultado || target?.resultado,
+      respuestas: extraData?.respuestas || target?.respuestas,
+      responses: extraData?.responses || target?.formResponses,
+      observaciones: extraData?.observaciones || target?.formObservations,
+      firmas: extraData?.firmas || target?.formSignatures
+    });
     await refreshData();
     return ok;
   };

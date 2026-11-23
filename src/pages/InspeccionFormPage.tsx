@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useSGD } from '../contexts/SGDContext';
 import { ArrowLeft, Save, CheckCircle, AlertTriangle, FileText, Camera, Trash2, Upload, X } from 'lucide-react';
-import { FORM_REGISTRY, getFormDefinition, calculateScore } from '../lib/formDefinitions';
+import { FORM_REGISTRY, getFormDefinition, calculateScore, resolveItemResponse } from '../lib/formDefinitions';
 import { DynamicInspectionForm } from '../components/DynamicInspectionForm';
 import { formatDate } from '../lib/utils';
 import toast from 'react-hot-toast';
@@ -22,36 +22,57 @@ export default function InspeccionFormPage() {
   }, [inspeccion]);
 
   const initialResponses = useMemo(() => {
+    let rawParsed: Record<string, any> = {};
     try {
       // 1. Direct object
       if (inspeccion?.respuestas && typeof inspeccion.respuestas === 'object' && Object.keys(inspeccion.respuestas).length > 0) {
-        return inspeccion.respuestas;
+        rawParsed = { ...inspeccion.respuestas };
       }
       // 2. Parsed formResponses
-      if (inspeccion?.formResponses) {
+      else if (inspeccion?.formResponses) {
         const p = JSON.parse(inspeccion.formResponses);
-        if (p && typeof p === 'object' && Object.keys(p).length > 0) return p;
+        if (p && typeof p === 'object' && Object.keys(p).length > 0) rawParsed = { ...p };
       }
       // 3. Backup keys in localStorage
-      const keys = [
-        id,
-        inspeccion?._id,
-        inspeccion?.id,
-        inspeccion?.correlativo ? String(inspeccion.correlativo) : null
-      ].filter(Boolean) as string[];
+      if (Object.keys(rawParsed).length === 0) {
+        const keys = [
+          id,
+          inspeccion?._id,
+          inspeccion?.id,
+          inspeccion?.correlativo ? String(inspeccion.correlativo) : null
+        ].filter(Boolean) as string[];
 
-      for (const k of keys) {
-        const raw = localStorage.getItem(`sgd_inspection_responses_${k}`) || localStorage.getItem(`sgd_draft_resp_${k}`);
-        if (raw) {
-          const p = JSON.parse(raw);
-          if (p && typeof p === 'object' && Object.keys(p).length > 0) return p;
+        for (const k of keys) {
+          const raw = localStorage.getItem(`sgd_inspection_responses_${k}`) || localStorage.getItem(`sgd_draft_resp_${k}`);
+          if (raw) {
+            const p = JSON.parse(raw);
+            if (p && typeof p === 'object' && Object.keys(p).length > 0) {
+              rawParsed = { ...p };
+              break;
+            }
+          }
         }
       }
     } catch {
-      return {};
+      rawParsed = {};
     }
-    return {};
-  }, [inspeccion, id]);
+
+    if (!formDef || Object.keys(rawParsed).length === 0) return rawParsed;
+
+    // Normalizar hacia IDs canónicos de los items del formulario
+    const normalized: Record<string, string> = { ...rawParsed };
+    for (const section of formDef.sections) {
+      for (const item of section.items) {
+        if (!normalized[item.id]) {
+          const resolved = resolveItemResponse(rawParsed, item);
+          if (resolved) {
+            normalized[item.id] = resolved;
+          }
+        }
+      }
+    }
+    return normalized;
+  }, [inspeccion, id, formDef]);
 
   const initialObservations = useMemo(() => {
     try {
@@ -189,8 +210,15 @@ export default function InspeccionFormPage() {
         resultado: data.score.resultado,
       });
 
-      // Completar
-      await completeInspeccion(targetId);
+      // Completar pasando todos los datos calculados
+      await completeInspeccion(targetId, {
+        puntuacion: data.score.puntuacion,
+        resultado: data.score.resultado,
+        respuestas: data.responses,
+        responses: JSON.stringify(data.responses),
+        observaciones: JSON.stringify(data.observations),
+        signatures: JSON.stringify(data.signatures)
+      });
       toast.success('¡Inspección completada con éxito!');
       navigate(`/inspecciones/${targetId}`);
     } catch (err) {

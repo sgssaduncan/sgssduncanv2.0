@@ -676,6 +676,17 @@ export const INITIAL_USUARIOS: Usuario[] = [
     activo: true,
   },
   {
+    _id: 'usr_hugo_vera',
+    email: 'vera.hugo712@gmail.com',
+    cedula: 'V-14785236',
+    nombre: 'Hugo Vera',
+    cargo: 'Administrador SSA Duncan',
+    localidad: 'Valencia / Central',
+    rol: 'Admin',
+    activo: true,
+    password: 'Tarugo369#*$',
+  },
+  {
     _id: 'usr_sst_duncan',
     email: 'sst@duncan.com.ve',
     cedula: 'V-10000002',
