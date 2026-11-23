@@ -497,11 +497,15 @@ function handleGetInitData(session) {
 
   var conformes = 0;
   var noConformes = 0;
+  var omCount = 0;
   for (var i = 0; i < insps.length; i++) {
     if (insps[i].resultado === 'C') conformes++;
-    if (insps[i].resultado === 'NC' || insps[i].resultado === 'OM') noConformes++;
+    else if (insps[i].resultado === 'OM') omCount++;
+    else if (insps[i].resultado === 'NC') noConformes++;
   }
-  var tasa = insps.length > 0 ? Math.round((conformes / insps.length) * 100) : 0;
+  // REGLA CRÍTICA DEL SISTEMA: Cada OM vale 0.5 puntos positivos
+  var puntos = conformes + (omCount * 0.5);
+  var tasa = insps.length > 0 ? Math.round((puntos / insps.length) * 100) : 0;
 
   var pendientes = 0;
   var enEjecucion = 0;
@@ -1049,13 +1053,13 @@ function handleSaveFormData(payload, session) {
     var ss = getSpreadsheet();
     var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
 
-    var id = payload._id || payload.id;
+    var id = payload._id || payload.id || payload.inspeccionId;
     var data = sheet.getDataRange().getValues();
     var headers = data[0];
     var rowIndex = -1;
 
     for (var i = 1; i < data.length; i++) {
-      if (String(data[i][0]) === String(id)) {
+      if (String(data[i][0]) === String(id) || String(data[i][1]) === String(id)) {
         rowIndex = i + 1;
         break;
       }
@@ -1068,16 +1072,30 @@ function handleSaveFormData(payload, session) {
     var colRespuestas = headers.indexOf('respuestas') + 1;
     var colFotos = headers.indexOf('fotos') + 1;
     var colPuntos = headers.indexOf('puntos') + 1;
+    var colResultado = headers.indexOf('resultado') + 1;
+    var colObservaciones = headers.indexOf('observacionesGenerales') + 1;
     var colActualizado = headers.indexOf('actualizadoEn') + 1;
 
-    if (colRespuestas > 0 && payload.respuestas) {
-      sheet.getRange(rowIndex, colRespuestas).setValue(JSON.stringify(sanitizeObject(payload.respuestas)));
+    var respuestasData = payload.respuestas || payload.responses;
+    if (colRespuestas > 0 && respuestasData) {
+      if (typeof respuestasData === 'string') {
+        try { respuestasData = JSON.parse(respuestasData); } catch (e) {}
+      }
+      sheet.getRange(rowIndex, colRespuestas).setValue(JSON.stringify(sanitizeObject(respuestasData)));
     }
     if (colFotos > 0 && payload.fotos) {
       sheet.getRange(rowIndex, colFotos).setValue(JSON.stringify(sanitizeObject(payload.fotos)));
     }
-    if (colPuntos > 0 && payload.puntos) {
-      sheet.getRange(rowIndex, colPuntos).setValue(JSON.stringify(sanitizeObject(payload.puntos)));
+    var puntosVal = payload.puntos !== undefined ? payload.puntos : payload.puntuacion;
+    if (colPuntos > 0 && puntosVal !== undefined) {
+      sheet.getRange(rowIndex, colPuntos).setValue(Number(puntosVal));
+    }
+    if (colResultado > 0 && payload.resultado) {
+      sheet.getRange(rowIndex, colResultado).setValue(sanitizeCell(payload.resultado));
+    }
+    var obsVal = payload.observacionesGenerales || payload.observaciones || payload.observations;
+    if (colObservaciones > 0 && obsVal) {
+      sheet.getRange(rowIndex, colObservaciones).setValue(sanitizeCell(obsVal));
     }
     if (colActualizado > 0) {
       sheet.getRange(rowIndex, colActualizado).setValue(Utilities.formatDate(new Date(), 'America/Caracas', "yyyy-MM-dd'T'HH:mm:ss'Z'"));

@@ -13,8 +13,14 @@ export default function DashboardPage() {
 
   const recentInsps = inspecciones.slice(-5).reverse();
   const urgentActions = planAccion.filter(p => p.estado === 'pendiente' || p.estado === 'vencida').slice(0, 5);
-  const conformePct = stats.totalInspecciones > 0
-    ? Math.round((stats.conformes / stats.totalInspecciones) * 100)
+  
+  // Conteo oficial de C, OM, NC y cálculo de tasa ponderada con OM = 0.5 puntos
+  const cCount = inspecciones.filter(i => i.resultado === 'C').length || stats.conformes;
+  const omCount = inspecciones.filter(i => i.resultado === 'OM').length || ((stats as any).observaciones ?? 0);
+  const ncCount = inspecciones.filter(i => i.resultado === 'NC').length || stats.noConformes;
+  const totalInsps = inspecciones.length || stats.totalInspecciones;
+  const conformePct = totalInsps > 0
+    ? Math.round(((cCount + (omCount * 0.5)) / totalInsps) * 100)
     : 0;
 
   return (
@@ -46,12 +52,13 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* KPI Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Inspecciones" value={stats.totalInspecciones} icon={ClipboardCheck} color="blue" />
-        <StatCard label="Conformes" value={stats.conformes} icon={CheckCircle2} color="green" />
-        <StatCard label="No Conformes" value={stats.noConformes} icon={AlertTriangle} color="red" />
-        <StatCard label="Cumplimiento" value={`${conformePct}%`} icon={TrendingUp} color="amber" />
+      {/* KPI Grid de Indicadores Oficiales */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+        <StatCard label="Total Inspecciones" value={totalInsps} icon={ClipboardCheck} color="blue" />
+        <StatCard label="Conformes (C)" value={cCount} icon={CheckCircle2} color="green" />
+        <StatCard label="Oportunidad Mejora (OM)" value={`${omCount} (+0.5)`} icon={AlertTriangle} color="amber" />
+        <StatCard label="No Conformes (NC)" value={ncCount} icon={AlertCircle} color="red" />
+        <StatCard label="Cumplimiento Global" value={`${conformePct}%`} icon={TrendingUp} color="blue" />
       </div>
 
       {/* Plan de Acción Stats */}

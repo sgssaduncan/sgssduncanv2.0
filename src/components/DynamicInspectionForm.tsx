@@ -290,16 +290,29 @@ export function DynamicInspectionForm({ formDef, initialResponses, initialObserv
                 {answeredItems === 0 ? "Sin evaluar" : 
                  score.resultado === "C" ? "Conforme" :
                  score.resultado === "NC" ? "No Conforme" :
-                 score.resultado === "OM" ? "Observación Mayor" : "No Aplica"}
+                 score.resultado === "OM" ? "Oportunidad de Mejora (OM)" : "No Aplica"}
               </p>
-              <p className="text-sm text-slate-500">
-                {answeredItems} de {totalItems} items evaluados ({completionPct}%)
+              <p className="text-xs text-slate-500">
+                {answeredItems} de {totalItems} ítems evaluados ({completionPct}%)
               </p>
-              <div className="flex gap-3 mt-1 text-xs">
-                {score.conformes > 0 && <span className="text-emerald-600">✓ {score.conformes}</span>}
-                {score.noConformes > 0 && <span className="text-red-600">✗ {score.noConformes}</span>}
-                {score.observaciones > 0 && <span className="text-amber-600">⚠ {score.observaciones}</span>}
-                {score.noAplica > 0 && <span className="text-slate-400">— {score.noAplica}</span>}
+              <div className="flex flex-wrap gap-2 mt-2 text-xs">
+                <span className="inline-flex items-center gap-1 font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 shadow-xs">
+                  ✓ C: {score.conformes} ({score.porcentajeConforme}%)
+                </span>
+                <span className="inline-flex items-center gap-1 font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-300 shadow-xs">
+                  ▲ OM (+0.5 pts): {score.observaciones} ({score.porcentajeOM}%)
+                </span>
+                <span className="inline-flex items-center gap-1 font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded border border-red-200 shadow-xs">
+                  ✗ NC: {score.noConformes} ({score.porcentajeNoConforme}%)
+                </span>
+                {score.noAplica > 0 && (
+                  <span className="inline-flex items-center gap-1 font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                    ○ NA: {score.noAplica} ({score.porcentajeNoAplica}%)
+                  </span>
+                )}
+                <span className="inline-flex items-center gap-1 font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                  Pts: {score.puntosObtenidos}/{score.totalEvaluados}
+                </span>
               </div>
             </div>
           </div>

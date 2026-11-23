@@ -35,7 +35,8 @@ import type {
 } from "../types";
 import { dbService } from "../services/db";
 import { useAuth } from '../hooks/useAuth';
-import { getFormDefinition } from "../lib/formDefinitions";
+import { getFormDefinition, calculateScore } from "../lib/formDefinitions";
+import { INITIAL_EMPRESAS, INITIAL_LOCALIDADES, INITIAL_ESTABLECIMIENTOS, INITIAL_TIPOS_INSPECCION } from '../data/seedData';
 import { generarInspeccionPDF } from "../lib/pdfGenerator";
 
 import { QRCodeSVG } from "qrcode.react";
@@ -77,39 +78,70 @@ export default function InspectionReport({
         dbService.getEmpresas(),
         dbService.getTiposInspeccion(),
       ]);
+      // Resolver empresa de forma inteligente
+      let empName = (inspection as any).empresaNombre || '';
+      if (!empName || empName === 'emp_ddca' || empName.toLowerCase().includes('lámpara') || empName.toLowerCase().includes('lampara')) {
+        empName = 'Distribuidora Duncan, C.A.';
+      }
+
       const empresa = empresas.find((e) => e.id === inspection.empresaId || (e as any)._id === inspection.empresaId) || {
         _id: inspection.empresaId || 'emp_ddca',
         id: inspection.empresaId || 'emp_ddca',
         codigo: 'DDCA',
-        nombre: (inspection as any).empresaNombre || 'Distribuidora Duncan, C.A.',
+        nombre: empName,
         rif: 'J-00100047-0',
       };
 
-      const locs = await dbService.getLocalidades(inspection.empresaId);
-      const localidad = locs.find((l) => l.id === inspection.localidadId || (l as any)._id === inspection.localidadId) || {
-        _id: inspection.localidadId || 'loc_caracas',
-        id: inspection.localidadId || 'loc_caracas',
+      // Resolver localidad
+      let locName = (inspection as any).localidadNombre || '';
+      if (!locName || locName.startsWith('loc_') || locName === 'emp_ddca') {
+        const foundLoc = INITIAL_LOCALIDADES.find(l => l._id === inspection.localidadId || l._id === locName);
+        locName = foundLoc?.nombre || 'Valencia';
+      }
+
+      const localidad = {
+        _id: inspection.localidadId || 'loc_valencia',
+        id: inspection.localidadId || 'loc_valencia',
         empresaId: inspection.empresaId || 'emp_ddca',
-        nombre: (inspection as any).localidadNombre || 'Caracas',
+        nombre: locName,
       };
 
-      const ests = await dbService.getEstablecimientos(inspection.localidadId);
-      const establecimiento = ests.find(
-        (e) => e.id === inspection.establecimientoId || (e as any)._id === inspection.establecimientoId,
-      ) || {
-        _id: inspection.establecimientoId || 'est_dist_ccs',
-        id: inspection.establecimientoId || 'est_dist_ccs',
-        localidadId: inspection.localidadId || 'loc_caracas',
-        nombre: (inspection as any).establecimientoNombre || 'Distribuidora Duncan Caracas',
-        iniciales: 'DDC',
+      // Resolver establecimiento
+      let estName = (inspection as any).establecimientoNombre || '';
+      if (!estName || estName.startsWith('est_') || estName.startsWith('loc_')) {
+        const targetId = inspection.establecimientoId || estName;
+        const foundEst = INITIAL_ESTABLECIMIENTOS.find(e => e._id === targetId || e.codigo === targetId || e._id?.toLowerCase() === String(targetId).toLowerCase());
+        estName = foundEst?.nombre || 'Distribuidora Duncan Valencia';
+      }
+
+      const establecimiento = {
+        _id: inspection.establecimientoId || 'est_dist_val',
+        id: inspection.establecimientoId || 'est_dist_val',
+        localidadId: inspection.localidadId || 'loc_valencia',
+        nombre: estName,
+        iniciales: 'DDV',
       };
+
+      // Deducir código y nombre de formulario
+      let formCode = inspection.tipoCodigo;
+      if (!formCode || formCode === 'GEN') {
+        if (estName.toLowerCase().includes('distribuidora')) formCode = 'DD';
+        else if (estName.toLowerCase().includes('servicentro')) formCode = 'SC';
+        else formCode = 'DD';
+      }
 
       // Resolver definición canónica del formulario oficial
-      const formDef = getFormDefinition(inspection.tipoCodigo) ||
+      const formDef = getFormDefinition(formCode) ||
                      getFormDefinition(inspection.tipoInspeccionId) ||
-                     getFormDefinition(inspection.tipoNombre);
+                     getFormDefinition(inspection.tipoNombre) ||
+                     getFormDefinition('DD');
 
-      const foundTipo = tipos.find((t) => t.id === inspection.tipoInspeccionId || (t as any)._id === inspection.tipoInspeccionId || (t as any).codigo === inspection.tipoCodigo);
+      let tipoNombre = (inspection.tipoNombre || '').trim();
+      if (!tipoNombre || tipoNombre.startsWith('est_') || tipoNombre.startsWith('ti_') || tipoNombre === 'EST_DIST_VAL' || tipoNombre === 'GEN') {
+        tipoNombre = formDef?.name || (formCode === 'DD' ? 'SSA Distribuidoras' : 'SSA Servicentros');
+      }
+
+      const foundTipo = tipos.find((t) => t.id === inspection.tipoInspeccionId || (t as any)._id === inspection.tipoInspeccionId || (t as any).codigo === formCode);
 
       // Si formDef existe, convertir sus sections a secciones para compatibilidad universal
       const seccionesNormalizadas = formDef?.sections ? formDef.sections.map(s => ({
@@ -124,10 +156,10 @@ export default function InspectionReport({
       })) : (foundTipo?.secciones || []);
 
       const tipo: TipoInspeccion = {
-        _id: inspection.tipoInspeccionId || (foundTipo as any)?._id || foundTipo?.id || 'ti_gen',
-        id: inspection.tipoInspeccionId || (foundTipo as any)?._id || foundTipo?.id || 'ti_gen',
-        codigo: formDef?.code || foundTipo?.codigo || inspection.tipoCodigo || 'GEN',
-        nombre: formDef?.name || foundTipo?.nombre || inspection.tipoNombre || 'Inspección General',
+        _id: inspection.tipoInspeccionId || (foundTipo as any)?._id || foundTipo?.id || 'ti_dd',
+        id: inspection.tipoInspeccionId || (foundTipo as any)?._id || foundTipo?.id || 'ti_dd',
+        codigo: formDef?.code || formCode || 'DD',
+        nombre: tipoNombre,
         descripcion: formDef?.description || foundTipo?.descripcion || '',
         frecuencia: foundTipo?.frecuencia || 'Mensual',
         categoria: foundTipo?.categoria || 'Seguridad y Salud Laboral',
@@ -139,6 +171,44 @@ export default function InspectionReport({
     };
     load();
   }, [inspection]);
+
+  // Parser universal de respuestas (objetos o JSON strings)
+  const parsedRespuestas = React.useMemo(() => {
+    let res: Record<string, any> = {};
+    if (inspection.respuestas) {
+      if (typeof inspection.respuestas === 'object' && !Array.isArray(inspection.respuestas)) {
+        res = { ...inspection.respuestas };
+      } else if (typeof inspection.respuestas === 'string') {
+        try { const p = JSON.parse(inspection.respuestas); if (p && typeof p === 'object') res = { ...p }; } catch {}
+      }
+    }
+    if (Object.keys(res).length === 0 && inspection.formResponses) {
+      if (typeof inspection.formResponses === 'object' && !Array.isArray(inspection.formResponses)) {
+        res = { ...(inspection.formResponses as any) };
+      } else if (typeof inspection.formResponses === 'string') {
+        try { const p = JSON.parse(inspection.formResponses); if (p && typeof p === 'object') res = { ...p }; } catch {}
+      }
+    }
+    if (Object.keys(res).length === 0 && (inspection as any).responses) {
+      if (typeof (inspection as any).responses === 'object' && !Array.isArray((inspection as any).responses)) {
+        res = { ...(inspection as any).responses };
+      } else if (typeof (inspection as any).responses === 'string') {
+        try { const p = JSON.parse((inspection as any).responses); if (p && typeof p === 'object') res = { ...p }; } catch {}
+      }
+    }
+    return res;
+  }, [inspection]);
+
+  // Cálculo canónico del score con la regla oficial OM = 0.5 puntos
+  const scoreResult = React.useMemo(() => {
+    const code = metadata.tipo?.codigo || inspection.tipoCodigo || 'DD';
+    const formDef = getFormDefinition(code) ||
+                   getFormDefinition(inspection.tipoInspeccionId) ||
+                   getFormDefinition(metadata.tipo?.nombre || inspection.tipoNombre) ||
+                   getFormDefinition('DD');
+    if (!formDef) return null;
+    return calculateScore(formDef, parsedRespuestas);
+  }, [metadata.tipo, inspection, parsedRespuestas]);
 
   React.useEffect(() => {
     if (showPrintPreview && reportRef.current) {
@@ -451,16 +521,76 @@ export default function InspectionReport({
               </tr>
               <tr>
                 <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#475569', borderRight: '1px solid #cbd5e1' }}>Resultado</td>
-                <td style={{ padding: '4px 8px', fontWeight: 'bold', color: inspection.resultado === 'C' ? '#166534' : inspection.resultado === 'NC' ? '#b91c1c' : '#c2410c', borderRight: '1px solid #cbd5e1' }}>
-                  {inspection.resultado || '—'}
+                <td style={{ padding: '4px 8px', fontWeight: 'bold', color: (scoreResult?.resultado || inspection.resultado) === 'C' ? '#166534' : (scoreResult?.resultado || inspection.resultado) === 'NC' ? '#b91c1c' : '#c2410c', borderRight: '1px solid #cbd5e1' }}>
+                  {(scoreResult?.resultado || inspection.resultado || 'C') === 'C' ? 'CONFORME (C)' : (scoreResult?.resultado || inspection.resultado) === 'OM' ? 'OPORTUNIDAD DE MEJORA (OM)' : 'NO CONFORME (NC)'}
                 </td>
                 <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#475569', borderRight: '1px solid #cbd5e1' }}>Puntuación</td>
-                <td style={{ padding: '4px 8px', fontWeight: 'bold' }}>
-                  {inspection.puntuacion ?? inspection.puntuacionConformidad ?? 100}%
+                <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#1e40af', fontSize: '9px' }}>
+                  {scoreResult ? scoreResult.puntuacion : (typeof inspection.puntuacion === 'number' ? inspection.puntuacion : 100)}%
                 </td>
               </tr>
             </tbody>
           </table>
+
+          {/* CUADRO OFICIAL DE INDICADORES TÉCNICOS (SG-SSA) */}
+          <div style={{ marginBottom: '14px', border: '1px solid #cbd5e1', borderRadius: '4px', overflow: 'hidden' }}>
+            <div style={{ backgroundColor: '#1e40af', color: '#ffffff', padding: '5px 10px', fontWeight: 'bold', fontSize: '8.5px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>CUADRO OFICIAL DE INDICADORES TÉCNICOS DE CUMPLIMIENTO (SG-SSA)</span>
+              <span style={{ fontSize: '7.5px', opacity: 0.9 }}>OM = +0.5 PUNTOS POSITIVOS</span>
+            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8px' }}>
+              <thead>
+                <tr style={{ backgroundColor: '#f8fafc', color: '#475569', borderBottom: '1px solid #cbd5e1', textAlign: 'center' }}>
+                  <th style={{ padding: '5px 8px', textAlign: 'left', borderRight: '1px solid #e2e8f0', width: '32%' }}>Indicador de Gestión</th>
+                  <th style={{ padding: '5px 8px', textAlign: 'left', borderRight: '1px solid #e2e8f0', width: '30%' }}>Criterio de Ponderación</th>
+                  <th style={{ padding: '5px 8px', borderRight: '1px solid #e2e8f0', width: '19%' }}>Cantidad Absoluta</th>
+                  <th style={{ padding: '5px 8px', width: '19%' }}>Porcentaje (%)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#ffffff' }}>
+                  <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#166534', borderRight: '1px solid #e2e8f0' }}>✓ Conforme (C)</td>
+                  <td style={{ padding: '4px 8px', color: '#475569', borderRight: '1px solid #e2e8f0' }}>1.0 punto positivo</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'center', fontWeight: 'bold', color: '#166534', borderRight: '1px solid #e2e8f0' }}>{scoreResult?.conformes ?? 0}</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'center', fontWeight: 'bold', color: '#166534' }}>{scoreResult?.porcentajeConforme ?? 0}%</td>
+                </tr>
+                <tr style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#fefefe' }}>
+                  <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#b91c1c', borderRight: '1px solid #e2e8f0' }}>✕ No Conforme (NC)</td>
+                  <td style={{ padding: '4px 8px', color: '#475569', borderRight: '1px solid #e2e8f0' }}>0.0 puntos (No cumple)</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'center', fontWeight: 'bold', color: '#b91c1c', borderRight: '1px solid #e2e8f0' }}>{scoreResult?.noConformes ?? 0}</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'center', fontWeight: 'bold', color: '#b91c1c' }}>{scoreResult?.porcentajeNoConforme ?? 0}%</td>
+                </tr>
+                <tr style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#fffbeb' }}>
+                  <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#b45309', borderRight: '1px solid #e2e8f0' }}>▲ Oportunidad de Mejora (OM)</td>
+                  <td style={{ padding: '4px 8px', color: '#92400e', borderRight: '1px solid #e2e8f0', fontWeight: 'bold' }}>+0.5 puntos positivos (Ponderación 50%)</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'center', fontWeight: 'bold', color: '#b45309', borderRight: '1px solid #e2e8f0' }}>{scoreResult?.observaciones ?? 0}</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'center', fontWeight: 'bold', color: '#b45309' }}>{scoreResult?.porcentajeOM ?? 0}%</td>
+                </tr>
+                <tr style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: '#ffffff' }}>
+                  <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#64748b', borderRight: '1px solid #e2e8f0' }}>○ No Aplica (NA)</td>
+                  <td style={{ padding: '4px 8px', color: '#64748b', borderRight: '1px solid #e2e8f0' }}>Neutro (Excluido de la base)</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'center', fontWeight: 'bold', color: '#64748b', borderRight: '1px solid #e2e8f0' }}>{scoreResult?.noAplica ?? 0}</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'center', fontWeight: 'bold', color: '#64748b' }}>{scoreResult?.porcentajeNoAplica ?? 0}%</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr style={{ backgroundColor: '#f1f5f9', fontWeight: 'bold', color: '#1e293b' }}>
+                  <td style={{ padding: '5px 8px', borderRight: '1px solid #e2e8f0' }}>
+                    Total Evaluados: <span style={{ color: '#0f172a' }}>{scoreResult?.totalEvaluados ?? 0} Ítems</span>
+                  </td>
+                  <td style={{ padding: '5px 8px', borderRight: '1px solid #e2e8f0' }}>
+                    Puntos Obtenidos: <span style={{ color: '#1e40af' }}>{scoreResult?.puntosObtenidos ?? 0} / {scoreResult?.totalEvaluados ?? 0}</span>
+                  </td>
+                  <td style={{ padding: '5px 8px', textAlign: 'center', color: '#1e40af', borderRight: '1px solid #e2e8f0' }}>
+                    {scoreResult?.puntuacion ?? 0}%
+                  </td>
+                  <td style={{ padding: '5px 8px', textAlign: 'center', color: (scoreResult?.resultado || 'C') === 'C' ? '#166534' : (scoreResult?.resultado || 'C') === 'OM' ? '#b45309' : '#b91c1c' }}>
+                    {(scoreResult?.resultado || 'C') === 'C' ? 'CONFORME' : (scoreResult?.resultado || 'C') === 'OM' ? 'OPORTUNIDAD DE MEJORA' : 'NO CONFORME'}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
 
           {/* TABLA PRINCIPAL DE EVALUACIÓN (ÍTEM EVALUADO / RESPUESTA) */}
           <div style={{ border: '1px solid #cbd5e1', borderRadius: '3px', overflow: 'hidden', marginBottom: '16px' }}>
@@ -480,7 +610,9 @@ export default function InspectionReport({
                       </td>
                     </tr>
                     {(sec.items || []).map((item: any, itIdx: number) => {
-                      const rawVal = inspection.respuestas?.[item.id];
+                      const rawVal = parsedRespuestas[item.id] ?? 
+                                     parsedRespuestas[String(item.id).replace('.', '_')] ?? 
+                                     parsedRespuestas[`item_${String(item.id).replace('.', '_')}`];
                       let displayVal = '—';
                       let color = '#334155';
                       if (rawVal !== undefined && rawVal !== null && rawVal !== '') {
@@ -491,7 +623,7 @@ export default function InspectionReport({
                         } else if (['NC', 'DANADO', 'DAÑADO', 'NO', 'NO OPERATIVO', 'NO CONFORME', 'CRITICO', 'CRÍTICO', 'NO_EXISTE'].includes(valUpper)) {
                           displayVal = 'NC';
                           color = '#b91c1c';
-                        } else if (valUpper === 'OM') {
+                        } else if (['OM', 'OPORTUNIDAD DE MEJORA', 'REGULAR', 'OBSERVACION', 'OBSERVACIÓN'].includes(valUpper)) {
                           displayVal = 'OM';
                           color = '#c2410c';
                         } else if (['NA', 'N/A', 'NO APLICA'].includes(valUpper)) {

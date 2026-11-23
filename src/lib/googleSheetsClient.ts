@@ -267,16 +267,19 @@ export const gsApi = {
       if (remote.inspeccionesRecientes) setLocal(SK.INSPECCIONES, remote.inspeccionesRecientes);
       return remote;
     }
-    const insps = getLocal<any>(SK.INSPECCIONES);
-    const plans = getLocal<any>(SK.PLAN_ACCION);
+    const insps = getLocal<any>(SK.INSPECCIONES) || [];
+    const plans = getLocal<any>(SK.PLAN_ACCION) || [];
     const conformes   = insps.filter((i: any) => i.resultado === 'C').length;
-    const noConformes = insps.filter((i: any) => i.resultado === 'NC' || i.resultado === 'OM').length;
-    const tasa = insps.length > 0 ? Math.round((conformes / insps.length) * 100) : 0;
+    const omCount     = insps.filter((i: any) => i.resultado === 'OM').length;
+    const noConformes = insps.filter((i: any) => i.resultado === 'NC').length;
+    // REGLA CRÍTICA: Cada OM vale 0.5 puntos positivos en la tasa de cumplimiento
+    const puntosTotales = conformes + (omCount * 0.5);
+    const tasa = insps.length > 0 ? Math.round((puntosTotales / insps.length) * 100) : 0;
     return {
       app: { name: 'SGD Duncan 2.0 (Offline)', version: '2.0.0' },
       catalogos: { empresas: INITIAL_EMPRESAS, localidades: INITIAL_LOCALIDADES, establecimientos: getLocal<any>(SK.ESTABLECIMIENTOS), tiposInspeccion: INITIAL_TIPOS_INSPECCION },
       usuarios: INITIAL_USUARIOS,
-      stats: { totalInspecciones: insps.length, conformes, noConformes, tasaCumplimiento: tasa },
+      stats: { totalInspecciones: insps.length, conformes, noConformes, observaciones: omCount, tasaCumplimiento: tasa },
       planStats: {
         total: plans.length,
         pendientes:   plans.filter((p: any) => p.estado === 'pendiente').length,
@@ -290,9 +293,81 @@ export const gsApi = {
 
   // ── INSPECCIONES ──────────────────────────────────────────
   async listInspecciones() {
+    const sanitizeInsp = (i: any) => {
+      if (!i) return i;
+      // Si la puntuación es un timestamp ISO por desplazamiento de columna en hojas antiguas
+      let rawPunt = i.puntuacion ?? i.puntos;
+      let rawFecha = i.fecha;
+      if (typeof rawPunt === 'string' && (rawPunt.includes('T') || rawPunt.includes('Z') || isNaN(Number(rawPunt)))) {
+        if (!rawFecha) rawFecha = rawPunt;
+        rawPunt = undefined;
+      }
+
+      // Normalizar nombre de empresa si contiene ID o nombre de formulario
+      let empName = (i.empresaNombre || '').trim();
+      if (!empName || empName === 'emp_ddca' || empName.toLowerCase().includes('lámpara') || empName.toLowerCase().includes('lampara')) {
+        empName = 'Distribuidora Duncan, C.A.';
+      }
+
+      // Normalizar nombre de establecimiento si contiene ID
+      let estName = (i.establecimientoNombre || '').trim();
+      if (!estName || estName.startsWith('est_') || estName.startsWith('loc_')) {
+        const targetId = i.establecimientoId || estName;
+        const found = INITIAL_ESTABLECIMIENTOS.find(e => e._id === targetId || e.codigo === targetId || e._id?.toLowerCase() === String(targetId).toLowerCase());
+        estName = found?.nombre || 'Distribuidora Duncan Valencia';
+      }
+
+      // Normalizar nombre de localidad si contiene ID
+      let locName = (i.localidadNombre || '').trim();
+      if (!locName || locName.startsWith('loc_') || locName === 'emp_ddca') {
+        const found = INITIAL_LOCALIDADES.find(l => l._id === (i.localidadId || locName));
+        locName = found?.nombre || 'Valencia';
+      }
+
+      // Normalizar tipo de inspección si contiene código de sede
+      let tipoName = (i.tipoNombre || '').trim();
+      let tipoCode = i.tipoCodigo;
+      if (!tipoName || tipoName.startsWith('est_') || tipoName.startsWith('ti_') || tipoName === 'EST_DIST_VAL' || tipoName === 'GEN') {
+        tipoCode = estName.toLowerCase().includes('distribuidora') ? 'DD' : 'SC';
+        tipoName = tipoCode === 'DD' ? 'SSA Distribuidoras' : 'SSA Servicentros';
+      }
+
+      // Parsear respuestas en formato JSON seguro
+      let respuestasObj: Record<string, any> = {};
+      if (i.respuestas && typeof i.respuestas === 'object' && !Array.isArray(i.respuestas)) {
+        respuestasObj = { ...i.respuestas };
+      } else if (typeof i.respuestas === 'string') {
+        try { const p = JSON.parse(i.respuestas); if (p && typeof p === 'object') respuestasObj = { ...p }; } catch {}
+      }
+      if (Object.keys(respuestasObj).length === 0 && i.formResponses) {
+        if (typeof i.formResponses === 'object') respuestasObj = { ...i.formResponses };
+        else if (typeof i.formResponses === 'string') {
+          try { const p = JSON.parse(i.formResponses); if (p && typeof p === 'object') respuestasObj = { ...p }; } catch {}
+        }
+      }
+
+      return {
+        ...i,
+        empresaNombre: empName,
+        establecimientoNombre: estName,
+        localidadNombre: locName,
+        tipoNombre: tipoName,
+        tipoCodigo: tipoCode,
+        fecha: rawFecha || i.fecha,
+        puntuacion: typeof rawPunt === 'number' ? rawPunt : (typeof i.puntuacion === 'number' ? i.puntuacion : undefined),
+        respuestas: respuestasObj,
+        formResponses: typeof i.formResponses === 'string' ? i.formResponses : JSON.stringify(respuestasObj)
+      };
+    };
+
     const remote = await fetchGAS('getInspecciones');
-    if (remote && Array.isArray(remote)) { setLocal(SK.INSPECCIONES, remote); return remote; }
-    return getLocal<any>(SK.INSPECCIONES);
+    if (remote && Array.isArray(remote)) {
+      const sanitized = remote.map(sanitizeInsp);
+      setLocal(SK.INSPECCIONES, sanitized);
+      return sanitized;
+    }
+    const local = getLocal<any>(SK.INSPECCIONES) || [];
+    return local.map(sanitizeInsp);
   },
 
   async getInspeccion(id: string) {
@@ -320,7 +395,7 @@ export const gsApi = {
       fecha: payload.fecha, inspector: payload.inspector,
       estado: 'en_progreso', resultado: undefined, puntuacion: undefined,
       observaciones: payload.observaciones || '',
-      formResponses: '{}', creadoPor: payload.inspector, actualizadoEn: new Date().toISOString(),
+      formResponses: '{}', respuestas: {}, creadoPor: payload.inspector, actualizadoEn: new Date().toISOString(),
     };
     list.push(newInsp);
     setLocal(SK.INSPECCIONES, list);
@@ -331,11 +406,41 @@ export const gsApi = {
   async saveFormData(payload: { inspeccionId: string; responses: string; observations: string; additional: string; signatures: string; puntuacion: number; resultado: string; }) {
     const list = getLocal<any>(SK.INSPECCIONES);
     const idx = list.findIndex((i: any) => String(i._id) === String(payload.inspeccionId));
+    
+    let parsedResp: Record<string, any> = {};
+    try { parsedResp = JSON.parse(payload.responses || '{}'); } catch {}
+
     if (idx !== -1) {
-      list[idx] = { ...list[idx], formResponses: payload.responses, formObservations: payload.observations, formAdditional: payload.additional, formSignatures: payload.signatures, puntuacion: payload.puntuacion, resultado: payload.resultado, actualizadoEn: new Date().toISOString() };
+      list[idx] = { 
+        ...list[idx], 
+        formResponses: payload.responses,
+        respuestas: parsedResp, 
+        formObservations: payload.observations, 
+        formAdditional: payload.additional, 
+        formSignatures: payload.signatures, 
+        puntuacion: payload.puntuacion, 
+        resultado: payload.resultado, 
+        actualizadoEn: new Date().toISOString() 
+      };
       setLocal(SK.INSPECCIONES, list);
     }
-    await postGAS('saveFormData', payload);
+
+    // Enviar con compatibilidad dual para Google Apps Script
+    const gasPayload = {
+      _id: payload.inspeccionId,
+      id: payload.inspeccionId,
+      inspeccionId: payload.inspeccionId,
+      respuestas: parsedResp,
+      responses: payload.responses,
+      observaciones: payload.observations,
+      observacionesGenerales: payload.observations,
+      puntos: payload.puntuacion,
+      puntuacion: payload.puntuacion,
+      resultado: payload.resultado,
+      firmas: payload.signatures ? JSON.parse(payload.signatures) : {},
+      actualizadoEn: new Date().toISOString()
+    };
+    await postGAS('saveFormData', gasPayload);
     return true;
   },
 

@@ -1233,43 +1233,59 @@ export default function ConsolidadorPage() {
           {/* TAB HALLAZGOS */}
           {activeTab === 'hallazgos' && (
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 sm:p-5 shadow-xl space-y-4">
-              <h2 className="text-sm sm:text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
-                <Wrench size={18} className="text-amber-400 shrink-0" />
-                Matriz de Desviaciones y Planes de Acción
-              </h2>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <h2 className="text-sm sm:text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
+                  <Wrench size={18} className="text-amber-400 shrink-0" />
+                  Matriz de Desviaciones e Indicadores de Gestión
+                </h2>
+                <span className="text-[10px] text-amber-300/90 bg-amber-950/60 border border-amber-600/40 px-2.5 py-1 rounded-lg font-bold">
+                  OM = +0.5 Puntos Positivos (50% ponderación)
+                </span>
+              </div>
 
               {/* Vista Móvil: Tarjetas */}
               {mobileTableStyle === 'cards' && (
                 <div className="space-y-2.5 sm:hidden">
-                  {metrics.departmentStats.map((dept, i) => (
-                    <div key={i} className="bg-slate-950 border border-slate-800 rounded-xl p-3 space-y-2 shadow-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-white text-xs flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: dept.color }} />
-                          {dept.nombre}
-                        </span>
-                        <span className="font-black text-emerald-400 text-xs">{dept.pctCumplimiento}%</span>
+                  {metrics.departmentStats.map((dept, i) => {
+                    const evalBase = dept.total - dept.na || 1;
+                    const pctC = Math.round((dept.c / evalBase) * 1000) / 10;
+                    const pctOM = Math.round((dept.om / evalBase) * 1000) / 10;
+                    const pctNC = Math.round((dept.nc / evalBase) * 1000) / 10;
+                    const pctNA = Math.round((dept.na / (dept.total || 1)) * 1000) / 10;
+                    return (
+                      <div key={i} className="bg-slate-950 border border-slate-800 rounded-xl p-3 space-y-2 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-white text-xs flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: dept.color }} />
+                            {dept.nombre}
+                          </span>
+                          <span className="font-black text-emerald-400 text-xs">{dept.pctCumplimiento}%</span>
+                        </div>
+                        <div className="grid grid-cols-4 gap-1 text-[10px] text-center">
+                          <div className="bg-emerald-950/40 border border-emerald-500/30 p-1.5 rounded">
+                            <span className="block text-[8px] text-slate-400">C (1.0)</span>
+                            <span className="text-emerald-400 font-bold">{dept.c}</span>
+                            <span className="block text-[8px] text-emerald-500/80">{pctC}%</span>
+                          </div>
+                          <div className="bg-amber-950/40 border border-amber-500/30 p-1.5 rounded">
+                            <span className="block text-[8px] text-amber-300">OM (+0.5)</span>
+                            <span className="text-amber-400 font-bold">{dept.om}</span>
+                            <span className="block text-[8px] text-amber-500/80">{pctOM}%</span>
+                          </div>
+                          <div className="bg-red-950/40 border border-red-500/30 p-1.5 rounded">
+                            <span className="block text-[8px] text-slate-400">NC (0.0)</span>
+                            <span className="text-red-400 font-bold">{dept.nc}</span>
+                            <span className="block text-[8px] text-red-500/80">{pctNC}%</span>
+                          </div>
+                          <div className="bg-slate-900 border border-slate-800 p-1.5 rounded">
+                            <span className="block text-[8px] text-slate-400">NA</span>
+                            <span className="text-slate-400 font-bold">{dept.na}</span>
+                            <span className="block text-[8px] text-slate-500">{pctNA}%</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="grid grid-cols-4 gap-1 text-[10px] text-center">
-                        <div className="bg-emerald-950/40 border border-emerald-500/30 p-1 rounded">
-                          <span className="block text-[8px] text-slate-400">C</span>
-                          <span className="text-emerald-400 font-bold">{dept.c}</span>
-                        </div>
-                        <div className="bg-amber-950/40 border border-amber-500/30 p-1 rounded">
-                          <span className="block text-[8px] text-slate-400">OM</span>
-                          <span className="text-amber-400 font-bold">{dept.om}</span>
-                        </div>
-                        <div className="bg-red-950/40 border border-red-500/30 p-1 rounded">
-                          <span className="block text-[8px] text-slate-400">NC</span>
-                          <span className="text-red-400 font-bold">{dept.nc}</span>
-                        </div>
-                        <div className="bg-slate-900 border border-slate-800 p-1 rounded">
-                          <span className="block text-[8px] text-slate-400">NA</span>
-                          <span className="text-slate-400 font-bold">{dept.na}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
@@ -1277,37 +1293,52 @@ export default function ConsolidadorPage() {
               <div className={`overflow-x-auto border border-slate-800 rounded-xl ${
                 mobileTableStyle === 'cards' ? 'hidden sm:block' : 'block'
               }`}>
-                <table className="w-full text-left text-xs border-collapse min-w-[650px]">
+                <table className="w-full text-left text-xs border-collapse min-w-[700px]">
                   <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
                     <tr>
                       <th className="py-2.5 px-3">Departamento</th>
-                      <th className="py-2.5 px-3 text-center text-emerald-400">Conformes (C)</th>
-                      <th className="py-2.5 px-3 text-center text-amber-400">Mejora (OM)</th>
-                      <th className="py-2.5 px-3 text-center text-red-400">No Conformes (NC)</th>
+                      <th className="py-2.5 px-3 text-center text-emerald-400">Conformes (C) [1.0]</th>
+                      <th className="py-2.5 px-3 text-center text-amber-400">Mejora (OM) [+0.5]</th>
+                      <th className="py-2.5 px-3 text-center text-red-400">No Conformes (NC) [0.0]</th>
                       <th className="py-2.5 px-3 text-center text-slate-400">No Aplica (NA)</th>
-                      <th className="py-2.5 px-3 text-center">Total</th>
+                      <th className="py-2.5 px-3 text-center">Base Eval.</th>
                       <th className="py-2.5 px-3 text-right">Cumplimiento (%)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60 font-medium bg-slate-900/60">
-                    {metrics.departmentStats.map((dept, i) => (
-                      <tr key={i} className="hover:bg-slate-800/40 transition-colors">
-                        <td className="py-2.5 px-3 font-bold text-white flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: dept.color }} />
-                          {dept.nombre}
-                        </td>
-                        <td className="py-2.5 px-3 text-center font-bold text-emerald-400">{dept.c}</td>
-                        <td className="py-2.5 px-3 text-center font-bold text-amber-400">{dept.om}</td>
-                        <td className="py-2.5 px-3 text-center font-bold text-red-400">{dept.nc}</td>
-                        <td className="py-2.5 px-3 text-center text-slate-400">{dept.na}</td>
-                        <td className="py-2.5 px-3 text-center font-bold text-slate-300">{dept.total}</td>
-                        <td className="py-2.5 px-3 text-right">
-                          <span className="bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 font-black px-2 py-0.5 rounded">
-                            {dept.pctCumplimiento}%
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                    {metrics.departmentStats.map((dept, i) => {
+                      const evalBase = dept.total - dept.na || 1;
+                      const pctC = Math.round((dept.c / evalBase) * 1000) / 10;
+                      const pctOM = Math.round((dept.om / evalBase) * 1000) / 10;
+                      const pctNC = Math.round((dept.nc / evalBase) * 1000) / 10;
+                      const pctNA = Math.round((dept.na / (dept.total || 1)) * 1000) / 10;
+                      return (
+                        <tr key={i} className="hover:bg-slate-800/40 transition-colors">
+                          <td className="py-2.5 px-3 font-bold text-white flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: dept.color }} />
+                            {dept.nombre}
+                          </td>
+                          <td className="py-2.5 px-3 text-center font-bold text-emerald-400">
+                            {dept.c} <span className="text-[10px] text-emerald-500/80 font-normal">({pctC}%)</span>
+                          </td>
+                          <td className="py-2.5 px-3 text-center font-bold text-amber-400">
+                            {dept.om} <span className="text-[10px] text-amber-500/80 font-normal">({pctOM}%)</span>
+                          </td>
+                          <td className="py-2.5 px-3 text-center font-bold text-red-400">
+                            {dept.nc} <span className="text-[10px] text-red-500/80 font-normal">({pctNC}%)</span>
+                          </td>
+                          <td className="py-2.5 px-3 text-center text-slate-400">
+                            {dept.na} <span className="text-[10px] text-slate-500 font-normal">({pctNA}%)</span>
+                          </td>
+                          <td className="py-2.5 px-3 text-center font-bold text-slate-300">{evalBase}</td>
+                          <td className="py-2.5 px-3 text-right">
+                            <span className="bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 font-black px-2 py-0.5 rounded">
+                              {dept.pctCumplimiento}%
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

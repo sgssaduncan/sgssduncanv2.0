@@ -1476,47 +1476,109 @@ export function getTotalItems(form: InspectionFormDef): number {
   return form.sections.reduce((sum, s) => sum + s.items.length, 0);
 }
 
-// Helper: calculate score from responses
+export interface ScoreResult {
+  puntuacion: number;
+  resultado: "C" | "NC" | "OM" | "NA";
+  conformes: number;
+  noConformes: number;
+  observaciones: number; // Oportunidades de Mejora (OM)
+  noAplica: number;
+  total: number; // Total general de ítems
+  totalEvaluados: number; // Base evaluable = C + NC + OM (excluye NA)
+  puntosObtenidos: number; // Puntos ponderados: C*1.0 + OM*0.5
+  porcentajeConforme: number;
+  porcentajeNoConforme: number;
+  porcentajeOM: number;
+  porcentajeNoAplica: number;
+}
+
+// Helper: calculate score from responses incorporating 0.5 pts for OM and complete indicators
 export function calculateScore(
   form: InspectionFormDef,
   responses: Record<string, string>
-): { puntuacion: number; resultado: "C" | "NC" | "OM" | "NA"; conformes: number; noConformes: number; observaciones: number; noAplica: number; total: number } {
-  let conformes = 0, noConformes = 0, observaciones = 0, noAplica = 0;
-  
-  if (form.scoring.type === "percentage") {
-    for (const section of form.sections) {
-      for (const item of section.items) {
-        const val = responses[item.id];
-        if (val === "C") conformes++;
-        else if (val === "NC") noConformes++;
-        else if (val === "OM") observaciones++;
-        else if (val === "NA") noAplica++;
-      }
+): ScoreResult {
+  let conformes = 0;
+  let noConformes = 0;
+  let observaciones = 0; // Oportunidad de Mejora (OM) -> Vale 0.5 puntos positivos
+  let noAplica = 0;
+
+  // Función normalizadora de respuestas individuales
+  const classifyResponse = (raw: string | undefined): 'C' | 'NC' | 'OM' | 'NA' | null => {
+    if (raw === undefined || raw === null || raw === '') return null;
+    const v = String(raw).trim().toUpperCase();
+    if (['C', 'BUENO', 'SI', 'SÍ', 'OPERATIVO', 'OK', 'CONFORME', 'EXISTE'].includes(v)) return 'C';
+    if (['OM', 'OPORTUNIDAD DE MEJORA', 'REGULAR', 'REQUIERE ATENCION', 'OBSERVACION', 'OBSERVACIÓN'].includes(v)) return 'OM';
+    if (['NC', 'DANADO', 'DAÑADO', 'NO', 'NO OPERATIVO', 'NO CONFORME', 'CRITICO', 'CRÍTICO', 'NO_EXISTE'].includes(v)) return 'NC';
+    if (['NA', 'N/A', 'NO APLICA'].includes(v)) return 'NA';
+    return null;
+  };
+
+  // Recorrer las secciones y preguntas del formulario
+  for (const section of form.sections) {
+    for (const item of section.items) {
+      // Buscar respuesta directa o por alias (1.1, 1_1, secX_itemY)
+      const direct = responses[item.id];
+      const alt1 = responses[item.id.replace('.', '_')];
+      const alt2 = responses[`item_${item.id.replace('.', '_')}`];
+      const resolvedVal = direct ?? alt1 ?? alt2;
+
+      const classification = classifyResponse(resolvedVal);
+      if (classification === 'C') conformes++;
+      else if (classification === 'NC') noConformes++;
+      else if (classification === 'OM') observaciones++;
+      else if (classification === 'NA') noAplica++;
     }
-    const evaluated = conformes + noConformes + observaciones;
-    const puntuacion = evaluated > 0 ? Math.round((conformes / evaluated) * 100) : 0;
-    const resultado = puntuacion >= (form.scoring.conformeThreshold ?? 90) ? "C" : puntuacion >= (form.scoring.omThreshold ?? 70) ? "OM" : "NC";
-    return { puntuacion, resultado, conformes, noConformes, observaciones, noAplica, total: evaluated + noAplica };
   }
-  
-  if (form.scoring.type === "operatividad") {
-    const op = responses["operatividad"];
-    const bueno = Object.entries(responses).filter(([k, v]) => k !== "operatividad" && k !== "accionRequerida" && v === "Bueno").length;
-    const danado = Object.entries(responses).filter(([_k, v]) => v === "Dañado").length;
-    const total = bueno + danado;
-    const puntuacion = total > 0 ? Math.round((bueno / total) * 100) : (op === "Operativo" ? 100 : 0);
-    return { puntuacion, resultado: op === "Operativo" ? "C" : "NC", conformes: bueno, noConformes: danado, observaciones: 0, noAplica: 0, total };
-  }
-  
-  if (form.scoring.type === "si_no_count") {
-    // For Sí/No type, "Sí" on positive questions = conforme
-    const si = Object.values(responses).filter(v => v === "Si").length;
-    const no = Object.values(responses).filter(v => v === "No").length;
-    const total = si + no;
-    const puntuacion = total > 0 ? Math.round((si / total) * 100) : 0;
-    const resultado = puntuacion >= 90 ? "C" : puntuacion >= 70 ? "OM" : "NC";
-    return { puntuacion, resultado, conformes: si, noConformes: no, observaciones: 0, noAplica: 0, total };
-  }
-  
-  return { puntuacion: 0, resultado: "NA", conformes: 0, noConformes: 0, observaciones: 0, noAplica: 0, total: 0 };
+
+  // Base evaluable: C + NC + OM (los ítems NA se excluyen de la base)
+  const totalEvaluados = conformes + noConformes + observaciones;
+  const totalGeneral = totalEvaluados + noAplica;
+
+  // REGLA CRÍTICA DEL SISTEMA:
+  // Cada Conforme (C) = 1.0 punto positivo
+  // Cada Oportunidad de Mejora (OM) = 0.5 puntos positivos
+  // Cada No Conforme (NC) = 0.0 puntos
+  const puntosObtenidos = Number((conformes + (observaciones * 0.5)).toFixed(1));
+
+  // Puntuación global en base 100%
+  const puntuacion = totalEvaluados > 0 
+    ? Math.round((puntosObtenidos / totalEvaluados) * 100) 
+    : (totalGeneral > 0 ? 100 : 0);
+
+  // Porcentajes de distribución técnica
+  const porcentajeConforme = totalEvaluados > 0 
+    ? Math.round((conformes / totalEvaluados) * 1000) / 10 
+    : 0;
+  const porcentajeNoConforme = totalEvaluados > 0 
+    ? Math.round((noConformes / totalEvaluados) * 1000) / 10 
+    : 0;
+  const porcentajeOM = totalEvaluados > 0 
+    ? Math.round((observaciones / totalEvaluados) * 1000) / 10 
+    : 0;
+  const porcentajeNoAplica = totalGeneral > 0 
+    ? Math.round((noAplica / totalGeneral) * 1000) / 10 
+    : 0;
+
+  // Calificación oficial según umbrales de la norma
+  const confThresh = form.scoring?.conformeThreshold ?? 80;
+  const omThresh = form.scoring?.omThreshold ?? 70;
+  const resultado: "C" | "NC" | "OM" | "NA" = 
+    puntuacion >= confThresh ? "C" : 
+    puntuacion >= omThresh ? "OM" : "NC";
+
+  return {
+    puntuacion,
+    resultado,
+    conformes,
+    noConformes,
+    observaciones,
+    noAplica,
+    total: totalGeneral,
+    totalEvaluados,
+    puntosObtenidos,
+    porcentajeConforme,
+    porcentajeNoConforme,
+    porcentajeOM,
+    porcentajeNoAplica
+  };
 }

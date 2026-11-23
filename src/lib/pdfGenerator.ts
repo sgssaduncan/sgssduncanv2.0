@@ -1,8 +1,9 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatDate } from './utils';
-import { getFormDefinition } from './formDefinitions';
+import { getFormDefinition, calculateScore } from './formDefinitions';
 import { DUNCAN_LOGO_BW } from './logos';
+import { INITIAL_EMPRESAS, INITIAL_LOCALIDADES, INITIAL_ESTABLECIMIENTOS, INITIAL_TIPOS_INSPECCION } from '../data/seedData';
 import { auditService } from '../services/auditService';
 import type { Inspeccion, AccidenteF465, CalculoCargaFuegoArea, ChecklistTransporte, VehiculoFlota } from '../types';
 
@@ -33,29 +34,28 @@ export function generarInspeccionPDF(inspection: Inspeccion, metadataInput?: any
   const pageHeight = 279.4;
   const marginX = 14;
 
-  // Resolver metadatos y definición de formulario
-  const tipoCodigo = inspection.tipoCodigo || 'GEN';
-  const tipoNombre = inspection.tipoNombre || metadataInput?.tipo?.nombre || 'Inspección Técnica SSA';
-  const formDef = getFormDefinition(tipoCodigo) ||
-                  getFormDefinition(inspection.tipoInspeccionId) ||
-                  getFormDefinition(tipoNombre);
-
-  const sections = formDef?.sections || metadataInput?.tipo?.secciones || [];
-  const empresaNombre = inspection.empresaNombre || metadataInput?.empresa?.nombre || 'Distribuidora Duncan, C.A.';
-  const localidadNombre = inspection.localidadNombre || metadataInput?.localidad?.nombre || 'Valencia';
-  const establecimientoNombre = inspection.establecimientoNombre || metadataInput?.establecimiento?.nombre || 'Sede Principal';
-  const inspector = (inspection.inspector || inspection.inspectorId || 'Francisco Rojas').trim();
-  const correlativoStr = inspection.correlativo ? String(inspection.correlativo) : (inspection.referencia ? inspection.referencia.replace(/^REF-|^INSP-/, '') : '1001');
-  const emisionDate = formatDate(inspection.fecha);
-  const rawResultado = (inspection.resultado || 'C').toUpperCase();
-  const puntuacion = inspection.puntuacion ?? inspection.puntuacionConformidad ?? 100;
-
-  // Parsear respuestas, adicionales y firmas de forma segura
+  // 0. Parsear respuestas, adicionales y firmas de forma segura desde objeto o JSON string
   let respuestas: Record<string, any> = {};
-  if (inspection.respuestas && typeof inspection.respuestas === 'object') {
-    respuestas = { ...inspection.respuestas };
-  } else if (inspection.formResponses) {
-    try { respuestas = JSON.parse(inspection.formResponses); } catch { respuestas = {}; }
+  if (inspection.respuestas) {
+    if (typeof inspection.respuestas === 'object' && !Array.isArray(inspection.respuestas)) {
+      respuestas = { ...inspection.respuestas };
+    } else if (typeof inspection.respuestas === 'string') {
+      try { const p = JSON.parse(inspection.respuestas); if (p && typeof p === 'object') respuestas = { ...p }; } catch {}
+    }
+  }
+  if (Object.keys(respuestas).length === 0 && inspection.formResponses) {
+    if (typeof inspection.formResponses === 'object' && !Array.isArray(inspection.formResponses)) {
+      respuestas = { ...(inspection.formResponses as any) };
+    } else if (typeof inspection.formResponses === 'string') {
+      try { const p = JSON.parse(inspection.formResponses); if (p && typeof p === 'object') respuestas = { ...p }; } catch {}
+    }
+  }
+  if (Object.keys(respuestas).length === 0 && (inspection as any).responses) {
+    if (typeof (inspection as any).responses === 'object' && !Array.isArray((inspection as any).responses)) {
+      respuestas = { ...(inspection as any).responses };
+    } else if (typeof (inspection as any).responses === 'string') {
+      try { const p = JSON.parse((inspection as any).responses); if (p && typeof p === 'object') respuestas = { ...p }; } catch {}
+    }
   }
 
   let respuestasAdicionales: Record<string, any> = {};
@@ -71,6 +71,62 @@ export function generarInspeccionPDF(inspection: Inspeccion, metadataInput?: any
   } else if (inspection.formSignatures) {
     try { firmas = JSON.parse(inspection.formSignatures); } catch { firmas = {}; }
   }
+
+  // 1. Detección y normalización inteligente de metadatos (evita columnas invertidas/códigos crudos)
+  let empresaNombre = (inspection.empresaNombre || metadataInput?.empresa?.nombre || '').trim();
+  if (!empresaNombre || empresaNombre === 'emp_ddca' || empresaNombre.toLowerCase().includes('lámpara') || empresaNombre.toLowerCase().includes('lampara')) {
+    empresaNombre = 'Distribuidora Duncan, C.A.';
+  }
+
+  let localidadNombre = (inspection.localidadNombre || metadataInput?.localidad?.nombre || '').trim();
+  if (!localidadNombre || localidadNombre.startsWith('loc_') || localidadNombre === 'emp_ddca') {
+    const foundLoc = INITIAL_LOCALIDADES.find(l => l._id === inspection.localidadId || l._id === localidadNombre);
+    localidadNombre = foundLoc?.nombre || 'Valencia';
+  }
+
+  let establecimientoNombre = (inspection.establecimientoNombre || metadataInput?.establecimiento?.nombre || '').trim();
+  if (!establecimientoNombre || establecimientoNombre.startsWith('est_') || establecimientoNombre.startsWith('loc_')) {
+    const targetId = inspection.establecimientoId || establecimientoNombre;
+    const foundEst = INITIAL_ESTABLECIMIENTOS.find(e => e._id === targetId || e.codigo === targetId || e._id?.toLowerCase() === String(targetId).toLowerCase());
+    establecimientoNombre = foundEst?.nombre || 'Distribuidora Duncan Valencia';
+  }
+
+  // Deducir código y nombre de formulario
+  let tipoCodigo = inspection.tipoCodigo;
+  if (!tipoCodigo || tipoCodigo === 'GEN') {
+    if (establecimientoNombre.toLowerCase().includes('distribuidora')) tipoCodigo = 'DD';
+    else if (establecimientoNombre.toLowerCase().includes('servicentro')) tipoCodigo = 'SC';
+    else tipoCodigo = 'DD';
+  }
+
+  let tipoNombre = (inspection.tipoNombre || metadataInput?.tipo?.nombre || '').trim();
+  if (!tipoNombre || tipoNombre.startsWith('est_') || tipoNombre.startsWith('ti_') || tipoNombre === 'EST_DIST_VAL' || tipoNombre === 'GEN') {
+    const foundTipo = INITIAL_TIPOS_INSPECCION.find(t => t.codigo === tipoCodigo || t._id === inspection.tipoInspeccionId);
+    tipoNombre = foundTipo?.nombre || (tipoCodigo === 'DD' ? 'SSA Distribuidoras' : 'SSA Servicentros');
+  }
+
+  const formDef = getFormDefinition(tipoCodigo) ||
+                  getFormDefinition(inspection.tipoInspeccionId) ||
+                  getFormDefinition(tipoNombre) ||
+                  getFormDefinition('DD');
+
+  const sections = formDef?.sections || metadataInput?.tipo?.secciones || [];
+  const inspector = (inspection.inspector || inspection.inspectorId || 'Francisco Rojas').trim();
+  const correlativoStr = inspection.correlativo ? String(inspection.correlativo) : (inspection.referencia ? inspection.referencia.replace(/^REF-|^INSP-/, '') : '1006');
+
+  // Normalizar fecha y puntuación (si puntuación contiene timestamp por desplazamiento de columna)
+  let rawFecha = inspection.fecha;
+  let rawPuntuacion: any = inspection.puntuacion ?? inspection.puntuacionConformidad;
+  if (typeof rawPuntuacion === 'string' && (rawPuntuacion.includes('T') || rawPuntuacion.includes('Z') || isNaN(Number(rawPuntuacion)))) {
+    if (!rawFecha) rawFecha = rawPuntuacion;
+    rawPuntuacion = undefined;
+  }
+  const emisionDate = formatDate(rawFecha || new Date().toISOString());
+
+  // CALCULAR SCORE OFICIAL CON REGLA OM = +0.5 PUNTOS POSITIVOS Y TODOS LOS INDICADORES
+  const scoreResult = formDef ? calculateScore(formDef, respuestas) : null;
+  const puntuacion = scoreResult ? scoreResult.puntuacion : (typeof rawPuntuacion === 'number' ? rawPuntuacion : 100);
+  const rawResultado = scoreResult ? scoreResult.resultado : (inspection.resultado || 'C').toUpperCase();
 
   // 1. ENCABEZADO INSTITUCIONAL DUNCAN OFICIAL
   try {
@@ -107,7 +163,7 @@ export function generarInspeccionPDF(inspection: Inspeccion, metadataInput?: any
     ['Empresa', empresaNombre, 'N° Correlativo', correlativoStr],
     ['Establecimiento', establecimientoNombre, 'Fecha', emisionDate],
     ['Localidad', localidadNombre, 'Inspector', inspector],
-    ['Resultado', rawResultado, 'Puntuación', `${puntuacion}%`],
+    ['Resultado Global', rawResultado === 'C' ? 'CONFORME (C)' : rawResultado === 'OM' ? 'OPORTUNIDAD DE MEJORA (OM)' : 'NO CONFORME (NC)', 'Puntuación Cumplimiento', `${puntuacion}%`],
   ];
 
   // Si existen campos técnicos adicionales (ej. Montacargas, Extintores, etc.)
@@ -157,7 +213,89 @@ export function generarInspeccionPDF(inspection: Inspeccion, metadataInput?: any
     }
   });
 
-  // 3. TABLA DETALLADA DE ÍTEMS EVALUADOS POR SECCIÓN
+  // 3. CUADRO OFICIAL DE INDICADORES TÉCNICOS (VALORES ABSOLUTOS Y PORCENTUALES)
+  // Requerimiento: Conforme, No Conforme, Oportunidad de Mejora (+0.5 pts positivos), No Aplica
+  const conformesCount = scoreResult?.conformes ?? 0;
+  const noConformesCount = scoreResult?.noConformes ?? 0;
+  const omCount = scoreResult?.observaciones ?? 0;
+  const naCount = scoreResult?.noAplica ?? 0;
+  const totalEval = scoreResult?.totalEvaluados ?? (conformesCount + noConformesCount + omCount);
+  const totalGen = scoreResult?.total ?? (totalEval + naCount);
+  const puntosObt = scoreResult?.puntosObtenidos ?? Number((conformesCount + (omCount * 0.5)).toFixed(1));
+
+  const pctConf = scoreResult?.porcentajeConforme ?? (totalEval > 0 ? Math.round((conformesCount / totalEval) * 1000) / 10 : 0);
+  const pctNC = scoreResult?.porcentajeNoConforme ?? (totalEval > 0 ? Math.round((noConformesCount / totalEval) * 1000) / 10 : 0);
+  const pctOM = scoreResult?.porcentajeOM ?? (totalEval > 0 ? Math.round((omCount / totalEval) * 1000) / 10 : 0);
+  const pctNA = scoreResult?.porcentajeNoAplica ?? (totalGen > 0 ? Math.round((naCount / totalGen) * 1000) / 10 : 0);
+
+  const indicadoresRows: any[][] = [
+    ['Conforme (C)', '1.0 pto positivo', String(conformesCount), `${pctConf}%`],
+    ['No Conforme (NC)', '0.0 ptos (No cumple)', String(noConformesCount), `${pctNC}%`],
+    ['Oportunidad de Mejora (OM)', '+0.5 pto positivo (Ponderación 50%)', String(omCount), `${pctOM}%`],
+    ['No Aplica (NA)', 'Neutro (Excluido de la base)', String(naCount), `${pctNA}%`],
+  ];
+
+  const metaFinalY = (doc as any).lastAutoTable?.finalY || 48;
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(30, 64, 175);
+  doc.text('CUADRO OFICIAL DE INDICADORES TÉCNICOS DE CUMPLIMIENTO (SG-SSA)', marginX, metaFinalY + 5);
+
+  autoTable(doc, {
+    startY: metaFinalY + 7,
+    margin: { left: marginX, right: marginX },
+    tableWidth: 187.9,
+    head: [['Indicador de Gestión', 'Criterio de Ponderación', 'Cantidad Absoluta', 'Porcentaje (%)']],
+    body: indicadoresRows,
+    foot: [[
+      `TOTAL EVALUADOS: ${totalEval} Ítems`,
+      `PUNTOS OBTENIDOS: ${puntosObt} / ${totalEval}`,
+      `PUNTUACIÓN: ${puntuacion}%`,
+      `DICTAMEN: ${rawResultado === 'C' ? 'CONFORME (C)' : rawResultado === 'OM' ? 'OPORTUNIDAD DE MEJORA (OM)' : 'NO CONFORME (NC)'}`
+    ]],
+    theme: 'grid',
+    headStyles: {
+      fillColor: [30, 64, 175], // Azul Corporativo Duncan #1E40AF
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 7.5,
+      cellPadding: 1.8,
+      halign: 'left'
+    },
+    footStyles: {
+      fillColor: rawResultado === 'C' ? [240, 253, 244] : rawResultado === 'OM' ? [254, 243, 199] : [254, 242, 242],
+      textColor: rawResultado === 'C' ? [22, 101, 52] : rawResultado === 'OM' ? [180, 83, 9] : [185, 28, 28],
+      fontStyle: 'bold',
+      fontSize: 7.5,
+      cellPadding: 2,
+      lineColor: [203, 213, 225],
+      lineWidth: 0.2
+    },
+    styles: {
+      fontSize: 7.5,
+      cellPadding: 1.8,
+      textColor: [15, 23, 42],
+      lineColor: [226, 232, 240],
+      lineWidth: 0.2
+    },
+    columnStyles: {
+      0: { cellWidth: 55, fontStyle: 'bold' },
+      1: { cellWidth: 62 },
+      2: { cellWidth: 35, halign: 'center', fontStyle: 'bold' },
+      3: { cellWidth: 35.9, halign: 'center', fontStyle: 'bold' }
+    },
+    didParseCell: (data) => {
+      if (data.section === 'body') {
+        if (data.row.index === 0) data.cell.styles.textColor = [22, 101, 52];
+        else if (data.row.index === 1) data.cell.styles.textColor = [185, 28, 28];
+        else if (data.row.index === 2) data.cell.styles.textColor = [180, 83, 9];
+        else if (data.row.index === 3) data.cell.styles.textColor = [100, 116, 139];
+      }
+    }
+  });
+
+  // 4. TABLA DETALLADA DE ÍTEMS EVALUADOS POR SECCIÓN
   const tableData: any[][] = [];
   sections.forEach((sec: any, secIdx: number) => {
     const secNumber = secIdx + 1;
@@ -166,13 +304,17 @@ export function generarInspeccionPDF(inspection: Inspeccion, metadataInput?: any
     tableData.push([`SECCIÓN: ${secNumber}. ${secTitle.replace(/^SECCIÓN:\s*/i, '').toUpperCase()}`, '']);
 
     (sec.items || []).forEach((item: any) => {
-      const rawVal = respuestas[item.id];
+      // Búsqueda resiliente de la respuesta por ID o por alias (ej: 1.1, 1_1, item_1_1)
+      const rawVal = respuestas[item.id] ?? 
+                     respuestas[String(item.id).replace('.', '_')] ?? 
+                     respuestas[`item_${String(item.id).replace('.', '_')}`];
+
       let displayVal = '—';
       if (rawVal !== undefined && rawVal !== null && rawVal !== '') {
         const valUpper = String(rawVal).toUpperCase().trim();
         if (['C', 'BUENO', 'SI', 'SÍ', 'OPERATIVO', 'OK', 'CONFORME', 'EXISTE'].includes(valUpper)) displayVal = 'C';
         else if (['NC', 'DANADO', 'DAÑADO', 'NO', 'NO OPERATIVO', 'NO CONFORME', 'CRITICO', 'CRÍTICO', 'NO_EXISTE'].includes(valUpper)) displayVal = 'NC';
-        else if (valUpper === 'OM') displayVal = 'OM';
+        else if (['OM', 'OPORTUNIDAD DE MEJORA', 'REGULAR', 'OBSERVACION', 'OBSERVACIÓN'].includes(valUpper)) displayVal = 'OM';
         else if (['NA', 'N/A', 'NO APLICA'].includes(valUpper)) displayVal = 'NA';
         else displayVal = String(rawVal);
       }
@@ -182,10 +324,10 @@ export function generarInspeccionPDF(inspection: Inspeccion, metadataInput?: any
     });
   });
 
-  const prevY = (doc as any).lastAutoTable?.finalY || 55;
+  const prevY = (doc as any).lastAutoTable?.finalY || 80;
 
   autoTable(doc, {
-    startY: prevY + 5,
+    startY: prevY + 6,
     margin: { left: marginX, right: marginX },
     tableWidth: 187.9,
     head: [['Ítem Evaluado', 'Respuesta']],

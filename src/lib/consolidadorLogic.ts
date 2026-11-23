@@ -534,25 +534,32 @@ export function exportFullAnalyticalPDF(metrics: GlobalMetrics, config: PDFRepor
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(15, 23, 42);
-      doc.text('ASIGNACIÓN Y CUMPLIMIENTO POR DEPARTAMENTO RESPONSABLE', 14, finalY);
+      doc.text('ASIGNACIÓN Y CUMPLIMIENTO POR DEPARTAMENTO RESPONSABLE (OM = +0.5 PTS)', 14, finalY);
 
-      const deptRows = metrics.departmentStats.map(d => [
-        d.nombre,
-        d.c,
-        d.om,
-        d.nc,
-        d.na,
-        d.total,
-        `${d.pctCumplimiento}%`
-      ]);
+      const deptRows = metrics.departmentStats.map(d => {
+        const evalBase = d.total - d.na || 1;
+        const pctC = Math.round((d.c / evalBase) * 1000) / 10;
+        const pctOM = Math.round((d.om / evalBase) * 1000) / 10;
+        const pctNC = Math.round((d.nc / evalBase) * 1000) / 10;
+        const pctNA = Math.round((d.na / (d.total || 1)) * 1000) / 10;
+        return [
+          d.nombre,
+          `${d.c} (${pctC}%)`,
+          `${d.om} (${pctOM}%)`,
+          `${d.nc} (${pctNC}%)`,
+          `${d.na} (${pctNA}%)`,
+          d.total,
+          `${d.pctCumplimiento}%`
+        ];
+      });
 
       autoTable(doc, {
         startY: finalY + 4,
-        head: [['Departamento', 'Conformes (C)', 'Mejora (OM)', 'No Conformes (NC)', 'No Aplica (NA)', 'Total', 'Cumplimiento (%)']],
+        head: [['Departamento', 'Conformes (C) [1.0]', 'Mejora (OM) [+0.5]', 'No Conformes (NC) [0.0]', 'No Aplica (NA)', 'Total', 'Cumplimiento (%)']],
         body: deptRows,
         theme: 'grid',
-        headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
-        styles: { fontSize: 7.5, cellPadding: 2 }
+        headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
+        styles: { fontSize: 7, cellPadding: 2 }
       });
     }
   }
@@ -772,25 +779,32 @@ export function exportPresentationDeckPDF(metrics: GlobalMetrics) {
 
   // SLIDE 6: CUMPLIMIENTO POR GERENCIAS
   doc.addPage([338.67, 190.5], 'landscape');
-  drawSlideHeader(6, 'Asignación y Cumplimiento por Departamento', 'Planes de Acción y Hallazgos');
+  drawSlideHeader(6, 'Asignación y Cumplimiento por Departamento (OM = +0.5 pts)', 'Planes de Acción y Hallazgos');
 
-  const deptTable = metrics.departmentStats.map(d => [
-    d.nombre,
-    d.c,
-    d.om,
-    d.nc,
-    d.na,
-    d.total,
-    `${d.pctCumplimiento}%`
-  ]);
+  const deptTable = metrics.departmentStats.map(d => {
+    const evalBase = d.total - d.na || 1;
+    const pctC = Math.round((d.c / evalBase) * 1000) / 10;
+    const pctOM = Math.round((d.om / evalBase) * 1000) / 10;
+    const pctNC = Math.round((d.nc / evalBase) * 1000) / 10;
+    const pctNA = Math.round((d.na / (d.total || 1)) * 1000) / 10;
+    return [
+      d.nombre,
+      `${d.c} (${pctC}%)`,
+      `${d.om} (${pctOM}%)`,
+      `${d.nc} (${pctNC}%)`,
+      `${d.na} (${pctNA}%)`,
+      d.total,
+      `${d.pctCumplimiento}%`
+    ];
+  });
 
   autoTable(doc, {
     startY: 40,
-    head: [['Gerencia / Departamento Responsable', 'Conformes (C)', 'Mejora (OM)', 'No Conformes (NC)', 'No Aplica (NA)', 'Total Hallazgos', 'Cumplimiento (%)']],
+    head: [['Gerencia / Departamento Responsable', 'Conformes (C) [1.0]', 'Mejora (OM) [+0.5]', 'No Conformes (NC) [0.0]', 'No Aplica (NA)', 'Total Hallazgos', 'Cumplimiento (%)']],
     body: deptTable,
     theme: 'grid',
-    headStyles: { fillColor: [15, 23, 42], textColor: [250, 204, 21], fontStyle: 'bold', fontSize: 9 },
-    styles: { fontSize: 8.5, cellPadding: 3 }
+    headStyles: { fillColor: [15, 23, 42], textColor: [250, 204, 21], fontStyle: 'bold', fontSize: 8.5 },
+    styles: { fontSize: 8, cellPadding: 2.5 }
   });
 
   // SLIDE 7: CONCLUSIONES Y COMPROMISOS
