@@ -1,3 +1,4 @@
+import { FLOTA_NACIONAL_DUNCAN } from '../data/criteriosOficialesData';
 // ============================================================
 // SGD DUNCAN 2.0 — SERVICIO DE BASE DE DATOS UNIFICADO (dbService)
 // Costo Cero ($0): Almacenamiento Local (Optimistic Offline-First) +
@@ -1835,59 +1836,40 @@ export const dbService = {
   // ============================================================
   // TRANSPORTE Y CONTROL DE CARGA (INCLUSIONES V2)
   // ============================================================
-  async getVehiculosFlota(): Promise<VehiculoFlota[]> {
+  async   getVehiculosFlota(): Promise<VehiculoFlota[]> {
     let list = getLocal<VehiculoFlota>(SK.TRANSPORTE_VEHICULOS);
-    if (!list || list.length === 0) {
-      list = [
-        {
-          id: 'veh_01',
-          placa: 'A34BC9D',
-          marcaModelo: 'Mack Chuto R-600',
-          tipoVehiculo: 'Gandola / Chuto',
-          capacidadNominalKg: 28000,
-          margenSeguridadKg: 25000,
-          sedeAsignada: 'Distribuidora Duncan Caracas',
-          choferHabitual: 'José Ramón Hernández',
-          estatus: 'OPERATIVO',
-          kilometrajeActual: 245000,
-          vencimientoRACDA: '2027-04-15',
-          vencimientoPermisoBomberos: '2027-02-28',
-          vencimientoPoliza: '2027-06-30'
-        },
-        {
-          id: 'veh_02',
-          placa: 'A12XY8Z',
-          marcaModelo: 'Ford F-750 Chasis Largo',
-          tipoVehiculo: 'Camión Chasis Largo',
-          capacidadNominalKg: 9500,
-          margenSeguridadKg: 8500,
-          sedeAsignada: 'Distribuidora Duncan Caracas',
-          choferHabitual: 'Luis Alberto Gómez',
-          estatus: 'OPERATIVO',
-          kilometrajeActual: 182300,
-          vencimientoRACDA: '2027-03-10',
-          vencimientoPermisoBomberos: '2027-01-30',
-          vencimientoPoliza: '2027-05-15'
-        },
-        {
-          id: 'veh_03',
-          placa: 'A99MM1K',
-          marcaModelo: 'Chevrolet FVR Furgón',
-          tipoVehiculo: 'Camión Chasis Largo',
-          capacidadNominalKg: 11000,
-          margenSeguridadKg: 10000,
-          sedeAsignada: 'Distribuidora Duncan Valencia',
-          choferHabitual: 'Ramón Antonio Castillo',
-          estatus: 'OPERATIVO',
-          kilometrajeActual: 135000,
-          vencimientoRACDA: '2027-05-20',
-          vencimientoPermisoBomberos: '2027-03-15',
-          vencimientoPoliza: '2027-08-10'
+    if (!list || list.length < 10) {
+      list = FLOTA_NACIONAL_DUNCAN.map((v) => {
+        const isPerdida = v.observaciones.toLowerCase().includes('perdida total');
+        let tipo: VehiculoFlota['tipoVehiculo'] = 'Furgón 350';
+        const modLower = v.modelo.toLowerCase();
+        if (modLower.includes('silverado') || modLower.includes('350')) {
+          tipo = 'Furgón 350';
+        } else if (v.capacidadCargaKg > 8000) {
+          tipo = 'Gandola / Chuto';
+        } else if (v.capacidadCargaKg > 3500) {
+          tipo = 'Camión Chasis Largo';
         }
-      ];
+
+        return {
+          id: `veh_${v.item}`,
+          placa: v.placas,
+          marcaModelo: `${v.marca} ${v.modelo} (${v.ano})`,
+          tipoVehiculo: tipo,
+          capacidadNominalKg: v.capacidadCargaKg,
+          margenSeguridadKg: Math.round(v.capacidadCargaKg * 0.9),
+          sedeAsignada: `Distribuidora Duncan ${v.distribuidora}`,
+          choferHabitual: 'Conductor Asignado',
+          estatus: isPerdida ? 'INOPERATIVO' : 'OPERATIVO',
+          kilometrajeActual: 100000 + v.item * 2500,
+          vencimientoRACDA: '2027-12-31',
+          vencimientoPermisoBomberos: '2027-12-31',
+          vencimientoPoliza: '2027-12-31'
+        };
+      });
       setLocal(SK.TRANSPORTE_VEHICULOS, list);
     }
-    return list;
+    return Promise.resolve(list);
   },
 
   async saveVehiculoFlota(data: any): Promise<string> {

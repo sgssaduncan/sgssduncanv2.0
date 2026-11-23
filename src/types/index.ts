@@ -63,6 +63,7 @@ export interface Localidad {
 export interface Establecimiento {
   id?: string;
   _id?: string;
+  codigo?: string;
   localidadId: string;
   localidadNombre?: string;
   nombre: string;

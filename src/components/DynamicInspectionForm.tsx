@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { CheckCircle2, XCircle, AlertTriangle, MinusCircle, ChevronDown, ChevronUp, Save, BarChart3 } from "lucide-react";
+import { CheckCircle2, Info, XCircle, AlertTriangle, MinusCircle, ChevronDown, ChevronUp, Save, BarChart3 } from "lucide-react";
 import type { InspectionFormDef, FormSection, FormItem, ResponseType } from "../lib/formDefinitions";
 import { calculateScore } from "../lib/formDefinitions";
 
@@ -82,6 +82,7 @@ function SectionCard({
   sectionIndex: number;
 }) {
   const [expanded, setExpanded] = useState(true);
+  const [expandedDetails, setExpandedDetails] = useState<Record<string, boolean>>({});
   const answered = section.items.filter(i => responses[i.id]).length;
   const total = section.items.length;
   const progress = total > 0 ? Math.round((answered / total) * 100) : 0;
@@ -121,12 +122,51 @@ function SectionCard({
               const isSelectType = item.responseType === "SELECT";
               
               return (
-                <div key={item.id} className={`px-6 py-3 flex flex-col sm:flex-row sm:items-center gap-2 ${responses[item.id] ? "" : "bg-amber-50/30"}`}>
+                <div key={item.id} className={`px-4 sm:px-6 py-3.5 flex flex-col sm:flex-row sm:items-start justify-between gap-3 ${responses[item.id] ? "" : "bg-amber-50/20"}`}>
                   <div className="flex-1 min-w-0">
-                    <span className="text-sm text-slate-700">
-                      <span className="text-slate-400 font-mono text-xs mr-2">{item.id}</span>
+                    <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                      <span className="text-slate-600 font-mono text-xs font-black bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                        {item.id}
+                      </span>
+                      {item.grupoPilar && (
+                        <span className={`text-[10px] font-black px-1.5 py-0.5 rounded border uppercase ${
+                          item.grupoPilar === 'INFRA' ? 'bg-amber-100 text-amber-800 border-amber-300' :
+                          item.grupoPilar === 'LEGAL' ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                          item.grupoPilar === 'SSA' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                          'bg-purple-100 text-purple-800 border-purple-300'
+                        }`}>
+                          {item.grupoPilar}
+                        </span>
+                      )}
+                      {item.areaResponsable && (
+                        <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200">
+                          {item.areaResponsable}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-sm font-semibold text-slate-800 block">
                       {item.label}
                     </span>
+                    {item.aspectoLegal && (
+                      <span className="text-[11px] text-slate-500 font-medium block mt-0.5">
+                        ⚖️ {item.aspectoLegal}
+                      </span>
+                    )}
+                    {item.preguntaOriginal && item.preguntaOriginal !== item.label && (
+                      <button
+                        type="button"
+                        onClick={() => setExpandedDetails(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+                        className="text-[11px] text-blue-600 hover:text-blue-800 font-bold inline-flex items-center gap-1 mt-1"
+                      >
+                        <Info className="h-3 w-3" />
+                        <span>{expandedDetails[item.id] ? "Ocultar texto normativo completo" : "Ver texto normativo completo"}</span>
+                      </button>
+                    )}
+                    {expandedDetails[item.id] && item.preguntaOriginal && (
+                      <p className="text-xs text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-200 mt-1 italic">
+                        "{item.preguntaOriginal}"
+                      </p>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-1.5 shrink-0">
                     {item.responseType === "TEXT" ? (

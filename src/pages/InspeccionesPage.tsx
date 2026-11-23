@@ -1,8 +1,9 @@
+import CatalogoCriteriosModal from '../components/CatalogoCriteriosModal';
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSGD } from '../contexts/SGDContext';
 import {
-  ClipboardCheck, Plus, Search, Filter, Trash2, Eye,
+  ClipboardCheck, Plus, BookOpen, Search, Filter, Trash2, Eye,
   CheckCircle2, Clock, FileText, AlertTriangle, ChevronDown
 } from 'lucide-react';
 import { cn, formatDate, getEstadoBadgeClass, getResultadoBadgeClass } from '../lib/utils';
@@ -18,6 +19,7 @@ export default function InspeccionesPage() {
   const [filterEstado, setFilterEstado] = useState('Todos');
   const [filterResultado, setFilterResultado] = useState('Todos');
   const [filterTipo, setFilterTipo] = useState('Todos');
+  const [showCriteriosModal, setShowCriteriosModal] = useState(false);
 
   const filtered = inspecciones.filter(insp => {
     const matchSearch = !search ||
@@ -50,9 +52,20 @@ export default function InspeccionesPage() {
           </h1>
           <p className="text-sm text-slate-500 mt-1">{filtered.length} registro(s)</p>
         </div>
-        <Link to="/inspecciones/nueva" className="btn-primary flex items-center gap-2 w-fit">
-          <Plus className="h-4 w-4" /> Nueva Inspección
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowCriteriosModal(true)}
+            className="btn-secondary flex items-center gap-2 text-xs font-bold shadow-xs hover:border-blue-400 transition-all"
+            title="Abrir catálogo maestro de criterios y frecuencias"
+          >
+            <BookOpen className="h-4 w-4 text-blue-600" />
+            <span>Criterios & Frecuencias SSA</span>
+          </button>
+          <Link to="/inspecciones/nueva" className="btn-primary flex items-center gap-2 w-fit">
+            <Plus className="h-4 w-4" /> Nueva Inspección
+          </Link>
+        </div>
       </div>
 
       {/* Filtros */}
@@ -190,6 +203,11 @@ export default function InspeccionesPage() {
           </>
         )}
       </div>
+      {/* Modal de Catálogo Oficial de Criterios y Frecuencias */}
+      <CatalogoCriteriosModal
+        isOpen={showCriteriosModal}
+        onClose={() => setShowCriteriosModal(false)}
+      />
     </div>
   );
 }

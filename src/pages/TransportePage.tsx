@@ -1,3 +1,4 @@
+import { PESO_ACUMULADORES_DUNCAN } from '../data/criteriosOficialesData';
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -41,15 +42,13 @@ import InteractiveMap from '../components/InteractiveMap';
 import { cn } from '../lib/utils';
 import toast from 'react-hot-toast';
 
-// Modelos estándar de baterías Duncan con peso nominal unitario en Kg
+// Catálogo oficial de baterías Duncan con peso nominal unitario en Kg (70 Modelos Oficiales)
 const MODELOS_BATERIAS_DUNCAN: { codigo: string; nombre: string; pesoKg: number }[] = [
-  { codigo: '24MR', nombre: 'Duncan 24MR (Automotriz)', pesoKg: 15.5 },
-  { codigo: '34MR', nombre: 'Duncan 34MR (Automotriz)', pesoKg: 17.0 },
-  { codigo: '27MR', nombre: 'Duncan 27MR (Camioneta / SUV)', pesoKg: 20.5 },
-  { codigo: '31MR', nombre: 'Duncan 31MR (Trompa de Camión)', pesoKg: 26.0 },
-  { codigo: '4D', nombre: 'Duncan 4D (Carga Pesada / Autobús)', pesoKg: 38.0 },
-  { codigo: '8D', nombre: 'Duncan 8D (Carga Extra Pesada)', pesoKg: 55.0 },
-  { codigo: '42MR', nombre: 'Duncan 42MR / 48MR (Compactos)', pesoKg: 14.0 },
+  ...PESO_ACUMULADORES_DUNCAN.map(b => ({
+    codigo: b.denominacion,
+    nombre: `Duncan ${b.denominacion} (${b.mercado.trim()} - Familia ${b.familia})`,
+    pesoKg: b.pesoKg
+  })),
   { codigo: 'USADO_CASCO', nombre: 'Casco Usado / Chatarra (Recuperación)', pesoKg: 16.0 },
 ];
 

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   BarChart2,
+  BookOpen,
   FileSpreadsheet,
   Download,
   RefreshCw,
@@ -57,6 +58,7 @@ import {
   PDFReportConfig
 } from '../lib/consolidadorLogic';
 import toast from 'react-hot-toast';
+import CatalogoCriteriosModal from '../components/CatalogoCriteriosModal';
 
 export default function ConsolidadorPage() {
   const { inspecciones, refreshData } = useSGD();
@@ -83,6 +85,7 @@ export default function ConsolidadorPage() {
 
   // Estados de Modales
   const [showPDFModal, setShowPDFModal] = useState(false);
+  const [showCriteriosModal, setShowCriteriosModal] = useState(false);
   const [showSlidePlayer, setShowSlidePlayer] = useState(false);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [isAutoplay, setIsAutoplay] = useState(false);
@@ -358,6 +361,17 @@ export default function ConsolidadorPage() {
               >
                 <Play size={14} />
                 <span className="truncate">Diapositivas</span>
+              </button>
+
+              {/* Botón Catálogo de Criterios Oficiales */}
+              <button
+                type="button"
+                onClick={() => setShowCriteriosModal(true)}
+                className="col-span-2 sm:col-span-1 bg-slate-800 hover:bg-slate-700 active:scale-95 text-blue-400 border border-blue-400/30 text-xs font-bold py-2 px-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                title="Abrir catálogo maestro oficial de criterios y frecuencias SSA"
+              >
+                <BookOpen size={14} />
+                <span className="truncate">Criterios SSA</span>
               </button>
             </div>
           </div>
@@ -1702,6 +1716,11 @@ export default function ConsolidadorPage() {
           </div>
         </div>
       )}
+      {/* Modal: Catálogo Maestro de Criterios SSA */}
+      <CatalogoCriteriosModal
+        isOpen={showCriteriosModal}
+        onClose={() => setShowCriteriosModal(false)}
+      />
     </div>
   );
 }

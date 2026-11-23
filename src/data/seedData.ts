@@ -27,58 +27,616 @@ export const INITIAL_LOCALIDADES: Localidad[] = [
 ];
 
 export const INITIAL_ESTABLECIMIENTOS: Establecimiento[] = [
-  // DISTRIBUIDORAS
-  { _id: 'est_dist_barca', nombre: 'Distribuidora Duncan Barcelona', localidadId: 'loc_barcelona', localidadNombre: 'Barcelona', tipo: 'Distribuidora', empresaId: 'emp_ddca', empresaNombre: 'Distribuidora Duncan, C.A.' },
-  { _id: 'est_dist_bqto', nombre: 'Distribuidora Duncan Barquisimeto', localidadId: 'loc_barquisimeto', localidadNombre: 'Barquisimeto', tipo: 'Distribuidora', empresaId: 'emp_ddca', empresaNombre: 'Distribuidora Duncan, C.A.' },
-  { _id: 'est_dist_ccs', nombre: 'Distribuidora Duncan Caracas', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Distribuidora', empresaId: 'emp_ddca', empresaNombre: 'Distribuidora Duncan, C.A.' },
-  { _id: 'est_dist_mbo', nombre: 'Distribuidora Duncan Maracaibo', localidadId: 'loc_maracaibo', localidadNombre: 'Maracaibo', tipo: 'Distribuidora', empresaId: 'emp_ddca', empresaNombre: 'Distribuidora Duncan, C.A.' },
-  { _id: 'est_dist_mcy', nombre: 'Distribuidora Duncan Maracay', localidadId: 'loc_maracay', localidadNombre: 'Maracay', tipo: 'Distribuidora', empresaId: 'emp_ddca', empresaNombre: 'Distribuidora Duncan, C.A.' },
-  { _id: 'est_dist_pmar', nombre: 'Distribuidora Duncan Porlamar', localidadId: 'loc_porlamar', localidadNombre: 'Porlamar', tipo: 'Distribuidora', empresaId: 'emp_ddca', empresaNombre: 'Distribuidora Duncan, C.A.' },
-  { _id: 'est_dist_pord', nombre: 'Distribuidora Duncan Puerto Ordaz', localidadId: 'loc_pto_ordaz', localidadNombre: 'Puerto Ordaz', tipo: 'Distribuidora', empresaId: 'emp_ddca', empresaNombre: 'Distribuidora Duncan, C.A.' },
-  { _id: 'est_dist_pfijo', nombre: 'Distribuidora Duncan Punto Fijo', localidadId: 'loc_punto_fijo', localidadNombre: 'Punto Fijo', tipo: 'Distribuidora', empresaId: 'emp_ddca', empresaNombre: 'Distribuidora Duncan, C.A.' },
-  { _id: 'est_dist_sancris', nombre: 'Distribuidora Duncan San Cristóbal', localidadId: 'loc_san_cristobal', localidadNombre: 'San Cristóbal', tipo: 'Distribuidora', empresaId: 'emp_ddca', empresaNombre: 'Distribuidora Duncan, C.A.' },
-  { _id: 'est_dist_val', nombre: 'Distribuidora Duncan Valencia', localidadId: 'loc_valencia', localidadNombre: 'Valencia', tipo: 'Distribuidora', empresaId: 'emp_ddca', empresaNombre: 'Distribuidora Duncan, C.A.' },
-  { _id: 'est_dist_vigia', nombre: 'Distribuidora Duncan El Vigía', localidadId: 'loc_el_vigia', localidadNombre: 'El Vigía', tipo: 'Distribuidora', empresaId: 'emp_ddca', empresaNombre: 'Distribuidora Duncan, C.A.' },
-  // SERVICENTROS CARACAS
-  { _id: 'est_sc_altamira', nombre: 'Servicentro Altamira', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_boleita', nombre: 'Servicentro Boleíta', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_caricuao', nombre: 'Servicentro Caricuao', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_catia', nombre: 'Servicentro Catia', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_ccs_centro', nombre: 'Servicentro Caracas Centro', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_ccs_sur', nombre: 'Servicentro Caracas Sur', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_chacao', nombre: 'Servicentro Chacao', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_coche', nombre: 'Servicentro Coche', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_el_llanito', nombre: 'Servicentro El Llanito', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_el_marques', nombre: 'Servicentro El Marqués', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_la_california', nombre: 'Servicentro La California', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_la_candelaria', nombre: 'Servicentro La Candelaria', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_la_florida', nombre: 'Servicentro La Florida', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_la_trinidad', nombre: 'Servicentro La Trinidad', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_las_mercedes', nombre: 'Servicentro Las Mercedes', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_los_ruices', nombre: 'Servicentro Los Ruices', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_macaracuay', nombre: 'Servicentro Macaracuay', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_mariperez', nombre: 'Servicentro Mariperez', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_prados_este', nombre: 'Servicentro Prados del Este', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_san_martin', nombre: 'Servicentro San Martín', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_sarria', nombre: 'Servicentro Sarría', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_sebucán', nombre: 'Servicentro Sebucán', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_valle', nombre: 'Servicentro El Valle', localidadId: 'loc_caracas', localidadNombre: 'Caracas', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  // SERVICENTROS INTERIOR
-  { _id: 'est_sc_val_01', nombre: 'Servicentro Valencia Norte', localidadId: 'loc_valencia', localidadNombre: 'Valencia', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_val_02', nombre: 'Servicentro Valencia Sur', localidadId: 'loc_valencia', localidadNombre: 'Valencia', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_val_03', nombre: 'Servicentro Valencia Centro', localidadId: 'loc_valencia', localidadNombre: 'Valencia', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_mbo_01', nombre: 'Servicentro Maracaibo Norte', localidadId: 'loc_maracaibo', localidadNombre: 'Maracaibo', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_mbo_02', nombre: 'Servicentro Maracaibo Sur', localidadId: 'loc_maracaibo', localidadNombre: 'Maracaibo', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_bqto_01', nombre: 'Servicentro Barquisimeto Este', localidadId: 'loc_barquisimeto', localidadNombre: 'Barquisimeto', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_bqto_02', nombre: 'Servicentro Barquisimeto Oeste', localidadId: 'loc_barquisimeto', localidadNombre: 'Barquisimeto', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_barca_01', nombre: 'Servicentro Barcelona Principal', localidadId: 'loc_barcelona', localidadNombre: 'Barcelona', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_pord_01', nombre: 'Servicentro Puerto Ordaz', localidadId: 'loc_pto_ordaz', localidadNombre: 'Puerto Ordaz', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_pfijo_01', nombre: 'Servicentro Punto Fijo', localidadId: 'loc_punto_fijo', localidadNombre: 'Punto Fijo', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_sancris_01', nombre: 'Servicentro San Cristóbal', localidadId: 'loc_san_cristobal', localidadNombre: 'San Cristóbal', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_pmar_01', nombre: 'Servicentro Porlamar', localidadId: 'loc_porlamar', localidadNombre: 'Porlamar', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_mcy_01', nombre: 'Servicentro Maracay Norte', localidadId: 'loc_maracay', localidadNombre: 'Maracay', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_mcy_02', nombre: 'Servicentro Maracay Sur', localidadId: 'loc_maracay', localidadNombre: 'Maracay', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
-  { _id: 'est_sc_vigia_01', nombre: 'Servicentro El Vigía', localidadId: 'loc_el_vigia', localidadNombre: 'El Vigía', tipo: 'Servicentro', empresaId: 'emp_inv', empresaNombre: 'Inversiones 1286, C.A.' },
+  {
+    "_id": "est_dist_barca",
+    "codigo": "DDBARCA",
+    "nombre": "Distribuidora Duncan Barcelona",
+    "localidadId": "loc_barcelona",
+    "localidadNombre": "Barcelona",
+    "tipo": "Distribuidora",
+    "empresaId": "emp_ddca",
+    "empresaNombre": "Distribuidora Duncan, C.A."
+  },
+  {
+    "_id": "est_dist_bqto",
+    "codigo": "DDBQTO",
+    "nombre": "Distribuidora Duncan Barquisimeto",
+    "localidadId": "loc_barquisimeto",
+    "localidadNombre": "Barquisimeto",
+    "tipo": "Distribuidora",
+    "empresaId": "emp_ddca",
+    "empresaNombre": "Distribuidora Duncan, C.A."
+  },
+  {
+    "_id": "est_dist_ccs",
+    "codigo": "DDCCS",
+    "nombre": "Distribuidora Duncan Caracas",
+    "localidadId": "loc_caracas",
+    "localidadNombre": "Caracas",
+    "tipo": "Distribuidora",
+    "empresaId": "emp_ddca",
+    "empresaNombre": "Distribuidora Duncan, C.A."
+  },
+  {
+    "_id": "est_dist_mbo",
+    "codigo": "DDMBO",
+    "nombre": "Distribuidora Duncan Maracaibo",
+    "localidadId": "loc_maracaibo",
+    "localidadNombre": "Maracaibo",
+    "tipo": "Distribuidora",
+    "empresaId": "emp_ddca",
+    "empresaNombre": "Distribuidora Duncan, C.A."
+  },
+  {
+    "_id": "est_dist_mcy",
+    "codigo": "DDMCY",
+    "nombre": "Distribuidora Duncan Maracay",
+    "localidadId": "loc_maracay",
+    "localidadNombre": "Maracay",
+    "tipo": "Distribuidora",
+    "empresaId": "emp_ddca",
+    "empresaNombre": "Distribuidora Duncan, C.A."
+  },
+  {
+    "_id": "est_dist_pmar",
+    "codigo": "DDPMAR",
+    "nombre": "Distribuidora Duncan Porlamar",
+    "localidadId": "loc_porlamar",
+    "localidadNombre": "Porlamar",
+    "tipo": "Distribuidora",
+    "empresaId": "emp_ddca",
+    "empresaNombre": "Distribuidora Duncan, C.A."
+  },
+  {
+    "_id": "est_dist_pord",
+    "codigo": "DDPORD",
+    "nombre": "Distribuidora Duncan Puerto Ordaz",
+    "localidadId": "loc_pto_ordaz",
+    "localidadNombre": "Puerto Ordaz",
+    "tipo": "Distribuidora",
+    "empresaId": "emp_ddca",
+    "empresaNombre": "Distribuidora Duncan, C.A."
+  },
+  {
+    "_id": "est_dist_pfijo",
+    "codigo": "DDPFIJO",
+    "nombre": "Distribuidora Duncan Punto Fijo",
+    "localidadId": "loc_punto_fijo",
+    "localidadNombre": "Punto Fijo",
+    "tipo": "Distribuidora",
+    "empresaId": "emp_ddca",
+    "empresaNombre": "Distribuidora Duncan, C.A."
+  },
+  {
+    "_id": "est_dist_sancris",
+    "codigo": "DDSANCRIS",
+    "nombre": "Distribuidora Duncan San Cristóbal",
+    "localidadId": "loc_san_cristobal",
+    "localidadNombre": "San Cristóbal",
+    "tipo": "Distribuidora",
+    "empresaId": "emp_ddca",
+    "empresaNombre": "Distribuidora Duncan, C.A."
+  },
+  {
+    "_id": "est_dist_val",
+    "codigo": "DDVAL",
+    "nombre": "Distribuidora Duncan Valencia",
+    "localidadId": "loc_valencia",
+    "localidadNombre": "Valencia",
+    "tipo": "Distribuidora",
+    "empresaId": "emp_ddca",
+    "empresaNombre": "Distribuidora Duncan, C.A."
+  },
+  {
+    "_id": "est_dist_vigia",
+    "codigo": "DDVIGIA",
+    "nombre": "Distribuidora Duncan El Vigía",
+    "localidadId": "loc_el_vigia",
+    "localidadNombre": "El Vigía",
+    "tipo": "Distribuidora",
+    "empresaId": "emp_ddca",
+    "empresaNombre": "Distribuidora Duncan, C.A."
+  },
+  {
+    "_id": "est_sc_sccabimas",
+    "codigo": "SCCABIMAS",
+    "nombre": "Servicentro Cabimas",
+    "localidadId": "loc_maracaibo",
+    "localidadNombre": "Maracaibo",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_sccojd",
+    "codigo": "SCCOJD",
+    "nombre": "Servicentro Ciudad Ojedad",
+    "localidadId": "loc_maracaibo",
+    "localidadNombre": "Maracaibo",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scdrprt",
+    "codigo": "SCDRPRT",
+    "nombre": "Servicentro Dr. Portillo",
+    "localidadId": "loc_maracaibo",
+    "localidadNombre": "Maracaibo",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scll",
+    "codigo": "SCLL",
+    "nombre": "Servicentro La Limpia",
+    "localidadId": "loc_maracaibo",
+    "localidadNombre": "Maracaibo",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scvdr",
+    "codigo": "SCVDR",
+    "nombre": "Servicentro Villa Del Rosario",
+    "localidadId": "loc_maracaibo",
+    "localidadNombre": "Maracaibo",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scvdr",
+    "codigo": "SCVDR",
+    "nombre": "Servicentro Valera",
+    "localidadId": "loc_maracaibo",
+    "localidadNombre": "Maracaibo",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scmntc",
+    "codigo": "SCMNTC",
+    "nombre": "Servicentro Monte Claro",
+    "localidadId": "loc_maracaibo",
+    "localidadNombre": "Maracaibo",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_sccr",
+    "codigo": "SCCR",
+    "nombre": "Servicentro Coro",
+    "localidadId": "loc_punto_fijo",
+    "localidadNombre": "Punto Fijo",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scpds",
+    "codigo": "SCPDS",
+    "nombre": "Servicentro Puerta Del Sol",
+    "localidadId": "loc_san_cristobal",
+    "localidadNombre": "San Cristóbal",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scmrd",
+    "codigo": "SCMRD",
+    "nombre": "Servicentro Merida",
+    "localidadId": "loc_el_vigia",
+    "localidadNombre": "El Vigía",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scvlr",
+    "codigo": "SCVLR",
+    "nombre": "Servicentro Valera",
+    "localidadId": "loc_el_vigia",
+    "localidadNombre": "El Vigía",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scbqmt",
+    "codigo": "SCBQMT",
+    "nombre": "Servicentro Barquisimeto",
+    "localidadId": "loc_barquisimeto",
+    "localidadNombre": "Barquisimeto",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scgnr",
+    "codigo": "SCGNR",
+    "nombre": "Servicentro Guanare",
+    "localidadId": "loc_barquisimeto",
+    "localidadNombre": "Barquisimeto",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scbrn",
+    "codigo": "SCBRN",
+    "nombre": "Servicentro Barinas",
+    "localidadId": "loc_barquisimeto",
+    "localidadNombre": "Barquisimeto",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_sclmchln",
+    "codigo": "SCLMCHLN",
+    "nombre": "Servicentro La Quizanda",
+    "localidadId": "loc_valencia",
+    "localidadNombre": "Valencia",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_sclqznd",
+    "codigo": "SCLQZND",
+    "nombre": "Servicentro Santa Cecilia",
+    "localidadId": "loc_valencia",
+    "localidadNombre": "Valencia",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scstaccl",
+    "codigo": "SCSTACCL",
+    "nombre": "Servicentro Puerto Cabello",
+    "localidadId": "loc_valencia",
+    "localidadNombre": "Valencia",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scptocbll",
+    "codigo": "SCPTOCBLL",
+    "nombre": "Servicentro Guacara",
+    "localidadId": "loc_valencia",
+    "localidadNombre": "Valencia",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_sctptp",
+    "codigo": "SCTPTP",
+    "nombre": "Servicentro Tapa Tapa",
+    "localidadId": "loc_maracay",
+    "localidadNombre": "Maracay",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_sclolv",
+    "codigo": "SCLOLV",
+    "nombre": "Servicentro Los Olivos",
+    "localidadId": "loc_maracay",
+    "localidadNombre": "Maracay",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scvdlp",
+    "codigo": "SCVDLP",
+    "nombre": "Servicentro Valle De La Pascua",
+    "localidadId": "loc_maracay",
+    "localidadNombre": "Maracay",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scsfrnd",
+    "codigo": "SCSFRND",
+    "nombre": "Servicentro San Fernando",
+    "localidadId": "loc_maracay",
+    "localidadNombre": "Maracay",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scct",
+    "codigo": "SCCT",
+    "nombre": "Servicentro Catia",
+    "localidadId": "loc_caracas",
+    "localidadNombre": "Caracas",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scgrns",
+    "codigo": "SCGRNS",
+    "nombre": "Servicentro Guarenas",
+    "localidadId": "loc_caracas",
+    "localidadNombre": "Caracas",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scgtr",
+    "codigo": "SCGTR",
+    "nombre": "Servicentro Guatire",
+    "localidadId": "loc_caracas",
+    "localidadNombre": "Caracas",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_sclclfrn",
+    "codigo": "SCLCLFRN",
+    "nombre": "Servicentro La California",
+    "localidadId": "loc_caracas",
+    "localidadNombre": "Caracas",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_sclgr",
+    "codigo": "SCLGR",
+    "nombre": "Servicentro La Guaira",
+    "localidadId": "loc_caracas",
+    "localidadNombre": "Caracas",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scltrnd",
+    "codigo": "SCLTRND",
+    "nombre": "Servicentro La Trinidad",
+    "localidadId": "loc_caracas",
+    "localidadNombre": "Caracas",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_sclaccs",
+    "codigo": "SCLACCS",
+    "nombre": "Servicentro Las Acacias",
+    "localidadId": "loc_caracas",
+    "localidadNombre": "Caracas",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_sclchgrms",
+    "codigo": "SCLCHGRMS",
+    "nombre": "Servicentro Los Chaguaramos",
+    "localidadId": "loc_caracas",
+    "localidadNombre": "Caracas",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_sclrc",
+    "codigo": "SCLRC",
+    "nombre": "Servicentro Los Ruices",
+    "localidadId": "loc_caracas",
+    "localidadNombre": "Caracas",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scltqs",
+    "codigo": "SCLTQS",
+    "nombre": "Servicentro Los Teques",
+    "localidadId": "loc_caracas",
+    "localidadNombre": "Caracas",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scaltmr",
+    "codigo": "SCALTMR",
+    "nombre": "Servicentro Altamira",
+    "localidadId": "loc_caracas",
+    "localidadNombre": "Caracas",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_sccmntr",
+    "codigo": "SCCMNTR",
+    "nombre": "Servicentro Cementerio",
+    "localidadId": "loc_caracas",
+    "localidadNombre": "Caracas",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_sccrrvrd",
+    "codigo": "SCCRRVRD",
+    "nombre": "Servicentro Cerro Verde",
+    "localidadId": "loc_caracas",
+    "localidadNombre": "Caracas",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_sclrxprss",
+    "codigo": "SCLRXPRSS",
+    "nombre": "Servicentro Los Ruices Express",
+    "localidadId": "loc_caracas",
+    "localidadNombre": "Caracas",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scmrprz",
+    "codigo": "SCMRPRZ",
+    "nombre": "Servicentro Mariperez",
+    "localidadId": "loc_caracas",
+    "localidadNombre": "Caracas",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scsnmrtn",
+    "codigo": "SCSNMRTN",
+    "nombre": "Servicentro San Martin",
+    "localidadId": "loc_caracas",
+    "localidadNombre": "Caracas",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scchrllv",
+    "codigo": "SCCHRLLV",
+    "nombre": "Servicentro Charallave",
+    "localidadId": "loc_caracas",
+    "localidadNombre": "Caracas",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scanc",
+    "codigo": "SCANC",
+    "nombre": "Servicentro Anaco",
+    "localidadId": "loc_barcelona",
+    "localidadNombre": "Barcelona",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scbrcln",
+    "codigo": "SCBRCLN",
+    "nombre": "Servicentro Barcelona",
+    "localidadId": "loc_barcelona",
+    "localidadNombre": "Barcelona",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_sccmn",
+    "codigo": "SCCMN",
+    "nombre": "Servicentro Cumana",
+    "localidadId": "loc_barcelona",
+    "localidadNombre": "Barcelona",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_sceltgrt",
+    "codigo": "SCELTGRT",
+    "nombre": "Servicentro El Tigre",
+    "localidadId": "loc_barcelona",
+    "localidadNombre": "Barcelona",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scplc",
+    "codigo": "SCPLC",
+    "nombre": "Servicentro Puerto La Cruz",
+    "localidadId": "loc_barcelona",
+    "localidadNombre": "Barcelona",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_sccblvr",
+    "codigo": "SCCBLVR",
+    "nombre": "Servicentro Unare",
+    "localidadId": "loc_pto_ordaz",
+    "localidadNombre": "Puerto Ordaz",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scmtrn",
+    "codigo": "SCMTRN",
+    "nombre": "Servicentro San Felix",
+    "localidadId": "loc_pto_ordaz",
+    "localidadNombre": "Puerto Ordaz",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scptordz",
+    "codigo": "SCPTORDZ",
+    "nombre": "Servicentro Upata",
+    "localidadId": "loc_pto_ordaz",
+    "localidadNombre": "Puerto Ordaz",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scsnflx",
+    "codigo": "SCSNFLX",
+    "nombre": "Servicentro Ciudad Bolivar",
+    "localidadId": "loc_pto_ordaz",
+    "localidadNombre": "Puerto Ordaz",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_scunr",
+    "codigo": "SCUNR",
+    "nombre": "Servicentro Maturin",
+    "localidadId": "loc_pto_ordaz",
+    "localidadNombre": "Puerto Ordaz",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  },
+  {
+    "_id": "est_sc_sclrbls",
+    "codigo": "SCLRBLS",
+    "nombre": "Servicentro Los Robles",
+    "localidadId": "loc_porlamar",
+    "localidadNombre": "Porlamar",
+    "tipo": "Servicentro",
+    "empresaId": "emp_inv",
+    "empresaNombre": "Inversiones 1286, C.A."
+  }
 ];
 
 export const INITIAL_TIPOS_INSPECCION: TipoInspeccion[] = [

@@ -1,3 +1,41 @@
+import {
+  CRITERIOS_DISTRIBUIDORAS_OFICIALES,
+  CRITERIOS_SERVICENTROS_OFICIALES,
+  LISTAS_MAESTRAS_SGD,
+  CriterioEvaluacion
+} from '../data/criteriosOficialesData';
+
+function buildSectionsFromCriteria(criteria: CriterioEvaluacion[]): FormSection[] {
+  const sectionsMap = new Map<number, { title: string; items: FormItem[] }>();
+
+  criteria.forEach(c => {
+    if (!sectionsMap.has(c.conjunto)) {
+      sectionsMap.set(c.conjunto, {
+        title: `${c.conjunto}. ${c.aspecto}`,
+        items: []
+      });
+    }
+    const sec = sectionsMap.get(c.conjunto)!;
+    sec.items.push({
+      id: c.num,
+      label: c.preguntaResumida || c.pregunta,
+      responseType: "C_NC_OM_NA",
+      preguntaOriginal: c.pregunta,
+      aspectoLegal: c.aspectoLegal,
+      grupoPilar: c.grupoPilar,
+      areaResponsable: c.areaResponsable,
+      aspecto: c.aspecto
+    });
+  });
+
+  return Array.from(sectionsMap.entries()).map(([conjunto, sec]) => ({
+    id: `conjunto_${conjunto}`,
+    title: sec.title,
+    items: sec.items,
+    hasObservations: true
+  }));
+}
+
 /**
  * SGD Duncan - Definiciones de Formularios de Inspección
  * 
@@ -17,6 +55,11 @@ export interface FormItem {
   options?: string[];  // For SELECT type
   required?: boolean;
   placeholder?: string;
+  preguntaOriginal?: string;
+  aspectoLegal?: string;
+  grupoPilar?: 'INFRA' | 'LEGAL' | 'SSA' | 'VEHCP' | string;
+  areaResponsable?: string;
+  aspecto?: string;
 }
 
 export interface FormSection {
@@ -59,9 +102,10 @@ export const EXT_FORM: InspectionFormDef = {
   description: "Evaluación del estado y operatividad de extintores portátiles",
   additionalFields: [
     { id: "ubicacion", label: "Ubicación", type: "text", required: true, placeholder: "Ubicación del extintor" },
-    { id: "agenteExtinguidor", label: "Agente Extinguidor", type: "select", options: ["PQS", "CO2", "H2O"], required: true },
-    { id: "capacidad", label: "Capacidad", type: "select", options: ["10 Lbs", "15 Lbs", "20 Lbs", "50 Lbs", "150 Lbs"], required: true },
+    { id: "agenteExtinguidor", label: "Agente Extinguidor", type: "select", options: LISTAS_MAESTRAS_SGD.agentesExtinguidores, required: true },
+    { id: "capacidad", label: "Capacidad", type: "select", options: LISTAS_MAESTRAS_SGD.capacidadesExtintores, required: true },
     { id: "fechaVencimiento", label: "Fecha de Vencimiento", type: "date", required: true },
+    { id: "accionRequerida", label: "Acción Requerida", type: "select", options: LISTAS_MAESTRAS_SGD.accionesRequeridas },
   ],
   sections: [
     {
@@ -96,318 +140,23 @@ export const EXT_FORM: InspectionFormDef = {
 };
 
 // ============================================================
-// SSA DISTRIBUIDORAS (DD)
+// SSA DISTRIBUIDORAS (DD / DIST) — 173 Criterios Oficiales
 // ============================================================
 export const DD_FORM: InspectionFormDef = {
   code: "DD",
   name: "Inspección SSA Distribuidoras",
-  description: "Inspección de Seguridad, Salud y Ambiente para distribuidoras del Grupo Duncan",
+  description: "Inspección Integral de Seguridad, Salud y Ambiente para Distribuidoras Duncan (173 Criterios Oficiales)",
   additionalFields: [
     { id: "ronda", label: "Ronda N°", type: "number", required: true },
     { id: "fechaCierre", label: "Fecha de Cierre", type: "date" },
   ],
-  sections: [
-    {
-      id: "1_iluminacion",
-      title: "1. Iluminación",
-      items: [
-        { id: "1.1", label: "¿Son suficientes las luminarias según la tarea visual?", responseType: "C_NC_OM_NA" },
-        { id: "1.2", label: "¿Luminarias limpias y en buen estado?", responseType: "C_NC_OM_NA" },
-        { id: "1.3", label: "¿Luminarias con protección anti-caída/rotura?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "2_ventilacion",
-      title: "2. Ventilación",
-      items: [
-        { id: "2.1", label: "¿Ventilación/Extracción adecuada en todas las áreas?", responseType: "C_NC_OM_NA" },
-        { id: "2.2", label: "¿Estado funcional de extractores y aires acondicionados?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "3_avisos",
-      title: "3. Avisos o Señalizaciones",
-      items: [
-        { id: "3.1", label: '¿Aviso "No Fumar" visible?', responseType: "C_NC_OM_NA" },
-        { id: "3.2", label: '¿Aviso "No Discriminación" visible?', responseType: "C_NC_OM_NA" },
-        { id: "3.3", label: '¿Aviso "Prohibido Porte de Armas" visible?', responseType: "C_NC_OM_NA" },
-        { id: "3.4", label: '¿Aviso "Número 911" visible?', responseType: "C_NC_OM_NA" },
-        { id: "3.5", label: "¿Cartelera/Información SSA visible en áreas operativas?", responseType: "C_NC_OM_NA" },
-        { id: "3.6", label: "¿Señalización de vías de escape visible?", responseType: "C_NC_OM_NA" },
-        { id: "3.7", label: "¿Señalización de riesgos específicos (Eléctrico, NFPA)?", responseType: "C_NC_OM_NA" },
-        { id: "3.8", label: "¿Señalización visible de equipos contra incendio?", responseType: "C_NC_OM_NA" },
-        { id: "3.9", label: "¿Contenedor de estopas con Rombo DOT 9?", responseType: "C_NC_OM_NA" },
-        { id: "3.10", label: "¿Área de baterías con Rombo NFPA 704?", responseType: "C_NC_OM_NA" },
-        { id: "3.11", label: "¿Tanques/Cilindros con rombos DOT (3 y 2) y NFPA?", responseType: "C_NC_OM_NA" },
-        { id: "3.12", label: "¿Señalización adecuada por tipo de almacén?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "4_almacenamiento",
-      title: "4. Almacenamiento",
-      items: [
-        { id: "4.1", label: "¿Almacenamiento apilado, organizado y seguro?", responseType: "C_NC_OM_NA" },
-        { id: "4.2", label: "¿Estanterías/Racks en buen estado y anclados?", responseType: "C_NC_OM_NA" },
-        { id: "4.3", label: "¿Racks de baterías anclados al suelo?", responseType: "C_NC_OM_NA" },
-        { id: "4.4", label: "¿Baterías inservibles protegidas de intemperie?", responseType: "C_NC_OM_NA" },
-        { id: "4.5", label: "¿Piso impermeable en área de baterías inservibles?", responseType: "C_NC_OM_NA" },
-        { id: "4.6", label: "¿Baterías alejadas de fuentes de calor/energía?", responseType: "C_NC_OM_NA" },
-        { id: "4.7", label: "¿Control de fugas de ácido a drenajes?", responseType: "C_NC_OM_NA" },
-        { id: "4.8", label: "¿Orden y limpieza en áreas de almacenamiento?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "5_herramientas",
-      title: "5. Herramientas y Equipos",
-      items: [
-        { id: "5.1", label: "¿Limpieza alrededor de equipos/herramientas?", responseType: "C_NC_OM_NA" },
-        { id: "5.2", label: "¿Equipos y herramientas en buen estado?", responseType: "C_NC_OM_NA" },
-        { id: "5.3", label: "¿Existencia de contenedor de estopas usadas?", responseType: "C_NC_OM_NA" },
-        { id: "5.4", label: "¿Uso exclusivo del contenedor para estopas/residuos peligrosos?", responseType: "C_NC_OM_NA" },
-        { id: "5.5", label: "¿Carretillas/Transpaletas en buen estado?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "6_extincion",
-      title: "6. Sistemas de Extinción y Detección de Incendios",
-      items: [
-        { id: "6.1", label: "¿Extintores en sitio y señalizados correctamente?", responseType: "C_NC_OM_NA" },
-        { id: "6.2", label: "¿Extintores accesibles sin obstáculos?", responseType: "C_NC_OM_NA" },
-        { id: "6.3", label: "¿Extintores con mantenimiento vigente (anual)?", responseType: "C_NC_OM_NA" },
-        { id: "6.4", label: "¿Altura de montaje de extintores (10cm - 1.30m)?", responseType: "C_NC_OM_NA" },
-        { id: "6.5", label: "¿Posee sistema de detección y alarma?", responseType: "C_NC_OM_NA" },
-        { id: "6.6", label: "¿Sistema de detección funcionando correctamente?", responseType: "C_NC_OM_NA" },
-        { id: "6.7", label: "¿Luces de emergencia operativas?", responseType: "C_NC_OM_NA" },
-        { id: "6.8", label: "¿Estaciones manuales accesibles?", responseType: "C_NC_OM_NA" },
-        { id: "6.9", label: "¿Sistema de extinción acorde a COVENIN 1331?", responseType: "C_NC_OM_NA" },
-        { id: "6.10", label: "¿Sistema de bombas contra incendio operativo?", responseType: "C_NC_OM_NA" },
-        { id: "6.11", label: "¿Distribución adecuada de mangueras y tuberías?", responseType: "C_NC_OM_NA" },
-        { id: "6.12", label: "¿Paños de manguera completos y en buen estado?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "7_emergencia",
-      title: "7. Plan de Emergencia",
-      items: [
-        { id: "7.1", label: "¿Cuenta con Plan de Emergencia?", responseType: "C_NC_OM_NA" },
-        { id: "7.2", label: "¿Cuenta con Brigada de Emergencia formada?", responseType: "C_NC_OM_NA" },
-        { id: "7.3", label: "¿Adiestramiento continuo a la brigada?", responseType: "C_NC_OM_NA" },
-        { id: "7.4", label: "¿Simulacros de desalojo anuales?", responseType: "C_NC_OM_NA" },
-        { id: "7.5", label: "¿Puertas de salida abren fácilmente desde el interior?", responseType: "C_NC_OM_NA" },
-        { id: "7.6", label: "¿Puertas de emergencia libres y abren hacia afuera?", responseType: "C_NC_OM_NA" },
-        { id: "7.7", label: "¿Pruebas mensuales de presurización documentadas?", responseType: "C_NC_OM_NA" },
-        { id: "7.8", label: "¿Existencia de rayado peatonal interno?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "8_instalaciones",
-      title: "8. Instalaciones y Servicios",
-      items: [
-        { id: "8.1", label: "¿Mobiliario de oficina en buenas condiciones?", responseType: "C_NC_OM_NA" },
-        { id: "8.2", label: "¿Orden y limpieza en oficina?", responseType: "C_NC_OM_NA" },
-        { id: "8.3", label: "¿Sistema eléctrico canalizado y protegido?", responseType: "C_NC_OM_NA" },
-        { id: "8.4", label: "¿Las regletas y tomas están sin sobrecarga eléctrica?", responseType: "C_NC_OM_NA" },
-        { id: "8.5", label: "¿Cerraduras y puertas funcionales?", responseType: "C_NC_OM_NA" },
-        { id: "8.6", label: "¿Tanque de agua sanitario operativo?", responseType: "C_NC_OM_NA" },
-        { id: "8.7", label: "¿Bomba de agua operativa (si aplica)?", responseType: "C_NC_OM_NA" },
-        { id: "8.8", label: "¿Baños con dispensadores de jabón/papel?", responseType: "C_NC_OM_NA" },
-        { id: "8.9", label: "¿Piezas sanitarias operativas?", responseType: "C_NC_OM_NA" },
-        { id: "8.10", label: "¿Dispensadores dotados de insumos?", responseType: "C_NC_OM_NA" },
-        { id: "8.11", label: "¿Baños limpios e higienizados?", responseType: "C_NC_OM_NA" },
-        { id: "8.12", label: "¿Suministro adecuado de consumibles de baño?", responseType: "C_NC_OM_NA" },
-        { id: "8.13", label: "¿Área de consumibles ordenada y limpia?", responseType: "C_NC_OM_NA" },
-        { id: "8.14", label: "¿Espacio habilitado para comedor?", responseType: "C_NC_OM_NA" },
-        { id: "8.15", label: "¿Comedor separado de áreas contaminantes?", responseType: "C_NC_OM_NA" },
-        { id: "8.16", label: "¿Comedor con climatización adecuada?", responseType: "C_NC_OM_NA" },
-        { id: "8.17", label: "¿Equipos de comedor (nevera/mesa) en buen estado?", responseType: "C_NC_OM_NA" },
-        { id: "8.18", label: "¿Higiene y orden en el comedor?", responseType: "C_NC_OM_NA" },
-        { id: "8.19", label: "¿Filtro de agua higiénico y funcional?", responseType: "C_NC_OM_NA" },
-        { id: "8.20", label: "¿Ubicación segura de filtro y botellones?", responseType: "C_NC_OM_NA" },
-        { id: "8.21", label: "¿Dispensador de vasos cónicos disponible?", responseType: "C_NC_OM_NA" },
-        { id: "8.22", label: "¿Acceso fácil al agua potable?", responseType: "C_NC_OM_NA" },
-        { id: "8.23", label: "¿Techos sin goteras ni filtraciones?", responseType: "C_NC_OM_NA" },
-        { id: "8.24", label: "¿Paredes sin grietas ni deterioro?", responseType: "C_NC_OM_NA" },
-        { id: "8.25", label: "¿Piso nivelado y sin daños?", responseType: "C_NC_OM_NA" },
-        { id: "8.26", label: "¿Pintura general en buen estado?", responseType: "C_NC_OM_NA" },
-        { id: "8.27", label: "¿Áreas libres de obstrucciones y residuos?", responseType: "C_NC_OM_NA" },
-        { id: "8.28", label: "¿Demarcación de piso en áreas operativas?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "9_primeros_auxilios",
-      title: "9. Primeros Auxilios y Emergencias Químicas",
-      items: [
-        { id: "9.1", label: "¿Ducha/Lavaojos de emergencia disponible?", responseType: "C_NC_OM_NA" },
-        { id: "9.2", label: "¿Componentes de ducha/lavaojos completos?", responseType: "C_NC_OM_NA" },
-        { id: "9.3", label: "¿Presión de agua suficiente en ducha/lavaojos?", responseType: "C_NC_OM_NA" },
-        { id: "9.4", label: "¿Botiquín visible, señalizado y accesible?", responseType: "C_NC_OM_NA" },
-        { id: "9.5", label: "¿Contenido del botiquín según norma?", responseType: "C_NC_OM_NA" },
-        { id: "9.6", label: "¿Kit para derrames (ácidos) disponible?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "10_epp",
-      title: "10. Equipos de Protección Personal",
-      items: [
-        { id: "10.1", label: "¿Uso adecuado del uniforme?", responseType: "C_NC_OM_NA" },
-        { id: "10.2", label: "¿Uniformes en buen estado?", responseType: "C_NC_OM_NA" },
-        { id: "10.3", label: "¿Uso correcto de EPP (lentes, guantes, botas)?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "11_documentacion",
-      title: "11. Documentación Legal y Normativa",
-      items: [
-        { id: "11.1", label: "¿Política de SSL disponible y actualizada?", responseType: "C_NC_OM_NA" },
-        { id: "11.2", label: "¿Hoja de Datos de Seguridad (FDS) visible?", responseType: "C_NC_OM_NA" },
-        { id: "11.3", label: "¿Plan de emergencia acorde a COVENIN?", responseType: "C_NC_OM_NA" },
-        { id: "11.4", label: "¿Permiso de Bomberos publicado?", responseType: "C_NC_OM_NA" },
-        { id: "11.5", label: "¿Permiso de Bomberos vigente?", responseType: "C_NC_OM_NA" },
-        { id: "11.6", label: "¿Estadísticas de accidentabilidad actualizadas?", responseType: "C_NC_OM_NA" },
-        { id: "11.7", label: "¿Estadísticas de morbilidad actualizadas?", responseType: "C_NC_OM_NA" },
-        { id: "11.8", label: "¿Mapa de Riesgo visible?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "12_cumplimiento",
-      title: "12. Cumplimiento de Inspecciones y Registros",
-      items: [
-        { id: "12.1", label: "¿Mantenimiento semestral sistema contra incendio?", responseType: "C_NC_OM_NA" },
-        { id: "12.2", label: "¿Inspección semestral de extintores?", responseType: "C_NC_OM_NA" },
-        { id: "12.3", label: "¿Inspección mensual de orden y limpieza?", responseType: "C_NC_OM_NA" },
-        { id: "12.4", label: "¿Inspección mensual de herramientas?", responseType: "C_NC_OM_NA" },
-        { id: "12.5", label: "¿Inspección trimestral detección incendios?", responseType: "C_NC_OM_NA" },
-        { id: "12.6", label: "¿Inspección mensual luces de emergencia?", responseType: "C_NC_OM_NA" },
-        { id: "12.7", label: "¿Inspección mensual Kit derrames?", responseType: "C_NC_OM_NA" },
-        { id: "12.8", label: "¿Inspección mensual fuente lavaojos?", responseType: "C_NC_OM_NA" },
-        { id: "12.9", label: "¿Registro de Delegados vigente?", responseType: "C_NC_OM_NA" },
-        { id: "12.10", label: "¿Registro de CSSL vigente?", responseType: "C_NC_OM_NA" },
-        { id: "12.11", label: "¿Reuniones mensuales del CSSL?", responseType: "C_NC_OM_NA" },
-        { id: "12.12", label: "¿Libro de actas del CSSL al día?", responseType: "C_NC_OM_NA" },
-        { id: "12.13", label: "¿Consignación mensual de minutas al INPSASEL?", responseType: "C_NC_OM_NA" },
-        { id: "12.14", label: "¿Informe Epidemiológico sellado por INPSASEL?", responseType: "C_NC_OM_NA" },
-        { id: "12.15", label: "¿16 horas trimestrales de formación cumplidas?", responseType: "C_NC_OM_NA" },
-        { id: "12.16", label: "¿Programa SST registrado en INPSASEL?", responseType: "C_NC_OM_NA" },
-        { id: "12.17", label: "¿Servicio SST registrado y actualizado?", responseType: "C_NC_OM_NA" },
-        { id: "12.18", label: "¿RACDA actualizado para la localidad?", responseType: "C_NC_OM_NA" },
-        { id: "12.19", label: "¿Póliza de daños ambientales consignada anual?", responseType: "C_NC_OM_NA" },
-        { id: "12.20", label: "¿Informe anual de almacenamiento consignado?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "13_expedientes",
-      title: "13. Expedientes del Trabajador",
-      items: [
-        { id: "13.1", label: "¿Exámenes médicos periódicos vigentes?", responseType: "C_NC_OM_NA" },
-        { id: "13.2", label: "¿Hojas de Ruta de Trabajo en expedientes?", responseType: "C_NC_OM_NA" },
-        { id: "13.3", label: "¿Descripción de Cargo en expedientes?", responseType: "C_NC_OM_NA" },
-        { id: "13.4", label: "¿Constancia de entrega de EPP en expedientes?", responseType: "C_NC_OM_NA" },
-        { id: "13.5", label: "¿Notificación de Riesgos en expedientes?", responseType: "C_NC_OM_NA" },
-        { id: "13.6", label: "¿Análisis de Riesgo de Tareas (ART)?", responseType: "C_NC_OM_NA" },
-        { id: "13.7", label: "¿Certificación MATPEL vigente en expedientes?", responseType: "C_NC_OM_NA" },
-        { id: "13.8", label: "¿Política de SST firmada por trabajadores?", responseType: "C_NC_OM_NA" },
-        { id: "13.9", label: "¿Política vial firmada por trabajadores?", responseType: "C_NC_OM_NA" },
-        { id: "13.10", label: "¿Notificación de cambios en condiciones de trabajo?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "14_hojas_seguimiento",
-      title: "14. Hojas de Seguimiento y Transporte",
-      items: [
-        { id: "14.1", label: "¿Hojas de seguimiento llenas correctamente?", responseType: "C_NC_OM_NA" },
-        { id: "14.2", label: "¿Material de impresión hoja seguimiento adecuado?", responseType: "C_NC_OM_NA" },
-        { id: "14.3", label: "¿Hojas de transporte llenas correctamente?", responseType: "C_NC_OM_NA" },
-        { id: "14.4", label: "¿Material de impresión hoja transporte adecuado?", responseType: "C_NC_OM_NA" },
-        { id: "14.5", label: "¿Archivo cronológico de guías/hojas?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "15_montacargas",
-      title: "15. Montacargas",
-      items: [
-        { id: "15.1", label: "¿Montacargas en buenas condiciones generales?", responseType: "C_NC_OM_NA" },
-        { id: "15.2", label: "¿Extintor del montacargas vigente y fijo?", responseType: "C_NC_OM_NA" },
-        { id: "15.3", label: "¿Cinturón de seguridad en buen estado?", responseType: "C_NC_OM_NA" },
-        { id: "15.4", label: "¿Uso del cinturón por el operador?", responseType: "C_NC_OM_NA" },
-        { id: "15.5", label: "¿Luces frontales operativas?", responseType: "C_NC_OM_NA" },
-        { id: "15.6", label: "¿Alarma de retroceso/pito operativo?", responseType: "C_NC_OM_NA" },
-        { id: "15.7", label: "¿Bocina operativa?", responseType: "C_NC_OM_NA" },
-        { id: "15.8", label: "¿Registro de inspección diaria?", responseType: "C_NC_OM_NA" },
-        { id: "15.9", label: "¿Plan de mantenimiento (trazabilidad)?", responseType: "C_NC_OM_NA" },
-        { id: "15.10", label: "¿Licencia de 5ta grado vigente (Operador)?", responseType: "C_NC_OM_NA" },
-        { id: "15.11", label: "¿Certificado médico vigente (Operador)?", responseType: "C_NC_OM_NA" },
-        { id: "15.12", label: "¿Evaluación médica especial (Visual/Auditiva)?", responseType: "C_NC_OM_NA" },
-        { id: "15.13", label: "¿Certificación de manejo de montacargas?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "16_cilindros",
-      title: "16. Cilindros de Gas",
-      items: [
-        { id: "16.1", label: "¿Cilindros en buen estado?", responseType: "C_NC_OM_NA" },
-        { id: "16.2", label: "¿Cilindros verticales y asegurados?", responseType: "C_NC_OM_NA" },
-        { id: "16.3", label: "¿Protección contra calor/sol?", responseType: "C_NC_OM_NA" },
-        { id: "16.4", label: "¿Área ventilada y sin combustibles cerca?", responseType: "C_NC_OM_NA" },
-        { id: "16.5", label: "¿Uso de carros/cestas para traslado?", responseType: "C_NC_OM_NA" },
-        { id: "16.6", label: "¿Identificación del tipo de gas?", responseType: "C_NC_OM_NA" },
-        { id: "16.7", label: "¿Colmenas/Estructuras sin óxido/daños?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "17_tanques",
-      title: "17. Tanques de Combustible",
-      items: [
-        { id: "17.1", label: "¿Tanques estructuralmente sanos?", responseType: "C_NC_OM_NA" },
-        { id: "17.2", label: "¿Superficie sólida y nivelada?", responseType: "C_NC_OM_NA" },
-        { id: "17.3", label: "¿Muro de contención adecuado?", responseType: "C_NC_OM_NA" },
-        { id: "17.4", label: "¿Capacidad del muro 110% del tanque mayor?", responseType: "C_NC_OM_NA" },
-        { id: "17.5", label: "¿Alejado de fuentes de ignición?", responseType: "C_NC_OM_NA" },
-        { id: "17.6", label: "¿Ubicación en área abierta/ventilada?", responseType: "C_NC_OM_NA" },
-        { id: "17.7", label: "¿Distancia mínima de 6m a edificaciones?", responseType: "C_NC_OM_NA" },
-        { id: "17.8", label: "¿Equipos eléctricos clasificados (antiexplosivos)?", responseType: "C_NC_OM_NA" },
-        { id: "17.9", label: "¿Disposición final aceites según norma?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "18_vehiculos",
-      title: "18. Flota Vehicular",
-      items: [
-        { id: "18.1", label: "¿Inspección diaria de vehículos realizada?", responseType: "C_NC_OM_NA" },
-        { id: "18.3", label: "¿Carga de salida dentro de capacidad?", responseType: "C_NC_OM_NA" },
-        { id: "18.4", label: "¿Carga de retorno dentro de capacidad?", responseType: "C_NC_OM_NA" },
-        { id: "18.5", label: "¿Desgaste de cauchos aceptable?", responseType: "C_NC_OM_NA" },
-        { id: "18.6", label: "¿Trazabilidad de mantenimiento?", responseType: "C_NC_OM_NA" },
-        { id: "18.7", label: "¿Kit lavaojos en unidades?", responseType: "C_NC_OM_NA" },
-        { id: "18.8", label: "¿Kit de derrames en unidades?", responseType: "C_NC_OM_NA" },
-        { id: "18.9", label: "¿Señalización ONU/RACDA/Rombo 9 visible?", responseType: "C_NC_OM_NA" },
-        { id: "18.10", label: "¿Documentación completa en flota?", responseType: "C_NC_OM_NA" },
-        { id: "18.11", label: "¿Implementos de emergencia (Gato, triángulo)?", responseType: "C_NC_OM_NA" },
-        { id: "18.12", label: "¿Cinturones de seguridad operativos?", responseType: "C_NC_OM_NA" },
-        { id: "18.13", label: "¿Licencia 5ta y Certificado Médico vigentes?", responseType: "C_NC_OM_NA" },
-        { id: "18.14", label: "¿Vehículos en buenas condiciones generales?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-  ],
-  scoring: { type: "percentage", conformeThreshold: 90, omThreshold: 70 },
-  signatureFields: ["Elaborado por", "Revisado por"],
+  sections: buildSectionsFromCriteria(CRITERIOS_DISTRIBUIDORAS_OFICIALES),
+  scoring: {
+    type: "percentage",
+    conformeThreshold: 80,
+    omThreshold: 70,
+  },
+  signatureFields: ["Inspector SSA", "Gerente de Distribuidora", "Delegado de Prevención"],
 };
 
 // ============================================================
@@ -491,228 +240,23 @@ export const OL_FORM: InspectionFormDef = {
 };
 
 // ============================================================
-// SSA SERVICENTROS (SC)
+// SSA SERVICENTROS (SC / SERV) — 117 Criterios Oficiales
 // ============================================================
 export const SC_FORM: InspectionFormDef = {
   code: "SC",
   name: "Inspección SSA Servicentros",
-  description: "Inspección de Seguridad, Salud y Ambiente para servicentros del Grupo Duncan (117 criterios)",
+  description: "Inspección Integral de Seguridad, Salud y Ambiente para Servicentros Duncan (117 Criterios Oficiales)",
   additionalFields: [
     { id: "ronda", label: "Ronda N°", type: "number", required: true },
     { id: "fechaCierre", label: "Fecha de Cierre", type: "date" },
   ],
-  sections: [
-    {
-      id: "1_iluminacion",
-      title: "1. Iluminación",
-      items: [
-        { id: "1.1", label: "¿Es suficiente la iluminación (natural o artificial) en las áreas?", responseType: "C_NC_OM_NA" },
-        { id: "1.2", label: "¿Están las luminarias limpias y operativas?", responseType: "C_NC_OM_NA" },
-        { id: "1.3", label: "¿Tienen las luminarias protección contra caída o rotura?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "2_ventilacion",
-      title: "2. Ventilación",
-      items: [
-        { id: "2.1", label: "¿Es adecuada la ventilación/extracción en todas las áreas?", responseType: "C_NC_OM_NA" },
-        { id: "2.2", label: "¿Están operativos los extractores y aires acondicionados?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "3_avisos",
-      title: "3. Avisos o Señalizaciones",
-      items: [
-        { id: "3.1", label: "¿Aviso de \"No Fumar\" visible y fijado?", responseType: "C_NC_OM_NA" },
-        { id: "3.2", label: "¿Aviso de \"No Discriminación\" visible?", responseType: "C_NC_OM_NA" },
-        { id: "3.3", label: "¿Aviso de \"Prohibición de Armas\" visible?", responseType: "C_NC_OM_NA" },
-        { id: "3.4", label: "¿Aviso del número de emergencia 911 visible?", responseType: "C_NC_OM_NA" },
-        { id: "3.5", label: "¿Cartelera informativa de SSA visible en áreas operativas?", responseType: "C_NC_OM_NA" },
-        { id: "3.6", label: "¿Señalización de vías de escape visible y fijada?", responseType: "C_NC_OM_NA" },
-        { id: "3.7", label: "¿Señalización de riesgos específicos (Eléctrico, NFPA, DOT)?", responseType: "C_NC_OM_NA" },
-        { id: "3.8", label: "¿Señalización visible de equipos contra incendio (sin obstáculos)?", responseType: "C_NC_OM_NA" },
-        { id: "3.9", label: "¿Contenedor de estopas identificado con Rombo ONU 9?", responseType: "C_NC_OM_NA" },
-        { id: "3.10", label: "¿Área de baterías identificada con Rombo NFPA 704?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "4_almacenamiento",
-      title: "4. Almacenamiento",
-      items: [
-        { id: "4.1", label: "¿Almacenamiento apilado y organizado en racks/zonas?", responseType: "C_NC_OM_NA" },
-        { id: "4.2", label: "¿Estanterías y racks en buen estado y anclados?", responseType: "C_NC_OM_NA" },
-        { id: "4.3", label: "¿Baterías inservibles protegidas de la intemperie?", responseType: "C_NC_OM_NA" },
-        { id: "4.4", label: "¿Piso impermeable en área de baterías (evita filtración ácida)?", responseType: "C_NC_OM_NA" },
-        { id: "4.5", label: "¿Baterías alejadas de fuentes de calor o energía?", responseType: "C_NC_OM_NA" },
-        { id: "4.6", label: "¿Se garantiza que el ácido no llegue a drenajes o aguas?", responseType: "C_NC_OM_NA" },
-        { id: "4.7", label: "¿Orden y limpieza en áreas de almacenamiento?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "5_herramientas",
-      title: "5. Herramientas y Equipos",
-      items: [
-        { id: "5.1", label: "¿Áreas de equipos y herramientas limpias y ordenadas?", responseType: "C_NC_OM_NA" },
-        { id: "5.2", label: "¿Equipos y herramientas en buenas condiciones?", responseType: "C_NC_OM_NA" },
-        { id: "5.3", label: "¿Existe contenedor para estopas usadas?", responseType: "C_NC_OM_NA" },
-        { id: "5.4", label: "¿Contenedor de estopas solo tiene residuos permitidos?", responseType: "C_NC_OM_NA" },
-        { id: "5.5", label: "¿Carretillas y transpaletas en buen estado (ruedas, gatos)?", responseType: "C_NC_OM_NA" },
-        { id: "5.6", label: "¿Mantenimiento de orden y limpieza en almacenes?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "6_extincion",
-      title: "6. Sistemas de Extinción y Detección de Incendios",
-      items: [
-        { id: "6.1", label: "¿Extintores señalizados, con instrucciones y vigentes?", responseType: "C_NC_OM_NA" },
-        { id: "6.2", label: "¿Extintores accesibles y sin obstáculos?", responseType: "C_NC_OM_NA" },
-        { id: "6.3", label: "¿Extintores con mantenimiento anual vigente?", responseType: "C_NC_OM_NA" },
-        { id: "6.4", label: "¿Altura de extintores correcta (10cm a 1.30m)?", responseType: "C_NC_OM_NA" },
-        { id: "6.5", label: "¿Existe sistema de detección y alarma de incendios?", responseType: "C_NC_OM_NA" },
-        { id: "6.6", label: "¿El sistema de detección funciona correctamente?", responseType: "C_NC_OM_NA" },
-        { id: "6.7", label: "¿Luces de emergencia operativas y buen estado?", responseType: "C_NC_OM_NA" },
-        { id: "6.8", label: "¿Estaciones manuales libres de obstáculos y buen estado?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "7_emergencias",
-      title: "7. Atención de Emergencias",
-      items: [
-        { id: "7.1", label: "¿Se cuenta con Plan de Emergencia documentado?", responseType: "C_NC_OM_NA" },
-        { id: "7.2", label: "¿Personal formado en brigada de emergencia integral?", responseType: "C_NC_OM_NA" },
-        { id: "7.3", label: "¿Existe adiestramiento continuo para la brigada?", responseType: "C_NC_OM_NA" },
-        { id: "7.4", label: "¿Se realizan simulacros de desalojo anuales?", responseType: "C_NC_OM_NA" },
-        { id: "7.5", label: "¿Puertas de salida abren fácilmente desde el interior?", responseType: "C_NC_OM_NA" },
-        { id: "7.6", label: "¿Puertas de emergencia libres y abren hacia afuera?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "8_instalaciones",
-      title: "8. Instalaciones del Local",
-      items: [
-        { id: "8.1", label: "¿Mobiliario de oficina ergonómico y en buen estado?", responseType: "C_NC_OM_NA" },
-        { id: "8.2", label: "¿Oficina de ventas ordenada y limpia?", responseType: "C_NC_OM_NA" },
-        { id: "8.3", label: "¿Cableado eléctrico canalizado y protegido?", responseType: "C_NC_OM_NA" },
-        { id: "8.4", label: "¿Regletas y tomas sin sobrecarga eléctrica?", responseType: "C_NC_OM_NA" },
-        { id: "8.5", label: "¿Puertas y cerraduras funcionan correctamente?", responseType: "C_NC_OM_NA" },
-        { id: "8.6", label: "¿Tanque de agua sanitario operativo para contingencias?", responseType: "C_NC_OM_NA" },
-        { id: "8.7", label: "¿Bomba de agua operativa (si aplica tanque subterráneo)?", responseType: "C_NC_OM_NA" },
-        { id: "8.8", label: "¿Baños con dispensadores de jabón y papel?", responseType: "C_NC_OM_NA" },
-        { id: "8.9", label: "¿Piezas sanitarias funcionales y en buen estado?", responseType: "C_NC_OM_NA" },
-        { id: "8.10", label: "¿Dispensadores de baños con suministro activo?", responseType: "C_NC_OM_NA" },
-        { id: "8.11", label: "¿Higiene y limpieza garantizada en baños?", responseType: "C_NC_OM_NA" },
-        { id: "8.12", label: "¿Suministro adecuado de papel, jabón y secante?", responseType: "C_NC_OM_NA" },
-        { id: "8.13", label: "¿Almacén de consumibles de limpieza ordenado?", responseType: "C_NC_OM_NA" },
-        { id: "8.14", label: "¿Existe espacio habilitado para comedor?", responseType: "C_NC_OM_NA" },
-        { id: "8.15", label: "¿Comedor separado de áreas de trabajo/contaminantes?", responseType: "C_NC_OM_NA" },
-        { id: "8.16", label: "¿Comedor con temperatura/clima adecuado?", responseType: "C_NC_OM_NA" },
-        { id: "8.17", label: "¿Equipos de comedor (nevera, microondas) higiénicos?", responseType: "C_NC_OM_NA" },
-        { id: "8.18", label: "¿Orden y limpieza en el área de comedor?", responseType: "C_NC_OM_NA" },
-        { id: "8.19", label: "¿Filtro de agua funcional e higiénico?", responseType: "C_NC_OM_NA" },
-        { id: "8.20", label: "¿Filtro y botellones alejados de contaminación?", responseType: "C_NC_OM_NA" },
-        { id: "8.21", label: "¿Dispensador de vasos cónicos disponible?", responseType: "C_NC_OM_NA" },
-        { id: "8.22", label: "¿Filtro de agua accesible a todos?", responseType: "C_NC_OM_NA" },
-        { id: "8.23", label: "¿Techo sin goteras y con drenaje pluvial?", responseType: "C_NC_OM_NA" },
-        { id: "8.24", label: "¿Paredes sin grietas ni deterioro?", responseType: "C_NC_OM_NA" },
-        { id: "8.25", label: "¿Piso nivelado, sin grietas ni humedad?", responseType: "C_NC_OM_NA" },
-        { id: "8.26", label: "¿Pintura general en buen estado?", responseType: "C_NC_OM_NA" },
-        { id: "8.27", label: "¿Áreas de circulación libres de obstáculos?", responseType: "C_NC_OM_NA" },
-        { id: "8.28", label: "¿Demarcación de pisos visible y en buen estado?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "9_proteccion_colectiva",
-      title: "9. Equipos de Protección Colectiva",
-      items: [
-        { id: "9.1", label: "¿Existe ducha o fuente lavaojos de emergencia?", responseType: "C_NC_OM_NA" },
-        { id: "9.2", label: "¿Ducha/Lavaojos completa y en buen estado?", responseType: "C_NC_OM_NA" },
-        { id: "9.3", label: "¿Presión de agua suficiente en ducha/lavaojos?", responseType: "C_NC_OM_NA" },
-        { id: "9.4", label: "¿Botiquín visible, señalizado y adherido a pared?", responseType: "C_NC_OM_NA" },
-        { id: "9.5", label: "¿El botiquín cuenta con todos los insumos según norma COVENIN 3478?", responseType: "C_NC_OM_NA" },
-        { id: "9.6", label: "¿Kit para control de derrames ácidos disponible?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "10_epp",
-      title: "10. Uniforme y Equipo de Protección Personal",
-      items: [
-        { id: "10.1", label: "¿Uso adecuado del uniforme por trabajadores?", responseType: "C_NC_OM_NA" },
-        { id: "10.2", label: "¿Uniformes en buen estado?", responseType: "C_NC_OM_NA" },
-        { id: "10.3", label: "¿Uso correcto de EPP (lentes, guantes, botas)?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "11_cartelera",
-      title: "11. Cartelera de Seguridad, Salud y Ambiente",
-      items: [
-        { id: "11.1", label: "¿Política de SSL disponible y actualizada?", responseType: "C_NC_OM_NA" },
-        { id: "11.2", label: "¿FDS (Hoja de Seguridad) de Baterías visible en almacén?", responseType: "C_NC_OM_NA" },
-        { id: "11.3", label: "¿Plan de Emergencia cumple COVENIN 823-2?", responseType: "C_NC_OM_NA" },
-        { id: "11.4", label: "¿Permiso de Bomberos publicado en cartelera?", responseType: "C_NC_OM_NA" },
-        { id: "11.5", label: "¿Permiso de Bomberos vigente?", responseType: "C_NC_OM_NA" },
-        { id: "11.6", label: "¿Índices de accidentabilidad actualizados?", responseType: "C_NC_OM_NA" },
-        { id: "11.7", label: "¿Índices de morbilidad actualizados?", responseType: "C_NC_OM_NA" },
-        { id: "11.8", label: "¿Mapa de riesgos publicado y visible?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "12_gestion",
-      title: "12. Gestión de Seguridad, Salud y Ambiente",
-      items: [
-        { id: "12.1", label: "¿Mantenimiento semestral sistema contra incendios?", responseType: "C_NC_OM_NA" },
-        { id: "12.2", label: "¿Inspección de extintores (Semestral)?", responseType: "C_NC_OM_NA" },
-        { id: "12.3", label: "¿Inspección mensual de Orden y Limpieza?", responseType: "C_NC_OM_NA" },
-        { id: "12.4", label: "¿Inspección mensual de herramientas?", responseType: "C_NC_OM_NA" },
-        { id: "12.5", label: "¿Inspección trimestral detección de incendios?", responseType: "C_NC_OM_NA" },
-        { id: "12.6", label: "¿Inspección mensual luces de emergencia?", responseType: "C_NC_OM_NA" },
-        { id: "12.7", label: "¿Inspección mensual Kit de derrames?", responseType: "C_NC_OM_NA" },
-        { id: "12.8", label: "¿Inspección mensual fuente lavaojos?", responseType: "C_NC_OM_NA" },
-        { id: "12.9", label: "¿Registro de Delegados de Prevención vigente?", responseType: "C_NC_OM_NA" },
-        { id: "12.10", label: "¿Registro de CSSL vigente?", responseType: "C_NC_OM_NA" },
-        { id: "12.11", label: "¿Reuniones mensuales del CSSL realizadas?", responseType: "C_NC_OM_NA" },
-        { id: "12.12", label: "¿Minutas del CSSL transcritas al Libro de Actas?", responseType: "C_NC_OM_NA" },
-        { id: "12.13", label: "¿Minutas consignadas mensualmente al INPSASEL?", responseType: "C_NC_OM_NA" },
-        { id: "12.14", label: "¿Informe Epidemiológico sellado por INPSASEL?", responseType: "C_NC_OM_NA" },
-        { id: "12.15", label: "¿Cumplimiento de 16 horas trimestrales de formación?", responseType: "C_NC_OM_NA" },
-        { id: "12.16", label: "¿Programa de SST registrado ante INPSASEL?", responseType: "C_NC_OM_NA" },
-        { id: "12.17", label: "¿Servicio de SST registrado y actualizado?", responseType: "C_NC_OM_NA" },
-        { id: "12.18", label: "¿RACDA actualizado para la localidad?", responseType: "C_NC_OM_NA" },
-        { id: "12.19", label: "¿Póliza de Daños Ambientales consignada (anual)?", responseType: "C_NC_OM_NA" },
-        { id: "12.20", label: "¿Informe Anual de Almacenamiento consignado?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-    {
-      id: "13_expedientes",
-      title: "13. Expedientes de los Colaboradores",
-      items: [
-        { id: "13.1", label: "¿Exámenes médicos (Pre, Post, Vacacional) vigentes?", responseType: "C_NC_OM_NA" },
-        { id: "13.2", label: "¿Hojas de Ruta de Trabajo en expedientes?", responseType: "C_NC_OM_NA" },
-        { id: "13.3", label: "¿Descripción de Cargo en expedientes?", responseType: "C_NC_OM_NA" },
-        { id: "13.4", label: "¿Constancia de entrega de EPP en expedientes?", responseType: "C_NC_OM_NA" },
-        { id: "13.5", label: "¿Notificación de Riesgos (Principios de Prevención)?", responseType: "C_NC_OM_NA" },
-        { id: "13.6", label: "¿Análisis de Riesgo de Tareas (ART) disponible?", responseType: "C_NC_OM_NA" },
-        { id: "13.7", label: "¿Certificación MATPEL vigente en expedientes?", responseType: "C_NC_OM_NA" },
-        { id: "13.8", label: "¿Política de SST firmada por trabajadores?", responseType: "C_NC_OM_NA" },
-        { id: "13.9", label: "¿Política de Seguridad Vial firmada?", responseType: "C_NC_OM_NA" },
-        { id: "13.10", label: "¿Notificación de cambios de condiciones realizada?", responseType: "C_NC_OM_NA" },
-      ],
-      hasObservations: true,
-    },
-  ],
-  scoring: { type: "percentage", conformeThreshold: 90, omThreshold: 70 },
-  signatureFields: ["Inspección realizada por", "Acompañante de la Inspección"],
+  sections: buildSectionsFromCriteria(CRITERIOS_SERVICENTROS_OFICIALES),
+  scoring: {
+    type: "percentage",
+    conformeThreshold: 80,
+    omThreshold: 70,
+  },
+  signatureFields: ["Inspector SSA", "Encargado de Servicentro", "Delegado de Prevención"],
 };
 
 // ============================================================
