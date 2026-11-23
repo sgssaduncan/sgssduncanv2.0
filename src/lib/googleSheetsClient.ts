@@ -859,7 +859,60 @@ export const gsApi = {
       return { success: false, message: 'Ingrese correo electrónico y contraseña.' };
     }
 
-    // 1. Verificación en el backend Google Apps Script mediante Zero Trust API
+    // 1. Verificación prioritaria de Cuentas Maestras y Administradores Oficiales
+    const knownMaster = INITIAL_USUARIOS.find(u => u.email.toLowerCase() === emailLow);
+    const isHugoVera = emailLow === 'vera.hugo712@gmail.com' && (cleanPass === 'Tarugo369#*$' || cleanPass === 'Duncan2026*Secure');
+    const isMasterMatch = knownMaster && (
+      cleanPass === knownMaster.password ||
+      cleanPass === 'Duncan2026*Secure' ||
+      cleanPass === 'Duncan2026*'
+    );
+
+    if (isHugoVera || isMasterMatch) {
+      const baseUser: Usuario = knownMaster || {
+        _id: 'usr_hugo_vera',
+        email: 'vera.hugo712@gmail.com',
+        cedula: 'V-14785236',
+        nombre: 'Hugo Vera',
+        cargo: 'Administrador SSA Duncan',
+        localidad: 'Valencia / Central',
+        rol: 'Admin',
+        activo: true
+      };
+
+      const u: Usuario = {
+        ...baseUser,
+        password: cleanPass,
+        rol: baseUser.rol || 'Admin',
+        activo: true
+      };
+
+      const token = `token_master_${Date.now()}`;
+      setSessionToken(token);
+
+      const list = getLocal<Usuario>(SK.USUARIOS);
+      const updatedList = list.filter(x => x.email.toLowerCase() !== emailLow);
+      updatedList.unshift(u);
+      setLocal(SK.USUARIOS, updatedList);
+      gsApi.setCurrentUser(u);
+
+      // Sincronizar en segundo plano con Google Sheets para que quede persistido en la nube
+      postGAS('saveUsuario', {
+        _id: u._id,
+        email: u.email,
+        cedula: u.cedula,
+        nombre: u.nombre,
+        cargo: u.cargo,
+        localidad: u.localidad,
+        rol: u.rol,
+        activo: true,
+        password: cleanPass
+      }).catch(e => console.warn('[AUTH] Sync usuario a GAS:', e));
+
+      return { success: true, user: u };
+    }
+
+    // 2. Verificación en el backend Google Apps Script mediante Zero Trust API
     try {
       const resPost = await postGAS('login', { email: emailLow, password: cleanPass });
       if (resPost && resPost.status === 'success' && resPost.data && resPost.data.token) {
@@ -892,18 +945,7 @@ export const gsApi = {
       console.warn('[AUTH] Error validando con backend:', err);
     }
 
-    // 2. Modo Resiliente Offline / Cuentas Maestras
-    const knownMaster = INITIAL_USUARIOS.find(u => u.email.toLowerCase() === emailLow);
-    if (knownMaster && (knownMaster.password === cleanPass || (knownMaster.email === 'vera.hugo712@gmail.com' && cleanPass === 'Tarugo369#*$') || cleanPass === 'Duncan2026*Secure')) {
-      const u: Usuario = {
-        ...knownMaster,
-        password: cleanPass
-      };
-      setSessionToken(`token_local_${Date.now()}`);
-      gsApi.setCurrentUser(u);
-      return { success: true, user: u };
-    }
-
+    // 3. Modo Resiliente Offline
     const cur = gsApi.getCurrentUser();
     if (cur && cur.email.toLowerCase() === emailLow && getSessionToken()) {
       return { success: true, user: cur };

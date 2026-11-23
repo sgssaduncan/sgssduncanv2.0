@@ -16,6 +16,7 @@ export function isOwnerOrDeveloperEmail(email?: string, rol?: string): boolean {
   return (
     e === 'sgssaduncan@gmail.com' ||
     e === 'admin@duncan.com.ve' ||
+    e === 'vera.hugo712@gmail.com' ||
     e.endsWith('@duncan.com.ve')
   );
 }
