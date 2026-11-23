@@ -14,6 +14,7 @@ export function isOwnerOrDeveloperEmail(email?: string, rol?: string): boolean {
   if (!email) return false;
   const e = email.toLowerCase().trim();
   return (
+    e === 'sgssaduncan@gmail.com' ||
     e === 'admin@duncan.com.ve' ||
     e.endsWith('@duncan.com.ve')
   );
