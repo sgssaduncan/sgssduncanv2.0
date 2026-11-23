@@ -254,7 +254,14 @@ export default function TrabajadoresPage() {
       (emp.departamento && emp.departamento.toLowerCase().includes(q)) ||
       (emp.sedeNombre && emp.sedeNombre.toLowerCase().includes(q));
 
-    const matchEmpresa = filtroEmpresa === 'TODAS' || emp.empresaNombre === filtroEmpresa;
+    const matchEmpresa = filtroEmpresa === 'TODAS' || 
+      emp.empresaNombre === filtroEmpresa ||
+      emp.empresaNombre?.toLowerCase().trim() === filtroEmpresa.toLowerCase().trim() ||
+      (filtroEmpresa.includes('Acumuladores') && emp.empresaNombre?.includes('Acumuladores')) ||
+      (filtroEmpresa.includes('Distribuidora') && emp.empresaNombre?.includes('Distribuidora')) ||
+      (filtroEmpresa.includes('Fundic') && (emp.empresaNombre?.includes('Fundición') || emp.empresaNombre?.includes('Fundicion'))) ||
+      (filtroEmpresa.includes('1286') && emp.empresaNombre?.includes('1286')) ||
+      (filtroEmpresa.includes('Ayacucho') && emp.empresaNombre?.includes('Ayacucho'));
     const matchEstado = filtroEstado === 'TODOS' || 
                         (filtroEstado === 'ACTIVOS' && emp.activo !== false) || 
                         (filtroEstado === 'INACTIVOS' && emp.activo === false);
@@ -267,6 +274,9 @@ export default function TrabajadoresPage() {
   const totalInactivos = empleados.filter(e => e.activo === false).length;
   const duncanPlanta = empleados.filter(e => e.empresaNombre?.includes('Acumuladores')).length;
   const duncanDist = empleados.filter(e => e.empresaNombre?.includes('Distribuidora')).length;
+  const fundicionCentro = empleados.filter(e => e.empresaNombre?.includes('Fundición') || e.empresaNombre?.includes('Fundicion')).length;
+  const inversiones1286 = empleados.filter(e => e.empresaNombre?.includes('1286')).length;
+  const transporteAyacucho = empleados.filter(e => e.empresaNombre?.includes('Ayacucho')).length;
 
   // Exportar Excel
   const exportToExcel = () => {
@@ -442,41 +452,50 @@ export default function TrabajadoresPage() {
       )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-2">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-1">
           <div className="flex justify-between items-center text-slate-500 text-xs font-semibold">
-            <span>Trabajadores Activos</span>
+            <span>Nómina Activa</span>
             <CheckCircle2 size={16} className="text-emerald-500" />
           </div>
           <div className="text-2xl font-black text-slate-900">{totalActivos}</div>
-          <div className="text-[11px] text-slate-400">Total en nómina operativa</div>
+          <div className="text-[11px] text-slate-400">Total Grupo Duncan</div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-2">
+        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-1">
           <div className="flex justify-between items-center text-slate-500 text-xs font-semibold">
-            <span>Acumuladores Duncan</span>
+            <span>Acumuladores</span>
             <Building size={16} className="text-blue-500" />
           </div>
           <div className="text-2xl font-black text-blue-600">{duncanPlanta}</div>
-          <div className="text-[11px] text-slate-400">Planta & Producción Industrial</div>
+          <div className="text-[11px] text-slate-400">Planta & Producción</div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-2">
+        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-1">
           <div className="flex justify-between items-center text-slate-500 text-xs font-semibold">
-            <span>Distribuidora Duncan</span>
+            <span>Distribuidora</span>
             <Briefcase size={16} className="text-amber-500" />
           </div>
           <div className="text-2xl font-black text-amber-600">{duncanDist}</div>
-          <div className="text-[11px] text-slate-400">Logística, Rutas & Servicentros</div>
+          <div className="text-[11px] text-slate-400">Logística & Servicentros</div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-2">
+        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-1">
           <div className="flex justify-between items-center text-slate-500 text-xs font-semibold">
-            <span>Inactivos / Egresos</span>
-            <Clock size={16} className="text-slate-400" />
+            <span>Fundición Centro</span>
+            <Building size={16} className="text-purple-500" />
           </div>
-          <div className="text-2xl font-black text-slate-500">{totalInactivos}</div>
-          <div className="text-[11px] text-slate-400">Histórico de personal</div>
+          <div className="text-2xl font-black text-purple-600">{fundicionCentro}</div>
+          <div className="text-[11px] text-slate-400">Planta Cagua</div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-1">
+          <div className="flex justify-between items-center text-slate-500 text-xs font-semibold">
+            <span>Inv. 1286 / Ayacucho</span>
+            <Clock size={16} className="text-indigo-500" />
+          </div>
+          <div className="text-2xl font-black text-indigo-600">{inversiones1286 + transporteAyacucho}</div>
+          <div className="text-[11px] text-slate-400">Inv: {inversiones1286} | Ayac: {transporteAyacucho}</div>
         </div>
       </div>
 
@@ -499,10 +518,20 @@ export default function TrabajadoresPage() {
             onChange={e => setFiltroEmpresa(e.target.value)}
             className="select text-xs py-2 px-3 border border-slate-200 rounded-xl"
           >
-            <option value="TODAS">Todas las Empresas</option>
-            {empresas.map(emp => (
-              <option key={emp._id} value={emp.nombre}>{emp.nombre}</option>
-            ))}
+            <option value="TODAS">Todas las Empresas ({totalActivos})</option>
+            {empresas.map(emp => {
+              const count = empleados.filter(e => 
+                e.empresaNombre?.toLowerCase().trim() === emp.nombre.toLowerCase().trim() ||
+                (emp.codigo === 'ADCA' && e.empresaNombre?.includes('Acumuladores')) ||
+                (emp.codigo === 'DDCA' && e.empresaNombre?.includes('Distribuidora')) ||
+                (emp.codigo === 'FDC' && (e.empresaNombre?.includes('Fundición') || e.empresaNombre?.includes('Fundicion'))) ||
+                (emp.codigo === 'INV1286' && e.empresaNombre?.includes('1286')) ||
+                (emp.codigo === 'TAY' && e.empresaNombre?.includes('Ayacucho'))
+              ).length;
+              return (
+                <option key={emp._id} value={emp.nombre}>{emp.nombre} ({count})</option>
+              );
+            })}
           </select>
 
           <div className="flex items-center bg-slate-100 p-1 rounded-xl">
@@ -545,78 +574,84 @@ export default function TrabajadoresPage() {
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
-                <tr>
-                  <th className="py-3 px-4">Cédula</th>
-                  <th className="py-3 px-4">Trabajador</th>
-                  <th className="py-3 px-4">Cargo / Puesto</th>
-                  <th className="py-3 px-4">Departamento</th>
-                  <th className="py-3 px-4">Empresa / Sede</th>
-                  <th className="py-3 px-4">Ingreso</th>
-                  <th className="py-3 px-4">Estatus</th>
-                  {canManage && <th className="py-3 px-4 text-right">Acciones</th>}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filtered.map(emp => (
-                  <tr key={emp.id || emp._id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3 px-4 whitespace-nowrap">
-                      <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                        {emp.cedula}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 whitespace-nowrap">
-                      <div className="font-bold text-slate-900">{emp.nombre}</div>
-                      <div className="text-[10px] text-slate-400">{emp.email || emp.telefono || 'Sin datos de contacto'}</div>
-                    </td>
-                    <td className="py-3 px-4 whitespace-nowrap text-slate-700 font-medium">
-                      {emp.cargo}
-                    </td>
-                    <td className="py-3 px-4 whitespace-nowrap text-slate-600">
-                      {emp.departamento || 'General'}
-                    </td>
-                    <td className="py-3 px-4 whitespace-nowrap">
-                      <div className="font-semibold text-slate-800 text-[11px]">{emp.empresaNombre || 'Duncan'}</div>
-                      <div className="text-[10px] text-slate-400">{emp.sedeNombre || 'Sede Principal'}</div>
-                    </td>
-                    <td className="py-3 px-4 whitespace-nowrap text-slate-500 font-mono text-[11px]">
-                      {emp.fechaIngreso ? formatDate(emp.fechaIngreso) : '—'}
-                    </td>
-                    <td className="py-3 px-4 whitespace-nowrap">
-                      <span className={cn(
-                        "px-2 py-0.5 rounded-full text-[10px] font-bold border",
-                        emp.activo !== false ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-600 border-slate-200"
-                      )}>
-                        {emp.activo !== false ? 'ACTIVO' : 'INACTIVO'}
-                      </span>
-                    </td>
-                    {canManage && (
-                      <td className="py-3 px-4 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => handleOpenEdit(emp)}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Editar datos"
-                          >
-                            <Edit2 size={14} />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(emp)}
-                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Eliminar de nómina"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    )}
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
+                  <tr>
+                    <th className="py-3 px-4">Cédula</th>
+                    <th className="py-3 px-4">Trabajador</th>
+                    <th className="py-3 px-4">Cargo / Puesto</th>
+                    <th className="py-3 px-4">Departamento</th>
+                    <th className="py-3 px-4">Empresa / Sede</th>
+                    <th className="py-3 px-4">Ingreso</th>
+                    <th className="py-3 px-4">Estatus</th>
+                    {canManage && <th className="py-3 px-4 text-right">Acciones</th>}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filtered.map(emp => (
+                    <tr key={emp.id || emp._id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                          {emp.cedula}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <div className="font-bold text-slate-900">{emp.nombre}</div>
+                        <div className="text-[10px] text-slate-400">{emp.email || emp.telefono || 'Sin datos de contacto'}</div>
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap text-slate-700 font-medium">
+                        {emp.cargo}
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap text-slate-600">
+                        {emp.departamento || 'General'}
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <div className="font-semibold text-slate-800 text-[11px]">{emp.empresaNombre || 'Duncan'}</div>
+                        <div className="text-[10px] text-slate-400">{emp.sedeNombre || 'Sede Principal'}</div>
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap text-slate-500 font-mono text-[11px]">
+                        {emp.fechaIngreso ? formatDate(emp.fechaIngreso) : '—'}
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <span className={cn(
+                          "px-2 py-0.5 rounded-full text-[10px] font-bold border",
+                          emp.activo !== false ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-600 border-slate-200"
+                        )}>
+                          {emp.activo !== false ? 'ACTIVO' : 'INACTIVO'}
+                        </span>
+                      </td>
+                      {canManage && (
+                        <td className="py-3 px-4 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => handleOpenEdit(emp)}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Editar datos"
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(emp)}
+                              className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Eliminar de nómina"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-2">
+              <span>Mostrando <strong className="text-slate-800">{filtered.length}</strong> de <strong className="text-slate-800">{empleados.length}</strong> trabajadores registrados</span>
+              <span className="font-semibold text-slate-600">{filtroEmpresa === 'TODAS' ? 'Nómina Consolidada 5 Empresas Grupo Duncan' : filtroEmpresa}</span>
+            </div>
+          </>
         )}
       </div>
 

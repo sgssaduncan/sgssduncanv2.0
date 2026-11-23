@@ -1,6 +1,6 @@
 // ============================================================
 // SGD DUNCAN 2.0 — DATOS MAESTROS (SEED DATA BLINDADOS)
-// 3 Empresas | 11 Localidades | 63 Establecimientos | 16 Tipos de Inspección
+// 5 Empresas Grupo Duncan | 11 Localidades | 63 Establecimientos | 16 Tipos de Inspección
 // ============================================================
 
 import type { Empresa, Localidad, Establecimiento, TipoInspeccion, Empleado, Usuario } from '../types';
@@ -9,7 +9,9 @@ import { PAYROLL_ACTIVE_WORKERS } from './seedEmpleados';
 export const INITIAL_EMPRESAS: Empresa[] = [
   { _id: 'emp_adca', codigo: 'ADCA', nombre: 'Acumuladores Duncan, C.A.', rif: 'J-00000350-5', direccion: 'Av. Milán, Edificio Nageben Piso 1, Los Ruices Sur, Caracas 1071' },
   { _id: 'emp_ddca', codigo: 'DDCA', nombre: 'Distribuidora Duncan, C.A.', rif: 'J-00100047-0', direccion: 'Av. Milán, Edificio Nageben, Los Ruices Sur, Caracas' },
+  { _id: 'emp_fdc', codigo: 'FDC', nombre: 'Fundición del Centro, C.A.', rif: 'J-07504381-8', direccion: 'Zona Industrial Las Vegas, Cagua, Edo. Aragua' },
   { _id: 'emp_inv', codigo: 'INV1286', nombre: 'Inversiones 1286, C.A.', rif: 'J-00239353-0', direccion: 'Caracas, Distrito Capital' },
+  { _id: 'emp_tay', codigo: 'TAY', nombre: 'Transporte Ayacucho, C.A.', rif: 'J-00084321-0', direccion: 'Cagua / Caracas, Venezuela' },
 ];
 
 export const INITIAL_LOCALIDADES: Localidad[] = [

@@ -195,7 +195,7 @@ export const dbService = {
   // ============================================================
   async getEmpresas(): Promise<Empresa[]> {
     let list = getLocal<Empresa>(SK.EMPRESAS);
-    if (!list || list.length === 0) {
+    if (!list || list.length < 5) {
       list = INITIAL_EMPRESAS.map(e => ({ ...e, id: e._id }));
       setLocal(SK.EMPRESAS, list);
     }
@@ -274,7 +274,7 @@ export const dbService = {
 
   async getEmpleados(): Promise<Empleado[]> {
     let list = getLocal<Empleado>(SK.EMPLEADOS);
-    if (!list || list.length === 0) {
+    if (!list || list.length < 500) {
       list = INITIAL_EMPLEADOS.map(e => ({ ...e, id: e._id }));
       setLocal(SK.EMPLEADOS, list);
     }

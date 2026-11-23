@@ -96,8 +96,14 @@ function initLocalStorage() {
   if (!localStorage.getItem(SK.PLAN_ACCION))      localStorage.setItem(SK.PLAN_ACCION, '[]');
   if (!localStorage.getItem(SK.OFFLINE_QUEUE))    localStorage.setItem(SK.OFFLINE_QUEUE, '[]');
   if (!localStorage.getItem(SK.AUDIT_LOG))        localStorage.setItem(SK.AUDIT_LOG, '[]');
-  if (!localStorage.getItem(SK.EMPLEADOS) || localStorage.getItem(SK.EMPLEADOS) === '[]') {
-    localStorage.setItem(SK.EMPLEADOS, JSON.stringify(INITIAL_EMPLEADOS));
+  try {
+    const rawEmp = localStorage.getItem(SK.EMPLEADOS);
+    const parsedEmp = rawEmp ? JSON.parse(rawEmp) : [];
+    if (!Array.isArray(parsedEmp) || parsedEmp.length < 500) {
+      localStorage.setItem(SK.EMPLEADOS, JSON.stringify(INITIAL_EMPLEADOS.map(e => ({ ...e, id: e._id }))));
+    }
+  } catch (e) {
+    localStorage.setItem(SK.EMPLEADOS, JSON.stringify(INITIAL_EMPLEADOS.map(e => ({ ...e, id: e._id }))));
   }
   if (!localStorage.getItem(SK.EVALUACIONES_MED) || localStorage.getItem(SK.EVALUACIONES_MED) === '[]') {
     localStorage.setItem(SK.EVALUACIONES_MED, JSON.stringify(INITIAL_EVALUACIONES_MEDICAS));
