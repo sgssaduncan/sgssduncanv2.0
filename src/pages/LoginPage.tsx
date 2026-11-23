@@ -12,10 +12,6 @@ import {
   Building,
   Briefcase,
   CheckCircle2,
-  AlertCircle,
-  Wifi,
-  WifiOff,
-  Sparkles,
   KeyRound,
   Send,
   ArrowLeft,
@@ -33,7 +29,6 @@ export default function LoginPage() {
     currentUser,
     login,
     register,
-    isOnline,
     resetPasswordWithIdentity,
     requestRecoveryCode
   } = useSGD();
@@ -221,51 +216,40 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 bg-gradient-to-br from-slate-950 via-[#0B132B] to-slate-900 flex flex-col justify-center py-8 px-4 sm:px-6 lg:px-8 font-sans selection:bg-amber-400 selection:text-slate-950">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md md:max-w-xl">
-        {/* Encabezado Corporativo Duncan */}
-        <div className="text-center space-y-3">
-          <div className="inline-flex p-3 bg-slate-900 rounded-2xl border-2 border-amber-400 shadow-2xl shadow-amber-500/20 mb-1">
+    <div className="min-h-screen bg-black flex flex-col justify-center items-center py-10 px-4 sm:px-6 font-sans selection:bg-[#f59e0b] selection:text-slate-950">
+      <div className="w-full max-w-md sm:max-w-lg">
+        {/* Encabezado: Logo Duncan en caja oscura */}
+        <div className="text-center space-y-3 flex flex-col items-center">
+          <div className="p-3 sm:p-4 bg-[#070b14] rounded-xl border border-slate-700/60 shadow-lg inline-flex items-center justify-center">
             <img
               src={DUNCAN_LOGO_COLOR}
-              alt="Acumuladores Duncan Logo Oficial"
-              className="h-12 sm:h-14 w-auto object-contain"
+              alt="Duncan"
+              className="h-10 sm:h-12 w-auto object-contain"
             />
           </div>
 
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight uppercase flex items-center justify-center gap-2">
-              Sistema de Gestión Duncan
-              <span className="text-xs bg-amber-400 text-slate-950 px-2 py-0.5 rounded-md font-black shadow-xs">2.0</span>
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-300 font-medium mt-1 max-w-md mx-auto">
-              Plataforma Corporativa de Seguridad y Salud en el Trabajo, Control Operativo y Dotación EPP
-            </p>
-          </div>
-
-          {/* Badges normativos oficiales */}
-          <div className="flex flex-wrap items-center justify-center gap-2 pt-1 text-[11px] font-bold text-slate-300">
-            <span className="bg-slate-900 px-2.5 py-1 rounded-lg border border-amber-400/40 text-amber-300 shadow-xs">LOPCYMAT Art. 62</span>
-            <span className="bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-700 text-white shadow-xs">INPSASEL NT-03-2016</span>
-            <span className="bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-700 text-white shadow-xs">COVENIN</span>
-            <span className="bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-700 text-white shadow-xs flex items-center gap-1.5">
-              {isOnline ? <Wifi size={13} className="text-emerald-400" /> : <WifiOff size={13} className="text-amber-400" />}
-              {isOnline ? 'Online Sync' : 'Offline Almacén'}
+          {/* Pastilla: SISTEMA DE GESTIÓN DUNCAN 2.0 */}
+          <div className="inline-flex items-center gap-2 bg-[#091124] border border-blue-900/60 px-5 py-1.5 rounded-lg shadow-sm">
+            <span className="text-white font-black text-xs sm:text-sm tracking-wide uppercase">
+              SISTEMA DE GESTIÓN DUNCAN
+            </span>
+            <span className="bg-[#f59e0b] text-slate-950 font-black text-[11px] px-1.5 py-0.5 rounded shadow-xs">
+              2.0
             </span>
           </div>
         </div>
 
-        {/* Tarjeta Principal de Alta Legibilidad y Contraste */}
-        <div className="mt-6 bg-white border-2 border-slate-200 rounded-2xl shadow-2xl overflow-hidden">
+        {/* Tarjeta Principal */}
+        <div className="mt-5 bg-[#0f172a] border border-slate-700/60 rounded-2xl shadow-2xl p-2 sm:p-2.5 overflow-hidden">
           {/* Barra Superior de Pestañas: Iniciar Sesión | Registrarse | Recuperar Acceso */}
-          <div className="grid grid-cols-3 bg-slate-900 p-2 gap-2 border-b-2 border-slate-800">
+          <div className="grid grid-cols-3 gap-1.5 p-1">
             <button
               type="button"
               onClick={() => setActiveTab('login')}
-              className={`flex items-center justify-center gap-1.5 py-3 px-2 rounded-xl text-xs sm:text-sm font-black transition-all ${
+              className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs sm:text-sm font-black transition-all ${
                 activeTab === 'login'
-                  ? 'bg-amber-400 text-slate-950 shadow-md scale-[1.01]'
-                  : 'bg-slate-800/90 text-slate-300 hover:text-white hover:bg-slate-700/80 border border-slate-700'
+                  ? 'bg-[#f59e0b] text-slate-950 shadow-md scale-[1.01]'
+                  : 'bg-transparent text-slate-300 hover:text-white hover:bg-slate-800/60'
               }`}
             >
               <LogIn size={15} />
@@ -274,10 +258,10 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setActiveTab('register')}
-              className={`flex items-center justify-center gap-1.5 py-3 px-2 rounded-xl text-xs sm:text-sm font-black transition-all ${
+              className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs sm:text-sm font-black transition-all ${
                 activeTab === 'register'
-                  ? 'bg-amber-400 text-slate-950 shadow-md scale-[1.01]'
-                  : 'bg-slate-800/90 text-slate-300 hover:text-white hover:bg-slate-700/80 border border-slate-700'
+                  ? 'bg-[#f59e0b] text-slate-950 shadow-md scale-[1.01]'
+                  : 'bg-transparent text-slate-300 hover:text-white hover:bg-slate-800/60'
               }`}
             >
               <UserPlus size={15} />
@@ -286,10 +270,10 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setActiveTab('recover')}
-              className={`flex items-center justify-center gap-1.5 py-3 px-2 rounded-xl text-xs sm:text-sm font-black transition-all ${
+              className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs sm:text-sm font-black transition-all ${
                 activeTab === 'recover'
-                  ? 'bg-amber-400 text-slate-950 shadow-md scale-[1.01]'
-                  : 'bg-slate-800/90 text-slate-300 hover:text-white hover:bg-slate-700/80 border border-slate-700'
+                  ? 'bg-[#f59e0b] text-slate-950 shadow-md scale-[1.01]'
+                  : 'bg-transparent text-slate-300 hover:text-white hover:bg-slate-800/60'
               }`}
             >
               <KeyRound size={15} />
@@ -297,21 +281,22 @@ export default function LoginPage() {
             </button>
           </div>
 
-          <div className="p-6 sm:p-8 space-y-6 bg-white">
+          {/* Tarjeta Blanca de Contenido */}
+          <div className="bg-white rounded-xl p-6 sm:p-7 mt-2 space-y-4">
             {/* Aviso si ya existe sesión activa */}
             {currentUser && (
-              <div className="bg-emerald-50 border-2 border-emerald-400 rounded-xl p-3.5 flex items-center justify-between text-xs sm:text-sm text-emerald-950 shadow-xs">
+              <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-3 flex items-center justify-between text-xs text-emerald-950">
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+                  <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
                   <div>
-                    <span className="font-extrabold">Sesión activa como:</span> {currentUser.nombre} ({currentUser.email})
+                    <span className="font-bold">Sesión activa:</span> {currentUser.nombre} ({currentUser.email})
                   </div>
                 </div>
                 <button
                   onClick={() => navigate('/')}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-3 py-1.5 rounded-lg text-xs transition-colors shadow-xs"
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-2.5 py-1 rounded-lg text-xs transition-colors"
                 >
-                  Ir al Sistema →
+                  Entrar →
                 </button>
               </div>
             )}
@@ -320,12 +305,12 @@ export default function LoginPage() {
             {activeTab === 'login' && (
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
-                  <label className="block text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wide mb-1.5">
-                    Correo Electrónico <span className="text-amber-600">*</span>
+                  <label className="block text-[11px] sm:text-xs font-black text-slate-800 uppercase tracking-wide mb-1.5">
+                    CORREO ELECTRÓNICO <span className="text-[#f59e0b]">*</span>
                   </label>
-                  <div className="relative rounded-xl shadow-xs">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                      <Mail size={18} />
+                  <div className="relative rounded-xl">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Mail size={16} />
                     </div>
                     <input
                       type="email"
@@ -333,20 +318,18 @@ export default function LoginPage() {
                       onChange={e => setLoginEmail(e.target.value)}
                       required
                       placeholder="ejemplo@duncan.com.ve"
-                      className="block w-full pl-11 pr-4 py-3 bg-slate-50 hover:bg-white focus:bg-white border-2 border-slate-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-400/20 rounded-xl text-slate-950 font-bold text-sm sm:text-base placeholder-slate-400 transition-all"
+                      className="block w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] focus:ring-2 focus:ring-amber-400/20 rounded-xl text-slate-900 font-medium text-sm placeholder-slate-400 transition-all focus:outline-none"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wide">
-                      Contraseña <span className="text-amber-600">*</span>
-                    </label>
-                  </div>
-                  <div className="relative rounded-xl shadow-xs">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                      <Lock size={18} />
+                  <label className="block text-[11px] sm:text-xs font-black text-slate-800 uppercase tracking-wide mb-1.5">
+                    CONTRASEÑA <span className="text-[#f59e0b]">*</span>
+                  </label>
+                  <div className="relative rounded-xl">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Lock size={16} />
                     </div>
                     <input
                       type={showLoginPassword ? 'text' : 'password'}
@@ -354,68 +337,60 @@ export default function LoginPage() {
                       onChange={e => setLoginPassword(e.target.value)}
                       required
                       placeholder="Ingrese su contraseña..."
-                      className="block w-full pl-11 pr-11 py-3 bg-slate-50 hover:bg-white focus:bg-white border-2 border-slate-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-400/20 rounded-xl text-slate-950 font-bold text-sm sm:text-base placeholder-slate-400 transition-all"
+                      className="block w-full pl-10 pr-10 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] focus:ring-2 focus:ring-amber-400/20 rounded-xl text-slate-900 font-medium text-sm placeholder-slate-400 transition-all focus:outline-none"
                     />
                     <button
                       type="button"
                       onClick={() => setShowLoginPassword(!showLoginPassword)}
-                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-800 transition-colors"
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
                       title={showLoginPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
                     >
-                      {showLoginPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      {showLoginPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                 </div>
 
-                {/* Enlace a Recuperar Acceso */}
-                <div className="flex justify-end pt-1 text-xs sm:text-sm font-bold">
+                {/* Enlace: ¿Olvidó su contraseña? a la derecha */}
+                <div className="flex justify-end pt-1">
                   <button
                     type="button"
                     onClick={() => {
                       setActiveTab('recover');
                       if (loginEmail) setRecEmail(loginEmail);
                     }}
-                    className="text-amber-700 hover:text-amber-900 underline underline-offset-4 transition-colors flex items-center gap-1"
+                    className="text-xs font-bold text-[#c2410c] hover:text-[#9a3412] inline-flex items-center gap-1 transition-colors"
                   >
-                    <KeyRound size={14} />
-                    ¿Olvidó su contraseña?
+                    <KeyRound size={13} />
+                    <span>¿Olvidó su contraseña?</span>
                   </button>
                 </div>
 
-                {/* Botón Principal de Entrada */}
+                {/* Botón Principal: ENTRAR AL SISTEMA SGD */}
                 <button
                   type="submit"
                   disabled={isLoggingIn}
-                  className="w-full mt-3 bg-amber-400 hover:bg-amber-300 active:scale-[0.99] text-slate-950 font-black py-3.5 px-4 rounded-xl text-sm sm:text-base uppercase tracking-wider transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="w-full mt-4 bg-[#f59e0b] hover:bg-[#d97706] active:scale-[0.99] text-slate-950 font-black py-3 px-4 rounded-xl text-xs sm:text-sm uppercase tracking-wider transition-all shadow-md shadow-amber-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {isLoggingIn ? (
-                    <div className="w-5 h-5 border-3 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
                   ) : (
-                    <LogIn size={18} />
+                    <LogIn size={15} />
                   )}
-                  <span>{isLoggingIn ? 'Iniciando Sesión...' : 'Entrar al Sistema SGD'}</span>
+                  <span>{isLoggingIn ? 'Iniciando Sesión...' : 'ENTRAR AL SISTEMA SGD'}</span>
                 </button>
               </form>
             )}
 
             {/* TAB 2: FORMULARIO DE REGISTRO */}
             {activeTab === 'register' && (
-              <form onSubmit={handleRegister} className="space-y-4">
-                <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3.5 text-xs sm:text-sm text-amber-950 flex items-start gap-2.5 shadow-xs">
-                  <Sparkles size={18} className="text-amber-600 shrink-0 mt-0.5" />
-                  <div className="leading-relaxed font-semibold">
-                    <strong>Registro de Inspector / Supervisor:</strong> Indique sus datos corporativos autorizados para habilitar su acceso al sistema.
-                  </div>
-                </div>
-
-                {/* Nombre y Apellido */}
+              <form onSubmit={handleRegister} className="space-y-3.5">
                 <div>
-                  <label className="block text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wide mb-1.5">
-                    Nombre y Apellido <span className="text-amber-600">*</span>
+                  <label className="block text-[11px] sm:text-xs font-black text-slate-800 uppercase tracking-wide mb-1">
+                    NOMBRE Y APELLIDO <span className="text-[#f59e0b]">*</span>
                   </label>
-                  <div className="relative rounded-xl shadow-xs">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                      <User size={18} />
+                  <div className="relative rounded-xl">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <User size={16} />
                     </div>
                     <input
                       type="text"
@@ -423,19 +398,18 @@ export default function LoginPage() {
                       onChange={e => setRegNombre(e.target.value)}
                       required
                       placeholder="Ej: Pedro Pérez"
-                      className="block w-full pl-11 pr-4 py-3 bg-slate-50 hover:bg-white focus:bg-white border-2 border-slate-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-400/20 rounded-xl text-slate-950 font-bold text-sm sm:text-base placeholder-slate-400 transition-all"
+                      className="block w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] rounded-xl text-slate-900 font-medium text-sm placeholder-slate-400 focus:outline-none"
                     />
                   </div>
                 </div>
 
-                {/* Correo */}
                 <div>
-                  <label className="block text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wide mb-1.5">
-                    Correo Electrónico <span className="text-amber-600">*</span>
+                  <label className="block text-[11px] sm:text-xs font-black text-slate-800 uppercase tracking-wide mb-1">
+                    CORREO ELECTRÓNICO <span className="text-[#f59e0b]">*</span>
                   </label>
-                  <div className="relative rounded-xl shadow-xs">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                      <Mail size={18} />
+                  <div className="relative rounded-xl">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Mail size={16} />
                     </div>
                     <input
                       type="email"
@@ -443,65 +417,63 @@ export default function LoginPage() {
                       onChange={e => setRegEmail(e.target.value)}
                       required
                       placeholder="usuario@duncan.com.ve"
-                      className="block w-full pl-11 pr-4 py-3 bg-slate-50 hover:bg-white focus:bg-white border-2 border-slate-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-400/20 rounded-xl text-slate-950 font-bold text-sm sm:text-base placeholder-slate-400 transition-all"
+                      className="block w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] rounded-xl text-slate-900 font-medium text-sm placeholder-slate-400 focus:outline-none"
                     />
                   </div>
                 </div>
 
-                {/* Cargo y Sede */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wide mb-1.5">
-                      Cargo / Especialidad
+                    <label className="block text-[11px] sm:text-xs font-black text-slate-800 uppercase tracking-wide mb-1">
+                      CARGO
                     </label>
-                    <div className="relative rounded-xl shadow-xs">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                        <Briefcase size={18} />
+                    <div className="relative rounded-xl">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <Briefcase size={16} />
                       </div>
                       <input
                         type="text"
                         value={regCargo}
                         onChange={e => setRegCargo(e.target.value)}
-                        placeholder="Ej: Inspector SSA / Supervisor"
-                        className="block w-full pl-11 pr-4 py-3 bg-slate-50 hover:bg-white focus:bg-white border-2 border-slate-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-400/20 rounded-xl text-slate-950 font-bold text-sm placeholder-slate-400 transition-all"
+                        placeholder="Inspector SSA"
+                        className="block w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] rounded-xl text-slate-900 font-medium text-sm placeholder-slate-400 focus:outline-none"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wide mb-1.5">
-                      Sede / Planta Duncan
+                    <label className="block text-[11px] sm:text-xs font-black text-slate-800 uppercase tracking-wide mb-1">
+                      SEDE DUNCAN
                     </label>
-                    <div className="relative rounded-xl shadow-xs">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                        <Building size={18} />
+                    <div className="relative rounded-xl">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <Building size={16} />
                       </div>
                       <select
                         value={regSede}
                         onChange={e => setRegSede(e.target.value)}
-                        className="block w-full pl-11 pr-4 py-3 bg-slate-50 hover:bg-white focus:bg-white border-2 border-slate-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-400/20 rounded-xl text-slate-950 font-bold text-sm transition-all"
+                        className="block w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] rounded-xl text-slate-900 font-medium text-sm focus:outline-none"
                       >
-                        <option value="Planta Principal Los Ruices">Planta Principal Los Ruices (Caracas)</option>
-                        <option value="Distribuidora Valencia">Distribuidora Valencia (Carabobo)</option>
-                        <option value="Distribuidora Maracaibo">Distribuidora Maracaibo (Zulia)</option>
-                        <option value="Distribuidora Barcelona">Distribuidora Barcelona (Anzoátegui)</option>
-                        <option value="Distribuidora Barquisimeto">Distribuidora Barquisimeto (Lara)</option>
-                        <option value="Distribuidora Puerto Ordaz">Distribuidora Puerto Ordaz (Bolívar)</option>
+                        <option value="Planta Principal Los Ruices">Planta Principal Los Ruices</option>
+                        <option value="Distribuidora Valencia">Distribuidora Valencia</option>
+                        <option value="Distribuidora Maracaibo">Distribuidora Maracaibo</option>
+                        <option value="Distribuidora Barcelona">Distribuidora Barcelona</option>
+                        <option value="Distribuidora Barquisimeto">Distribuidora Barquisimeto</option>
+                        <option value="Distribuidora Puerto Ordaz">Distribuidora Puerto Ordaz</option>
                         <option value="Servicentro Guarenas">Servicentro Guarenas</option>
                       </select>
                     </div>
                   </div>
                 </div>
 
-                {/* Contraseñas */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wide mb-1.5">
-                      Contraseña <span className="text-amber-600">* (Mín. 8 car.)</span>
+                    <label className="block text-[11px] sm:text-xs font-black text-slate-800 uppercase tracking-wide mb-1">
+                      CONTRASEÑA <span className="text-[#f59e0b]">*</span>
                     </label>
-                    <div className="relative rounded-xl shadow-xs">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                        <Lock size={18} />
+                    <div className="relative rounded-xl">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <Lock size={16} />
                       </div>
                       <input
                         type={showRegPassword ? 'text' : 'password'}
@@ -509,26 +481,26 @@ export default function LoginPage() {
                         onChange={e => setRegPassword(e.target.value)}
                         required
                         minLength={8}
-                        placeholder="Mínimo 8 car."
-                        className="block w-full pl-11 pr-10 py-3 bg-slate-50 hover:bg-white focus:bg-white border-2 border-slate-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-400/20 rounded-xl text-slate-950 font-bold text-sm placeholder-slate-400 transition-all"
+                        placeholder="Mín. 8 caracteres"
+                        className="block w-full pl-10 pr-9 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] rounded-xl text-slate-900 font-medium text-sm placeholder-slate-400 focus:outline-none"
                       />
                       <button
                         type="button"
                         onClick={() => setShowRegPassword(!showRegPassword)}
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-800"
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
                       >
-                        {showRegPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        {showRegPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                       </button>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wide mb-1.5">
-                      Confirmar Contraseña <span className="text-amber-600">*</span>
+                    <label className="block text-[11px] sm:text-xs font-black text-slate-800 uppercase tracking-wide mb-1">
+                      CONFIRMAR <span className="text-[#f59e0b]">*</span>
                     </label>
-                    <div className="relative rounded-xl shadow-xs">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                        <Lock size={18} />
+                    <div className="relative rounded-xl">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <Lock size={16} />
                       </div>
                       <input
                         type={showRegPassword ? 'text' : 'password'}
@@ -537,7 +509,7 @@ export default function LoginPage() {
                         required
                         minLength={8}
                         placeholder="Repita contraseña"
-                        className="block w-full pl-11 pr-4 py-3 bg-slate-50 hover:bg-white focus:bg-white border-2 border-slate-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-400/20 rounded-xl text-slate-950 font-bold text-sm placeholder-slate-400 transition-all"
+                        className="block w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] rounded-xl text-slate-900 font-medium text-sm placeholder-slate-400 focus:outline-none"
                       />
                     </div>
                   </div>
@@ -546,42 +518,37 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={isRegistering}
-                  className="w-full mt-3 bg-amber-400 hover:bg-amber-300 active:scale-[0.99] text-slate-950 font-black py-3.5 px-4 rounded-xl text-sm sm:text-base uppercase tracking-wider transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="w-full mt-3 bg-[#f59e0b] hover:bg-[#d97706] active:scale-[0.99] text-slate-950 font-black py-3 px-4 rounded-xl text-xs sm:text-sm uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {isRegistering ? (
-                    <div className="w-5 h-5 border-3 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
                   ) : (
-                    <UserPlus size={18} />
+                    <UserPlus size={15} />
                   )}
-                  <span>{isRegistering ? 'Registrando Usuario...' : 'Crear Cuenta e Ingresar'}</span>
+                  <span>REGISTRARSE E INGRESAR</span>
                 </button>
               </form>
             )}
 
-            {/* TAB 3: RECUPERACIÓN DE ACCESO MEDIANTE OTP SEGURO */}
+            {/* TAB 3: RECUPERACIÓN DE ACCESO MEDIANTE OTP */}
             {activeTab === 'recover' && (
               <div className="space-y-4">
-                <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-3.5 flex items-start gap-2.5 shadow-xs">
-                  <ShieldCheck size={20} className="text-blue-600 shrink-0 mt-0.5" />
-                  <div>
-                    <h3 className="text-xs sm:text-sm font-black text-blue-950 uppercase tracking-wide">
-                      Recuperación de Contraseña Segura (OTP)
-                    </h3>
-                    <p className="text-xs text-blue-900 mt-0.5 font-medium leading-relaxed">
-                      Por políticas de seguridad Zero-Trust, se enviará un código numérico temporal (OTP) de 6 dígitos a su correo electrónico para validar su identidad.
-                    </p>
-                  </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-start gap-2.5">
+                  <ShieldCheck size={18} className="text-blue-600 shrink-0 mt-0.5" />
+                  <p className="text-xs text-blue-900 leading-relaxed font-medium">
+                    Por seguridad, enviaremos un código numérico temporal (OTP) de 6 dígitos a su correo para validar su identidad.
+                  </p>
                 </div>
 
                 {!otpSent ? (
-                  <form onSubmit={handleRequestOtp} className="space-y-4">
+                  <form onSubmit={handleRequestOtp} className="space-y-3.5">
                     <div>
-                      <label className="block text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wide mb-1.5">
-                        Correo Electrónico Registrado <span className="text-amber-600">*</span>
+                      <label className="block text-[11px] sm:text-xs font-black text-slate-800 uppercase tracking-wide mb-1.5">
+                        CORREO ELECTRÓNICO REGISTRADO <span className="text-[#f59e0b]">*</span>
                       </label>
-                      <div className="relative rounded-xl shadow-xs">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                          <Mail size={18} />
+                      <div className="relative rounded-xl">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                          <Mail size={16} />
                         </div>
                         <input
                           type="email"
@@ -589,7 +556,7 @@ export default function LoginPage() {
                           onChange={e => setRecEmail(e.target.value)}
                           required
                           placeholder="ejemplo@duncan.com.ve"
-                          className="block w-full pl-11 pr-4 py-3 bg-slate-50 hover:bg-white focus:bg-white border-2 border-slate-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-400/20 rounded-xl text-slate-950 font-bold text-sm sm:text-base placeholder-slate-400 transition-all"
+                          className="block w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] rounded-xl text-slate-900 font-medium text-sm placeholder-slate-400 focus:outline-none"
                         />
                       </div>
                     </div>
@@ -597,21 +564,21 @@ export default function LoginPage() {
                     <button
                       type="submit"
                       disabled={isRequestingOtp}
-                      className="w-full bg-slate-900 hover:bg-slate-800 text-amber-400 font-black py-3.5 px-4 rounded-xl text-xs sm:text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-50"
+                      className="w-full bg-[#f59e0b] hover:bg-[#d97706] active:scale-[0.99] text-slate-950 font-black py-3 px-4 rounded-xl text-xs sm:text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-50"
                     >
                       {isRequestingOtp ? (
-                        <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
                       ) : (
-                        <Send size={16} />
+                        <Send size={15} />
                       )}
-                      <span>{isRequestingOtp ? 'Enviando Código...' : 'Enviar Código OTP a mi Correo'}</span>
+                      <span>ENVIAR CÓDIGO OTP A MI CORREO</span>
                     </button>
                   </form>
                 ) : (
-                  <form onSubmit={handleSaveNewPassword} className="space-y-4">
-                    <div className="bg-emerald-50 border-2 border-emerald-300 rounded-xl p-3 flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2 text-emerald-900 font-bold">
-                        <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                  <form onSubmit={handleSaveNewPassword} className="space-y-3.5">
+                    <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-2.5 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5 text-emerald-900 font-bold">
+                        <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
                         <span>Código enviado a: <strong className="font-mono">{recEmail}</strong></span>
                       </div>
                       <button
@@ -624,8 +591,8 @@ export default function LoginPage() {
                     </div>
 
                     <div>
-                      <label className="block text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wide mb-1.5">
-                        Código de Verificación OTP (6 Dígitos) <span className="text-amber-600">*</span>
+                      <label className="block text-[11px] sm:text-xs font-black text-slate-800 uppercase tracking-wide mb-1">
+                        CÓDIGO DE 6 DÍGITOS <span className="text-[#f59e0b]">*</span>
                       </label>
                       <input
                         type="text"
@@ -634,17 +601,17 @@ export default function LoginPage() {
                         required
                         maxLength={6}
                         placeholder="123456"
-                        className="block w-full py-3 bg-slate-50 border-2 border-slate-300 rounded-xl text-slate-950 text-center font-mono font-black text-lg tracking-widest focus:border-amber-500 focus:outline-none"
+                        className="block w-full py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-950 text-center font-mono font-black text-lg tracking-widest focus:border-amber-500 focus:outline-none"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wide mb-1.5">
-                        Nueva Contraseña <span className="text-amber-600">* (Mín. 8 caracteres)</span>
+                      <label className="block text-[11px] sm:text-xs font-black text-slate-800 uppercase tracking-wide mb-1">
+                        NUEVA CONTRASEÑA <span className="text-[#f59e0b]">* (MÍN. 8 CARACTERES)</span>
                       </label>
-                      <div className="relative rounded-xl shadow-xs">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                          <Lock size={18} />
+                      <div className="relative rounded-xl">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                          <Lock size={16} />
                         </div>
                         <input
                           type={showRecPassword ? 'text' : 'password'}
@@ -653,25 +620,25 @@ export default function LoginPage() {
                           required
                           minLength={8}
                           placeholder="Nueva contraseña..."
-                          className="block w-full pl-11 pr-11 py-3 bg-slate-50 border-2 border-slate-300 rounded-xl text-slate-950 text-sm font-bold placeholder-slate-400 focus:border-amber-500 focus:outline-none"
+                          className="block w-full pl-10 pr-9 py-2.5 bg-white border border-slate-300 focus:border-amber-500 rounded-xl text-slate-900 font-medium text-sm placeholder-slate-400 focus:outline-none"
                         />
                         <button
                           type="button"
                           onClick={() => setShowRecPassword(!showRecPassword)}
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-800"
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
                         >
-                          {showRecPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          {showRecPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                         </button>
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wide mb-1.5">
-                        Confirmar Nueva Contraseña <span className="text-amber-600">*</span>
+                      <label className="block text-[11px] sm:text-xs font-black text-slate-800 uppercase tracking-wide mb-1">
+                        CONFIRMAR NUEVA CONTRASEÑA <span className="text-[#f59e0b]">*</span>
                       </label>
-                      <div className="relative rounded-xl shadow-xs">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                          <Lock size={18} />
+                      <div className="relative rounded-xl">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                          <Lock size={16} />
                         </div>
                         <input
                           type={showRecPassword ? 'text' : 'password'}
@@ -680,7 +647,7 @@ export default function LoginPage() {
                           required
                           minLength={8}
                           placeholder="Repita la nueva contraseña..."
-                          className="block w-full pl-11 pr-4 py-3 bg-slate-50 border-2 border-slate-300 rounded-xl text-slate-950 text-sm font-bold placeholder-slate-400 focus:border-amber-500 focus:outline-none"
+                          className="block w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 focus:border-amber-500 rounded-xl text-slate-900 font-medium text-sm placeholder-slate-400 focus:outline-none"
                         />
                       </div>
                     </div>
@@ -688,26 +655,25 @@ export default function LoginPage() {
                     <button
                       type="submit"
                       disabled={isResettingPassword}
-                      className="w-full mt-2 bg-amber-400 hover:bg-amber-300 active:scale-[0.99] text-slate-950 font-black py-3.5 px-4 rounded-xl text-xs sm:text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 disabled:opacity-50"
+                      className="w-full mt-2 bg-[#f59e0b] hover:bg-[#d97706] active:scale-[0.99] text-slate-950 font-black py-3 px-4 rounded-xl text-xs sm:text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-50"
                     >
                       {isResettingPassword ? (
-                        <div className="w-5 h-5 border-3 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
                       ) : (
-                        <CheckCircle2 size={18} />
+                        <CheckCircle2 size={16} />
                       )}
-                      <span>{isResettingPassword ? 'Validando con Servidor...' : 'Guardar Nueva Contraseña e Ingresar'}</span>
+                      <span>GUARDAR NUEVA CONTRASEÑA E INGRESAR</span>
                     </button>
                   </form>
                 )}
 
-                {/* Botón para regresar al Login */}
                 <div className="pt-2 text-center">
                   <button
                     type="button"
                     onClick={() => setActiveTab('login')}
-                    className="text-xs sm:text-sm font-bold text-slate-600 hover:text-slate-950 inline-flex items-center gap-1 transition-colors"
+                    className="text-xs font-bold text-slate-500 hover:text-slate-800 inline-flex items-center gap-1 transition-colors"
                   >
-                    <ArrowLeft size={15} />
+                    <ArrowLeft size={14} />
                     <span>Volver a la pantalla de Inicio de Sesión</span>
                   </button>
                 </div>
@@ -716,10 +682,10 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Footer legal */}
-        <div className="mt-6 text-center text-xs text-slate-400 space-y-1">
-          <p className="font-semibold text-slate-300">Acumuladores Duncan, S.A. • RIF J-00045090-0</p>
-          <p>Servicio de Seguridad y Salud en el Trabajo (SSST) • Todos los derechos reservados © 2026</p>
+        {/* Footer legal con créditos de ERGOEXPRESS */}
+        <div className="mt-6 text-center text-xs text-slate-300 space-y-0.5 font-normal tracking-wide">
+          <p>Desarrollado por: ERGOEXPRESS, C.A., RIF: J-502512462,</p>
+          <p>ergoexpressca@gmail.com, +584244736489</p>
         </div>
       </div>
     </div>
