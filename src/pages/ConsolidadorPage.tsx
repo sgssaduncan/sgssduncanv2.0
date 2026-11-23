@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   BarChart2,
   FileSpreadsheet,
@@ -17,10 +17,20 @@ import {
   Filter,
   TrendingUp,
   Award,
-  PieChart as PieChartIcon,
   ShieldCheck,
-  Printer,
-  ChevronRight
+  FileText,
+  Presentation,
+  Play,
+  Pause,
+  ChevronLeft,
+  ChevronRight,
+  Maximize2,
+  X,
+  SlidersHorizontal,
+  Table as TableIcon,
+  LayoutGrid,
+  Kanban as KanbanIcon,
+  PieChart as ChartIcon
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -32,29 +42,58 @@ import {
   Legend,
   CartesianGrid,
   LineChart,
-  Line
+  Line,
+  Cell
 } from 'recharts';
 import { useSGD } from '../contexts/SGDContext';
 import {
   computeConsolidatedMetrics,
   exportConsolidatedExcel,
-  exportConsolidatedPDF,
-  GlobalMetrics
+  exportFullAnalyticalPDF,
+  exportPresentationDeckPDF,
+  GlobalMetrics,
+  PDFReportConfig
 } from '../lib/consolidadorLogic';
 import toast from 'react-hot-toast';
 
 export default function ConsolidadorPage() {
-  const { inspecciones, isOnline, refreshData } = useSGD();
+  const { inspecciones, refreshData } = useSGD();
 
+  // Estados principales
   const [selectedPeriod, setSelectedPeriod] = useState<'2026-2027' | '2025-2026' | '2024-2025' | 'ALL'>('2026-2027');
   const [activeTab, setActiveTab] = useState<'resumen' | 'matriz' | 'distribuidoras' | 'servicentros' | 'flota' | 'hallazgos' | 'comparativo'>('resumen');
+  
+  // Selector de Formato de Visualización: Tablas, Tarjetas, Kanban, Gráficos
+  const [displayMode, setDisplayMode] = useState<'tabla' | 'tarjetas' | 'kanban' | 'graficos'>('tabla');
+
+  // Filtros
   const [searchQuery, setSearchQuery] = useState('');
   const [filterAmbito, setFilterAmbito] = useState<'TODOS' | 'DISTRIBUIDORA' | 'SERVICENTRO'>('TODOS');
   const [filterRegion, setFilterRegion] = useState<string>('TODAS');
   const [filterStatus, setFilterStatus] = useState<'TODOS' | 'CONFORME' | 'ALERTA' | 'RIESGO'>('TODOS');
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Cálculo en memoria 100% nativo de las métricas consolidadas
+  // Estados de Modales
+  const [showPDFModal, setShowPDFModal] = useState(false);
+  const [showSlidePlayer, setShowSlidePlayer] = useState(false);
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [isAutoplay, setIsAutoplay] = useState(false);
+
+  // Configuración del Reporte PDF
+  const [pdfConfig, setPdfConfig] = useState<PDFReportConfig>({
+    incCover: true,
+    incKPIs: true,
+    incPillars: true,
+    incMatrix: true,
+    incDistribuidoras: true,
+    incServicentros: true,
+    incFlota: true,
+    incDepartments: true,
+    incRanking: true,
+    mode: 'single'
+  });
+
+  // Métricas Consolidadas reactivas 100% nativas
   const metrics: GlobalMetrics = useMemo(() => {
     return computeConsolidatedMetrics(selectedPeriod, inspecciones);
   }, [selectedPeriod, inspecciones]);
@@ -63,14 +102,25 @@ export default function ConsolidadorPage() {
     return inspecciones.filter(i => i.estado === 'Completada').length;
   }, [inspecciones]);
 
-  // Manejador de sincronización en vivo con base de datos SGD
+  // Autoplay para el Visor de Presentaciones
+  useEffect(() => {
+    let timer: any;
+    if (showSlidePlayer && isAutoplay) {
+      timer = setInterval(() => {
+        setCurrentSlideIndex(prev => (prev >= 6 ? 0 : prev + 1));
+      }, 5000);
+    }
+    return () => clearInterval(timer);
+  }, [showSlidePlayer, isAutoplay]);
+
+  // Sincronización en Vivo
   const handleSyncLive = async () => {
     setIsSyncing(true);
-    const toastId = toast.loading('Sincronizando inspecciones con la base de datos SGD 2.0...');
+    const toastId = toast.loading('Sincronizando inspecciones en vivo con SGD 2.0...');
     try {
       await refreshData();
       toast.dismiss(toastId);
-      toast.success(`¡Sincronizadas ${completedCount} inspecciones en vivo con Reportes Consolidados!`);
+      toast.success(`¡Sincronizadas ${completedCount} inspecciones con éxito!`);
     } catch {
       toast.dismiss(toastId);
       toast.error('Error al sincronizar datos.');
@@ -83,25 +133,37 @@ export default function ConsolidadorPage() {
   const handleExportExcel = () => {
     try {
       exportConsolidatedExcel(metrics);
-      toast.success('Archivo Excel (.xlsx) oficial generado con éxito.');
+      toast.success('Libro Excel oficial (.xlsx) descargado.');
     } catch (err) {
       console.error(err);
-      toast.error('Error al exportar archivo Excel.');
+      toast.error('Error al exportar Excel.');
     }
   };
 
-  // Exportar PDF Nativo
-  const handleExportPDF = () => {
+  // Ejecutar Emisión de Reporte PDF Completo
+  const handleGenerateFullPDF = () => {
     try {
-      exportConsolidatedPDF(metrics);
-      toast.success('Reporte Ejecutivo Oficial (PDF) generado exitosamente.');
+      exportFullAnalyticalPDF(metrics, pdfConfig);
+      setShowPDFModal(false);
+      toast.success('Reporte PDF Analítico Completo generado exitosamente.');
     } catch (err) {
       console.error(err);
-      toast.error('Error al exportar reporte PDF.');
+      toast.error('Error al generar Reporte PDF.');
     }
   };
 
-  // Filtrado de filas de la Matriz Integral
+  // Generar Presentación Ejecutiva en PDF (16:9 Panorámica)
+  const handleGeneratePresentationPDF = () => {
+    try {
+      exportPresentationDeckPDF(metrics);
+      toast.success('Presentación de Diapositivas (PDF 16:9) generada exitosamente.');
+    } catch (err) {
+      console.error(err);
+      toast.error('Error al generar la presentación en PDF.');
+    }
+  };
+
+  // Filas Filtradas para Matriz y Vistas
   const filteredMatrixRows = useMemo(() => {
     const allRows: any[] = [];
     metrics.regions.forEach(reg => {
@@ -119,16 +181,10 @@ export default function ConsolidadorPage() {
       const reg = String(row.regionName || '').toUpperCase();
       const ef = row.ef ?? 0;
 
-      // Filtro texto
       const matchesSearch = !searchQuery || item.includes(searchQuery.toUpperCase()) || reg.includes(searchQuery.toUpperCase());
-
-      // Filtro ámbito
       const matchesAmbito = filterAmbito === 'TODOS' || amb === filterAmbito;
-
-      // Filtro región
       const matchesRegion = filterRegion === 'TODAS' || reg === filterRegion;
 
-      // Filtro estatus
       let matchesStatus = true;
       if (filterStatus === 'CONFORME') matchesStatus = ef >= 80;
       else if (filterStatus === 'ALERTA') matchesStatus = ef >= 70 && ef < 80;
@@ -138,7 +194,15 @@ export default function ConsolidadorPage() {
     });
   }, [metrics, searchQuery, filterAmbito, filterRegion, filterStatus]);
 
-  // Datos para gráfico de barras de Regiones
+  // Agrupación Kanban
+  const kanbanColumns = useMemo(() => {
+    const conformes = filteredMatrixRows.filter(r => (r.ef ?? 0) >= 80);
+    const alerta = filteredMatrixRows.filter(r => (r.ef ?? 0) >= 70 && (r.ef ?? 0) < 80);
+    const riesgo = filteredMatrixRows.filter(r => (r.ef ?? 0) < 70);
+    return { conformes, alerta, riesgo };
+  }, [filteredMatrixRows]);
+
+  // Datos para gráficos de barras
   const chartRegionsData = useMemo(() => {
     return metrics.regions.map(r => ({
       name: r.name.length > 9 ? r.name.slice(0, 8) + '…' : r.name,
@@ -152,7 +216,7 @@ export default function ConsolidadorPage() {
   return (
     <div className="space-y-5 fade-in">
       {/* =========================================================================
-          ENCABEZADO PRINCIPAL NATIVO Y CONTROLES CORPORATIVOS
+          ENCABEZADO PRINCIPAL NATIVO Y BARRA DE HERRAMIENTAS CORPORATIVAS
           ========================================================================= */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -169,7 +233,7 @@ export default function ConsolidadorPage() {
                   </span>
                 </h1>
                 <p className="text-xs text-slate-400 font-medium">
-                  Matriz Integral 70 Sedes • 10 Distribuidoras (4P) • 50 Servicentros (3P) • Flota • Montacargas • Comparativo Histórico
+                  Matriz Integral 70 Sedes • Indicadores • Tablas • Tarjetas • Kanban • Gráficos • PDF y Presentaciones
                 </p>
               </div>
             </div>
@@ -195,7 +259,7 @@ export default function ConsolidadorPage() {
             </div>
           </div>
 
-          {/* Barra de Acciones y Controles Rápidos */}
+          {/* Barra de Herramientas y Exportaciones */}
           <div className="flex flex-wrap items-center gap-2">
             {/* Selector de Período Oficial */}
             <div className="bg-slate-950 border border-slate-800 rounded-xl p-1 flex items-center gap-1 shadow-sm">
@@ -240,18 +304,43 @@ export default function ConsolidadorPage() {
               title="Descargar libro Excel oficial (.xlsx)"
             >
               <FileSpreadsheet size={14} />
-              <span>Excel (.xlsx)</span>
+              <span>Excel</span>
             </button>
 
-            {/* Exportar PDF */}
+            {/* Botón Modal: Reporte PDF Completo */}
             <button
               type="button"
-              onClick={handleExportPDF}
-              className="bg-amber-400 hover:bg-amber-300 active:scale-95 text-slate-950 font-black text-xs py-2 px-3.5 rounded-xl transition-all flex items-center gap-1.5 shadow-md shadow-amber-500/20"
-              title="Generar Reporte Ejecutivo Oficial (PDF)"
+              onClick={() => setShowPDFModal(true)}
+              className="bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold text-xs py-2 px-3 rounded-xl transition-all flex items-center gap-1.5 shadow-md shadow-blue-700/20"
+              title="Abrir configuración y emisión del Reporte PDF completo"
             >
-              <Download size={14} />
-              <span>PDF Oficial</span>
+              <FileText size={14} />
+              <span>Reporte PDF</span>
+            </button>
+
+            {/* Botón Presentación PDF (Slides) */}
+            <button
+              type="button"
+              onClick={handleGeneratePresentationPDF}
+              className="bg-amber-400 hover:bg-amber-300 active:scale-95 text-slate-950 font-black text-xs py-2 px-3 rounded-xl transition-all flex items-center gap-1.5 shadow-md shadow-amber-500/20"
+              title="Generar y descargar presentación ejecutiva en PDF (16:9)"
+            >
+              <Presentation size={14} />
+              <span>Presentación PDF</span>
+            </button>
+
+            {/* Ver Diapositivas en Pantalla */}
+            <button
+              type="button"
+              onClick={() => {
+                setCurrentSlideIndex(0);
+                setShowSlidePlayer(true);
+              }}
+              className="bg-purple-600 hover:bg-purple-500 active:scale-95 text-white font-bold text-xs py-2 px-3 rounded-xl transition-all flex items-center gap-1.5 shadow-md shadow-purple-700/20"
+              title="Proyectar diapositivas en vivo en pantalla completa"
+            >
+              <Play size={14} />
+              <span>Ver Diapositivas</span>
             </button>
           </div>
         </div>
@@ -291,151 +380,236 @@ export default function ConsolidadorPage() {
       </div>
 
       {/* =========================================================================
-          TAB 1: RESUMEN EJECUTIVO (DASHBOARD Y KPIS GLOBALES)
+          SELECTOR MULTI-MODO DE VISUALIZACIÓN: TABLAS | TARJETAS | KANBAN | GRÁFICOS
           ========================================================================= */}
-      {activeTab === 'resumen' && (
+      <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-md">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-black text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
+            <SlidersHorizontal size={14} className="text-amber-400" />
+            Modo de Visualización:
+          </span>
+          <div className="inline-flex items-center bg-slate-900 p-1 rounded-xl border border-slate-800">
+            <button
+              type="button"
+              onClick={() => setDisplayMode('tabla')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                displayMode === 'tabla'
+                  ? 'bg-amber-400 text-slate-950 shadow-xs'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <TableIcon size={13} />
+              <span>Tablas</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setDisplayMode('tarjetas')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                displayMode === 'tarjetas'
+                  ? 'bg-amber-400 text-slate-950 shadow-xs'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <LayoutGrid size={13} />
+              <span>Tarjetas</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setDisplayMode('kanban')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                displayMode === 'kanban'
+                  ? 'bg-amber-400 text-slate-950 shadow-xs'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <KanbanIcon size={13} />
+              <span>Kanban</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setDisplayMode('graficos')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                displayMode === 'graficos'
+                  ? 'bg-amber-400 text-slate-950 shadow-xs'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <ChartIcon size={13} />
+              <span>Gráficos</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Búsqueda Rápida */}
+        <div className="relative min-w-[240px]">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Filtrar por sede o región..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+          />
+        </div>
+      </div>
+
+      {/* =========================================================================
+          CONTENIDO SEGÚN MODO DE VISUALIZACIÓN SELECCIONADO
+          ========================================================================= */}
+
+      {/* VISTA 1: MODO KANBAN (CONFORME | ALERTA | NO CONFORME) */}
+      {displayMode === 'kanban' && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Columna Conforme */}
+            <div className="bg-slate-900 border border-emerald-500/30 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-emerald-500/20">
+                <h3 className="text-xs font-black text-emerald-400 uppercase flex items-center gap-1.5">
+                  <CheckCircle2 size={16} />
+                  Conforme (≥ 80%)
+                </h3>
+                <span className="bg-emerald-950/80 text-emerald-300 font-mono font-bold text-xs px-2 py-0.5 rounded border border-emerald-500/40">
+                  {kanbanColumns.conformes.length} Sedes
+                </span>
+              </div>
+              <div className="space-y-2.5 max-h-[680px] overflow-y-auto pr-1">
+                {kanbanColumns.conformes.map((item, idx) => (
+                  <div key={idx} className="bg-slate-950 border border-slate-800 rounded-xl p-3 space-y-1.5 hover:border-emerald-500/50 transition-all shadow-sm">
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className="text-xs font-bold text-white">{item.item}</h4>
+                      <span className="text-xs font-mono font-black text-emerald-400">{item.ef}%</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-slate-400">
+                      <span>{item.regionName}</span>
+                      <span className="text-[10px] bg-slate-900 px-1.5 py-0.5 rounded text-slate-300 border border-slate-800">{item.ambito}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Columna Alerta */}
+            <div className="bg-slate-900 border border-amber-500/30 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-amber-500/20">
+                <h3 className="text-xs font-black text-amber-400 uppercase flex items-center gap-1.5">
+                  <AlertTriangle size={16} />
+                  Alerta (70% - 79.9%)
+                </h3>
+                <span className="bg-amber-950/80 text-amber-300 font-mono font-bold text-xs px-2 py-0.5 rounded border border-amber-500/40">
+                  {kanbanColumns.alerta.length} Sedes
+                </span>
+              </div>
+              <div className="space-y-2.5 max-h-[680px] overflow-y-auto pr-1">
+                {kanbanColumns.alerta.map((item, idx) => (
+                  <div key={idx} className="bg-slate-950 border border-slate-800 rounded-xl p-3 space-y-1.5 hover:border-amber-500/50 transition-all shadow-sm">
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className="text-xs font-bold text-white">{item.item}</h4>
+                      <span className="text-xs font-mono font-black text-amber-400">{item.ef}%</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-slate-400">
+                      <span>{item.regionName}</span>
+                      <span className="text-[10px] bg-slate-900 px-1.5 py-0.5 rounded text-slate-300 border border-slate-800">{item.ambito}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Columna No Conforme / Riesgo */}
+            <div className="bg-slate-900 border border-red-500/30 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-red-500/20">
+                <h3 className="text-xs font-black text-red-400 uppercase flex items-center gap-1.5">
+                  <ShieldAlert size={16} />
+                  Riesgo Crítico (&lt; 70%)
+                </h3>
+                <span className="bg-red-950/80 text-red-300 font-mono font-bold text-xs px-2 py-0.5 rounded border border-red-500/40">
+                  {kanbanColumns.riesgo.length} Sedes
+                </span>
+              </div>
+              <div className="space-y-2.5 max-h-[680px] overflow-y-auto pr-1">
+                {kanbanColumns.riesgo.map((item, idx) => (
+                  <div key={idx} className="bg-slate-950 border border-slate-800 rounded-xl p-3 space-y-1.5 hover:border-red-500/50 transition-all shadow-sm">
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className="text-xs font-bold text-white">{item.item}</h4>
+                      <span className="text-xs font-mono font-black text-red-400">{item.ef}%</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-slate-400">
+                      <span>{item.regionName}</span>
+                      <span className="text-[10px] bg-slate-900 px-1.5 py-0.5 rounded text-slate-300 border border-slate-800">{item.ambito}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VISTA 2: MODO TARJETAS (GRID DE SEDES Y RESULTADOS) */}
+      {displayMode === 'tarjetas' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {filteredMatrixRows.map((item, idx) => {
+            const ef = item.ef ?? 0;
+            const isConforme = ef >= 80;
+            const isAlerta = ef >= 70 && ef < 80;
+
+            return (
+              <div key={idx} className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 hover:border-amber-400/50 transition-all shadow-lg">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="text-xs font-black text-white uppercase flex items-center gap-1.5">
+                      {item.isDist ? <Building2 size={14} className="text-amber-400" /> : <Store size={14} className="text-blue-400" />}
+                      {item.item}
+                    </h3>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Región {item.regionName}</p>
+                  </div>
+                  <span className={`text-base font-black font-mono px-2 py-0.5 rounded ${
+                    isConforme ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/40' : (isAlerta ? 'bg-amber-950 text-amber-400 border border-amber-500/40' : 'bg-red-950 text-red-400 border border-red-500/40')
+                  }`}>
+                    {ef}%
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[10px] pt-1 border-t border-slate-800">
+                  <div className="bg-slate-950 p-2 rounded-lg">
+                    <span className="text-slate-500 block">Ronda 1</span>
+                    <span className="font-bold text-slate-300">{item.ronda1 ? `${item.ronda1}%` : '—'}</span>
+                  </div>
+                  <div className="bg-slate-950 p-2 rounded-lg">
+                    <span className="text-slate-500 block">Ronda 2</span>
+                    <span className="font-bold text-slate-300">{item.ronda2 ? `${item.ronda2}%` : '—'}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] pt-1">
+                  <span className="text-[10px] bg-slate-950 text-slate-400 px-2 py-0.5 rounded border border-slate-800 uppercase font-bold">
+                    {item.ambito}
+                  </span>
+                  <span className={`text-[10px] font-black px-2 py-0.5 rounded ${
+                    isConforme ? 'text-emerald-400' : (isAlerta ? 'text-amber-400' : 'text-red-400')
+                  }`}>
+                    {isConforme ? 'Conforme' : (isAlerta ? 'Alerta' : 'Riesgo')}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* VISTA 3: MODO GRÁFICOS (ANÁLISIS VISUAL AVANZADO) */}
+      {displayMode === 'graficos' && (
         <div className="space-y-5">
-          {/* Tarjetas KPI de Primer Nivel */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-black text-slate-400 uppercase tracking-wider">
-                  Puntaje Global Duncan
-                </p>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-3xl font-black text-amber-400">
-                    {metrics.globalScore}%
-                  </span>
-                  <span className="text-[11px] font-bold text-emerald-400 flex items-center">
-                    <TrendingUp size={12} className="mr-0.5" /> +2.6%
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-500 mt-0.5">Meta Corporativa: 80,0%</p>
-              </div>
-              <div className="p-3 bg-amber-400/10 rounded-2xl text-amber-400 border border-amber-400/20">
-                <Award size={26} />
-              </div>
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-black text-slate-400 uppercase tracking-wider">
-                  Ronda 1 vs Ronda 2
-                </p>
-                <div className="flex items-baseline gap-3 mt-1">
-                  <div>
-                    <span className="text-xs text-slate-400 font-bold">R1: </span>
-                    <span className="text-xl font-black text-blue-400">{metrics.ronda1Avg}%</span>
-                  </div>
-                  <div>
-                    <span className="text-xs text-slate-400 font-bold">R2: </span>
-                    <span className="text-xl font-black text-emerald-400">{metrics.ronda2Avg}%</span>
-                  </div>
-                </div>
-                <p className="text-[11px] text-slate-500 mt-0.5">Evolución en Sedes con R2</p>
-              </div>
-              <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-400 border border-blue-500/20">
-                <TrendingUp size={26} />
-              </div>
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-black text-slate-400 uppercase tracking-wider">
-                  Distribución de Sedes
-                </p>
-                <div className="flex items-center gap-2 mt-1.5">
-                  <span className="bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs font-black px-2 py-0.5 rounded">
-                    {metrics.conformesCount} Óptimas
-                  </span>
-                  <span className="bg-amber-950/80 border border-amber-500/40 text-amber-300 text-xs font-black px-2 py-0.5 rounded">
-                    {metrics.alertaCount} Alerta
-                  </span>
-                  <span className="bg-red-950/80 border border-red-500/40 text-red-300 text-xs font-black px-2 py-0.5 rounded">
-                    {metrics.riesgoCount} Riesgo
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-500 mt-1">Total: {metrics.totalRegions} Regiones / 70 Sedes</p>
-              </div>
-              <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-400 border border-emerald-500/20">
-                <ShieldCheck size={26} />
-              </div>
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-black text-slate-400 uppercase tracking-wider">
-                  Equipos y Flota
-                </p>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-xl font-black text-white">
-                    {metrics.totalVehiculos} Vehículos
-                  </span>
-                  <span className="text-xs text-slate-400 font-bold">
-                    • {metrics.totalMontacargas} Montacargas
-                  </span>
-                </div>
-                <p className="text-[11px] text-emerald-400 font-bold mt-0.5">100% Cobertura Nacional</p>
-              </div>
-              <div className="p-3 bg-purple-500/10 rounded-2xl text-purple-400 border border-purple-500/20">
-                <Truck size={26} />
-              </div>
-            </div>
-          </div>
-
-          {/* Desglose de los 4 Pilares Normativos SSA */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
-                  <ShieldCheck size={18} className="text-amber-400" />
-                  Evaluación de los 4 Pilares Normativos SSA Duncan
-                </h2>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Ponderación de estándares técnicos aplicables a Distribuidoras y Servicentros
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {[
-                { title: 'Pilar 1: Infraestructura', pct: metrics.pillarsAvg.infra, desc: 'Edificaciones, Iluminación, Ventilación y Ergonomía', color: 'from-amber-500 to-amber-600', textColor: 'text-amber-400' },
-                { title: 'Pilar 2: Aspectos Legales', pct: metrics.pillarsAvg.legal, desc: 'Conformidad Bomberos, Permisos RACDA e INPSASEL', color: 'from-blue-500 to-blue-600', textColor: 'text-blue-400' },
-                { title: 'Pilar 3: SSA y Riesgos', pct: metrics.pillarsAvg.ssa, desc: 'Comités CSSL, Delegados, EPP y Extintores', color: 'from-emerald-500 to-emerald-600', textColor: 'text-emerald-400' },
-                { title: 'Pilar 4: Vehículos y Flota', pct: metrics.pillarsAvg.veh, desc: 'Carga Pesada, Mantenimiento y Montacargas', color: 'from-purple-500 to-purple-600', textColor: 'text-purple-400' }
-              ].map((pil, idx) => (
-                <div key={idx} className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-black text-slate-300">{pil.title}</span>
-                    <span className={`text-sm font-black ${pil.textColor}`}>{pil.pct}%</span>
-                  </div>
-                  <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
-                    <div
-                      className={`h-full bg-gradient-to-r ${pil.color} rounded-full transition-all duration-700`}
-                      style={{ width: `${Math.min(100, pil.pct)}%` }}
-                    />
-                  </div>
-                  <p className="text-[11px] text-slate-400 leading-tight pt-1">{pil.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Gráfico de Barras: Resultados Generales por Región */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
-                  <BarChart2 size={18} className="text-amber-400" />
-                  Puntaje Global por Región / Localidad
-                </h2>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Comparativa de puntaje consolidado (% de conformidad) entre las 11 Regiones Duncan
-                </p>
-              </div>
-            </div>
-
-            <div className="h-72 w-full pt-2">
+          {/* Gráfico 1: Puntajes por Región */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
+            <h3 className="text-sm font-black text-white uppercase flex items-center gap-2">
+              <BarChart2 size={16} className="text-amber-400" />
+              Puntaje Consolidado de Cumplimiento por Región (%)
+            </h3>
+            <div className="h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartRegionsData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
@@ -454,475 +628,735 @@ export default function ConsolidadorPage() {
             </div>
           </div>
 
-          {/* Tabla Resumen por Departamento Responsable */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
-            <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
-              <Wrench size={18} className="text-amber-400" />
-              Asignación y Cumplimiento por Departamento Responsable
-            </h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider">
-                    <th className="py-2.5 px-3">Departamento</th>
-                    <th className="py-2.5 px-3 text-center text-emerald-400">Conformes (C)</th>
-                    <th className="py-2.5 px-3 text-center text-amber-400">Mejora (OM)</th>
-                    <th className="py-2.5 px-3 text-center text-red-400">No Conformes (NC)</th>
-                    <th className="py-2.5 px-3 text-center text-slate-400">No Aplica (NA)</th>
-                    <th className="py-2.5 px-3 text-center">Total</th>
-                    <th className="py-2.5 px-3 text-right">Cumplimiento (%)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60 font-medium">
-                  {metrics.departmentStats.map((dept, i) => (
-                    <tr key={i} className="hover:bg-slate-800/40 transition-colors">
-                      <td className="py-2.5 px-3 font-bold text-white flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: dept.color }} />
-                        {dept.nombre}
-                      </td>
-                      <td className="py-2.5 px-3 text-center font-bold text-emerald-400">{dept.c}</td>
-                      <td className="py-2.5 px-3 text-center font-bold text-amber-400">{dept.om}</td>
-                      <td className="py-2.5 px-3 text-center font-bold text-red-400">{dept.nc}</td>
-                      <td className="py-2.5 px-3 text-center text-slate-400">{dept.na}</td>
-                      <td className="py-2.5 px-3 text-center font-bold text-slate-300">{dept.total}</td>
-                      <td className="py-2.5 px-3 text-right">
-                        <span className="bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 font-black px-2 py-0.5 rounded">
-                          {dept.pctCumplimiento}%
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {/* Gráfico 2: Desglose de los 4 Pilares */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
+              <h3 className="text-sm font-black text-white uppercase flex items-center gap-2">
+                <ShieldCheck size={16} className="text-amber-400" />
+                Desempeño de los 4 Pilares Normativos
+              </h3>
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    layout="vertical"
+                    data={[
+                      { name: 'Infraestructura', valor: metrics.pillarsAvg.infra, fill: '#f59e0b' },
+                      { name: 'Aspectos Legales', valor: metrics.pillarsAvg.legal, fill: '#3b82f6' },
+                      { name: 'SSA y Riesgos', valor: metrics.pillarsAvg.ssa, fill: '#10b981' },
+                      { name: 'Vehículos / Flota', valor: metrics.pillarsAvg.veh, fill: '#8b5cf6' }
+                    ]}
+                    margin={{ top: 10, right: 20, left: 20, bottom: 10 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                    <XAxis type="number" domain={[50, 100]} stroke="#94a3b8" fontSize={11} />
+                    <YAxis dataKey="name" type="category" stroke="#94a3b8" fontSize={11} width={110} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', fontSize: '12px' }}
+                      itemStyle={{ color: '#f8fafc', fontWeight: 'bold' }}
+                    />
+                    <Bar dataKey="valor" radius={[0, 6, 6, 0]} name="Cumplimiento (%)">
+                      <Cell fill="#f59e0b" />
+                      <Cell fill="#3b82f6" />
+                      <Cell fill="#10b981" />
+                      <Cell fill="#8b5cf6" />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Gráfico 3: Comparativo Histórico 3 Períodos */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
+              <h3 className="text-sm font-black text-white uppercase flex items-center gap-2">
+                <TrendingUp size={16} className="text-amber-400" />
+                Evolución Multianual de Gestión Duncan
+              </h3>
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={metrics.comparisonData} margin={{ top: 10, right: 20, left: -10, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                    <XAxis dataKey="period" stroke="#94a3b8" fontSize={11} />
+                    <YAxis domain={[70, 90]} stroke="#94a3b8" fontSize={11} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', fontSize: '12px' }}
+                      itemStyle={{ color: '#f8fafc', fontWeight: 'bold' }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '5px' }} />
+                    <Line type="monotone" dataKey="score" stroke="#f59e0b" strokeWidth={3} name="Puntaje Global" />
+                    <Line type="monotone" dataKey="infra" stroke="#3b82f6" strokeWidth={2} name="Infraestructura" />
+                    <Line type="monotone" dataKey="legal" stroke="#10b981" strokeWidth={2} name="Legal" />
+                    <Line type="monotone" dataKey="ssa" stroke="#8b5cf6" strokeWidth={2} name="SSA" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* =========================================================================
-          TAB 2: MATRIZ INTEGRAL (70 SEDES INTERACTIVAS)
-          ========================================================================= */}
-      {activeTab === 'matriz' && (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
+      {/* VISTA 4: MODO TABLA TRADICIONAL (TAB-BY-TAB) */}
+      {displayMode === 'tabla' && (
+        <div className="space-y-4">
+          {/* TAB RESUMEN */}
+          {activeTab === 'resumen' && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
               <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
-                <Layers size={18} className="text-amber-400" />
-                Matriz Integral Consolidada — 70 Sedes Nacionales
+                <Award size={18} className="text-amber-400" />
+                Resultados Globales de Gestión — 11 Regiones Duncan
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Evaluación integral de cumplimiento por sede, ámbito y ronda de auditoría
-              </p>
+              <div className="overflow-x-auto border border-slate-800 rounded-xl">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                      <th className="py-2.5 px-3">Región / Localidad</th>
+                      <th className="py-2.5 px-3 text-center">Puntaje Final (%)</th>
+                      <th className="py-2.5 px-3 text-center">Ronda 1 (%)</th>
+                      <th className="py-2.5 px-3 text-center">Ronda 2 (%)</th>
+                      <th className="py-2.5 px-3 text-center">Infraestructura</th>
+                      <th className="py-2.5 px-3 text-center">Aspectos Legales</th>
+                      <th className="py-2.5 px-3 text-center">SSA y Riesgos</th>
+                      <th className="py-2.5 px-3 text-center">Vehículos / Flota</th>
+                      <th className="py-2.5 px-3 text-right">Estatus</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 font-medium bg-slate-900/60">
+                    {metrics.regions.map((r, i) => (
+                      <tr key={i} className="hover:bg-slate-800/50 transition-colors">
+                        <td className="py-2.5 px-3 font-bold text-white flex items-center gap-2">
+                          <Building2 size={14} className="text-amber-400" />
+                          {r.name}
+                        </td>
+                        <td className="py-2.5 px-3 text-center font-mono font-black text-amber-400 text-sm">{r.promReg}%</td>
+                        <td className="py-2.5 px-3 text-center font-mono text-slate-300">{r.ronda1}%</td>
+                        <td className="py-2.5 px-3 text-center font-mono text-slate-300">{r.ronda2}%</td>
+                        <td className="py-2.5 px-3 text-center font-mono text-slate-400">{r.pillars.infra}%</td>
+                        <td className="py-2.5 px-3 text-center font-mono text-slate-400">{r.pillars.legal}%</td>
+                        <td className="py-2.5 px-3 text-center font-mono text-slate-400">{r.pillars.ssa}%</td>
+                        <td className="py-2.5 px-3 text-center font-mono text-slate-400">{r.pillars.veh}%</td>
+                        <td className="py-2.5 px-3 text-right">
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded border ${
+                            r.promReg >= 80 ? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-300' : (r.promReg >= 70 ? 'bg-amber-950/80 border-amber-500/40 text-amber-300' : 'bg-red-950/80 border-red-500/40 text-red-300')
+                          }`}>
+                            {r.promReg >= 80 ? 'Conforme' : (r.promReg >= 70 ? 'Alerta' : 'Riesgo')}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <div className="text-xs font-bold text-slate-400 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
-              Mostrando {filteredMatrixRows.length} Sedes Filtradas
-            </div>
-          </div>
+          )}
 
-          {/* Filtros Interactivos */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 bg-slate-950 p-3 rounded-xl border border-slate-800">
-            {/* Buscador */}
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Buscar por sede o región..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
-              />
+          {/* TAB MATRIZ INTEGRAL */}
+          {activeTab === 'matriz' && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
+                  <Layers size={18} className="text-amber-400" />
+                  Matriz Integral Consolidada — 70 Sedes
+                </h2>
+                <span className="text-xs font-bold text-slate-400">Total: {filteredMatrixRows.length} Sedes</span>
+              </div>
+              <div className="overflow-x-auto max-h-[600px] border border-slate-800 rounded-xl">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="sticky top-0 bg-slate-950 z-10 border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider">
+                    <tr>
+                      <th className="py-2.5 px-3">Establecimiento / Sede</th>
+                      <th className="py-2.5 px-3">Ámbito</th>
+                      <th className="py-2.5 px-3">Región</th>
+                      <th className="py-2.5 px-3 text-center">Ronda 1</th>
+                      <th className="py-2.5 px-3 text-center">Ronda 2</th>
+                      <th className="py-2.5 px-3 text-center">Puntaje Final</th>
+                      <th className="py-2.5 px-3 text-center">Ponderación</th>
+                      <th className="py-2.5 px-3 text-right">Estatus</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 font-medium bg-slate-900/60">
+                    {filteredMatrixRows.map((row, idx) => {
+                      const ef = row.ef ?? (row.ronda2 ?? row.ronda1 ?? 0);
+                      const isConforme = ef >= 80;
+                      const isAlerta = ef >= 70 && ef < 80;
+                      return (
+                        <tr key={idx} className="hover:bg-slate-800/50 transition-colors">
+                          <td className="py-2.5 px-3 font-bold text-white flex items-center gap-2">
+                            {row.isDist ? <Building2 size={14} className="text-amber-400" /> : <Store size={14} className="text-blue-400" />}
+                            <span>{row.item}</span>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded ${
+                              row.isDist ? 'bg-amber-400/10 text-amber-300 border border-amber-400/30' : 'bg-blue-400/10 text-blue-300 border border-blue-400/30'
+                            }`}>
+                              {row.ambito}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-300">{row.regionName}</td>
+                          <td className="py-2.5 px-3 text-center font-mono text-slate-300">{row.ronda1 ? `${row.ronda1}%` : '—'}</td>
+                          <td className="py-2.5 px-3 text-center font-mono text-slate-300">{row.ronda2 ? `${row.ronda2}%` : '—'}</td>
+                          <td className="py-2.5 px-3 text-center font-mono font-black text-white text-sm">{ef ? `${ef}%` : '—'}</td>
+                          <td className="py-2.5 px-3 text-center text-slate-400 font-mono">{row.pond ? `${row.pond}%` : '—'}</td>
+                          <td className="py-2.5 px-3 text-right">
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded border ${
+                              isConforme ? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-300' : (isAlerta ? 'bg-amber-950/80 border-amber-500/40 text-amber-300' : 'bg-red-950/80 border-red-500/40 text-red-300')
+                            }`}>
+                              {isConforme ? 'Conforme' : (isAlerta ? 'Alerta' : 'Riesgo')}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
+          )}
 
-            {/* Ámbito */}
-            <div>
-              <select
-                value={filterAmbito}
-                onChange={e => setFilterAmbito(e.target.value as any)}
-                className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:border-amber-400"
+          {/* TAB DISTRIBUIDORAS */}
+          {activeTab === 'distribuidoras' && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+              <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
+                <Building2 size={18} className="text-amber-400" />
+                10 Distribuidoras Oficiales — Desglose de los 4 Pilares
+              </h2>
+              <div className="overflow-x-auto border border-slate-800 rounded-xl">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                      <th className="py-2.5 px-3">Distribuidora</th>
+                      <th className="py-2.5 px-3">Región</th>
+                      <th className="py-2.5 px-3 text-center">Ronda 1</th>
+                      <th className="py-2.5 px-3 text-center">Ronda 2</th>
+                      <th className="py-2.5 px-3 text-center">Puntaje Final</th>
+                      <th className="py-2.5 px-3 text-center">Ponderación</th>
+                      <th className="py-2.5 px-3 text-right">Estatus</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 font-medium bg-slate-900/60">
+                    {metrics.distribuidorasList.map((d, i) => (
+                      <tr key={i} className="hover:bg-slate-800/50 transition-colors">
+                        <td className="py-2.5 px-3 font-bold text-white flex items-center gap-2">
+                          <Building2 size={14} className="text-amber-400" />
+                          {d.item}
+                        </td>
+                        <td className="py-2.5 px-3 text-slate-300">{d.distribuidora}</td>
+                        <td className="py-2.5 px-3 text-center font-mono text-slate-300">{d.ronda1 ? `${d.ronda1}%` : '—'}</td>
+                        <td className="py-2.5 px-3 text-center font-mono text-slate-300">{d.ronda2 ? `${d.ronda2}%` : '—'}</td>
+                        <td className="py-2.5 px-3 text-center font-mono font-black text-white text-sm">{d.ef ? `${d.ef}%` : '—'}</td>
+                        <td className="py-2.5 px-3 text-center text-slate-400 font-mono">{d.pond ? `${d.pond}%` : '—'}</td>
+                        <td className="py-2.5 px-3 text-right">
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded border ${
+                            (d.ef ?? 0) >= 80 ? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-300' : 'bg-amber-950/80 border-amber-500/40 text-amber-300'
+                          }`}>
+                            {(d.ef ?? 0) >= 80 ? 'Conforme' : 'Alerta'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* TAB SERVICENTROS */}
+          {activeTab === 'servicentros' && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+              <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
+                <Store size={18} className="text-amber-400" />
+                50 Servicentros Oficiales — Evaluación de 3 Pilares
+              </h2>
+              <div className="overflow-x-auto max-h-[600px] border border-slate-800 rounded-xl">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="sticky top-0 bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                      <th className="py-2.5 px-3">Servicentro</th>
+                      <th className="py-2.5 px-3">Distribuidora Asignada</th>
+                      <th className="py-2.5 px-3 text-center">Ronda 1</th>
+                      <th className="py-2.5 px-3 text-center">Ronda 2</th>
+                      <th className="py-2.5 px-3 text-center">Puntaje Final</th>
+                      <th className="py-2.5 px-3 text-center">Ponderación</th>
+                      <th className="py-2.5 px-3 text-right">Estatus</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 font-medium bg-slate-900/60">
+                    {metrics.servicentrosList.map((sc, i) => (
+                      <tr key={i} className="hover:bg-slate-800/50 transition-colors">
+                        <td className="py-2 px-3 font-bold text-white flex items-center gap-1.5">
+                          <Store size={13} className="text-blue-400" />
+                          {sc.item}
+                        </td>
+                        <td className="py-2 px-3 text-slate-300">{sc.distribuidora}</td>
+                        <td className="py-2 px-3 text-center font-mono text-slate-300">{sc.ronda1 ? `${sc.ronda1}%` : '—'}</td>
+                        <td className="py-2 px-3 text-center font-mono text-slate-300">{sc.ronda2 ? `${sc.ronda2}%` : '—'}</td>
+                        <td className="py-2 px-3 text-center font-mono font-black text-white text-sm">{sc.ef ? `${sc.ef}%` : '—'}</td>
+                        <td className="py-2 px-3 text-center text-slate-400 font-mono">{sc.pond ? `${sc.pond}%` : '—'}</td>
+                        <td className="py-2 px-3 text-right">
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded border ${
+                            (sc.ef ?? 0) >= 80 ? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-300' : 'bg-amber-950/80 border-amber-500/40 text-amber-300'
+                          }`}>
+                            {(sc.ef ?? 0) >= 80 ? 'Conforme' : 'Alerta'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* TAB FLOTA */}
+          {activeTab === 'flota' && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+              <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
+                <Truck size={18} className="text-amber-400" />
+                Flota Pesada y Equipos Montacargas por Región
+              </h2>
+              <div className="overflow-x-auto border border-slate-800 rounded-xl">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                      <th className="py-2.5 px-3">Región / Localidad</th>
+                      <th className="py-2.5 px-3 text-center">Vehículos Carga (%)</th>
+                      <th className="py-2.5 px-3 text-center">Montacargas (%)</th>
+                      <th className="py-2.5 px-3 text-center">Pilar 4 Global</th>
+                      <th className="py-2.5 px-3 text-right">Estatus</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 font-medium bg-slate-900/60">
+                    {metrics.regions.map((reg, i) => (
+                      <tr key={i} className="hover:bg-slate-800/50 transition-colors">
+                        <td className="py-2.5 px-3 font-bold text-white">{reg.name}</td>
+                        <td className="py-2.5 px-3 text-center font-mono text-purple-400 font-bold">{reg.flota?.ef ?? '80.0'}%</td>
+                        <td className="py-2.5 px-3 text-center font-mono text-amber-400 font-bold">{reg.montacargas?.ef ?? '85.0'}%</td>
+                        <td className="py-2.5 px-3 text-center font-mono text-white font-black">{reg.pillars.veh}%</td>
+                        <td className="py-2.5 px-3 text-right">
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-500/40 text-emerald-300">
+                            Certificado
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* TAB HALLAZGOS */}
+          {activeTab === 'hallazgos' && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+              <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
+                <Wrench size={18} className="text-amber-400" />
+                Matriz de Desviaciones y Planes de Acción
+              </h2>
+              <div className="overflow-x-auto border border-slate-800 rounded-xl">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                      <th className="py-2.5 px-3">Departamento</th>
+                      <th className="py-2.5 px-3 text-center text-emerald-400">Conformes (C)</th>
+                      <th className="py-2.5 px-3 text-center text-amber-400">Mejora (OM)</th>
+                      <th className="py-2.5 px-3 text-center text-red-400">No Conformes (NC)</th>
+                      <th className="py-2.5 px-3 text-center text-slate-400">No Aplica (NA)</th>
+                      <th className="py-2.5 px-3 text-center">Total</th>
+                      <th className="py-2.5 px-3 text-right">Cumplimiento (%)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 font-medium bg-slate-900/60">
+                    {metrics.departmentStats.map((dept, i) => (
+                      <tr key={i} className="hover:bg-slate-800/40 transition-colors">
+                        <td className="py-2.5 px-3 font-bold text-white flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: dept.color }} />
+                          {dept.nombre}
+                        </td>
+                        <td className="py-2.5 px-3 text-center font-bold text-emerald-400">{dept.c}</td>
+                        <td className="py-2.5 px-3 text-center font-bold text-amber-400">{dept.om}</td>
+                        <td className="py-2.5 px-3 text-center font-bold text-red-400">{dept.nc}</td>
+                        <td className="py-2.5 px-3 text-center text-slate-400">{dept.na}</td>
+                        <td className="py-2.5 px-3 text-center font-bold text-slate-300">{dept.total}</td>
+                        <td className="py-2.5 px-3 text-right">
+                          <span className="bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 font-black px-2 py-0.5 rounded">
+                            {dept.pctCumplimiento}%
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* TAB COMPARATIVO */}
+          {activeTab === 'comparativo' && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+              <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
+                <TrendingUp size={18} className="text-amber-400" />
+                Comparativa Histórica de Gestión (3 Períodos)
+              </h2>
+              <div className="overflow-x-auto border border-slate-800 rounded-xl">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                      <th className="py-2.5 px-3">Período de Gestión</th>
+                      <th className="py-2.5 px-3 text-center">Puntaje Global (%)</th>
+                      <th className="py-2.5 px-3 text-center">Ronda 1</th>
+                      <th className="py-2.5 px-3 text-center">Ronda 2</th>
+                      <th className="py-2.5 px-3 text-center">Infraestructura</th>
+                      <th className="py-2.5 px-3 text-center">Aspectos Legales</th>
+                      <th className="py-2.5 px-3 text-center">SSA y Riesgos</th>
+                      <th className="py-2.5 px-3 text-center">Vehículos</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 font-medium bg-slate-900/60">
+                    {metrics.comparisonData.map((yr, i) => (
+                      <tr key={i} className="hover:bg-slate-800/50 transition-colors">
+                        <td className="py-2.5 px-3 font-bold text-white">{yr.period}</td>
+                        <td className="py-2.5 px-3 text-center font-mono font-black text-amber-400 text-sm">{yr.score}%</td>
+                        <td className="py-2.5 px-3 text-center font-mono text-slate-300">{yr.r1}%</td>
+                        <td className="py-2.5 px-3 text-center font-mono text-slate-300">{yr.r2}%</td>
+                        <td className="py-2.5 px-3 text-center font-mono text-slate-400">{yr.infra}%</td>
+                        <td className="py-2.5 px-3 text-center font-mono text-slate-400">{yr.legal}%</td>
+                        <td className="py-2.5 px-3 text-center font-mono text-slate-400">{yr.ssa}%</td>
+                        <td className="py-2.5 px-3 text-center font-mono text-slate-400">{yr.veh}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL: CONFIGURACIÓN Y EMISIÓN DE REPORTE PDF COMPLETO
+          ========================================================================= */}
+      {showPDFModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-blue-500/10 border border-blue-500/30 rounded-xl text-blue-400">
+                  <FileText size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white uppercase tracking-tight">
+                    Emisión de Reporte Analítico PDF Completo
+                  </h3>
+                  <p className="text-xs text-slate-400">Seleccione las secciones a incluir en el informe corporativo</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPDFModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
               >
-                <option value="TODOS">Todos los Ámbitos</option>
-                <option value="DISTRIBUIDORA">Distribuidoras (4 Pilares)</option>
-                <option value="SERVICENTRO">Servicentros (3 Pilares)</option>
-              </select>
+                <X size={18} />
+              </button>
             </div>
 
-            {/* Región */}
-            <div>
-              <select
-                value={filterRegion}
-                onChange={e => setFilterRegion(e.target.value)}
-                className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:border-amber-400"
-              >
-                <option value="TODAS">Todas las Regiones</option>
-                {metrics.regions.map((r, i) => (
-                  <option key={i} value={r.name}>{r.name}</option>
+            <div className="space-y-3">
+              <p className="text-xs font-black text-amber-400 uppercase tracking-wide">Secciones a Incluir:</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                {[
+                  { key: 'incCover', label: 'Portada Oficial Duncan con Ficha Técnica' },
+                  { key: 'incKPIs', label: 'Resumen Ejecutivo y Métricas Globales' },
+                  { key: 'incPillars', label: 'Evaluación de los 4 Pilares Normativos' },
+                  { key: 'incMatrix', label: 'Matriz Integral 70 Sedes con Rondas' },
+                  { key: 'incDistribuidoras', label: 'Detalle de 10 Distribuidoras (4P)' },
+                  { key: 'incServicentros', label: 'Detalle de 50 Servicentros (3P)' },
+                  { key: 'incFlota', label: 'Flota Pesada y Equipos Montacargas' },
+                  { key: 'incDepartments', label: 'Cumplimiento por Departamento (C/OM/NC/NA)' },
+                  { key: 'incRanking', label: 'Ranking de Sedes y Planes de Acción' }
+                ].map(sec => (
+                  <label key={sec.key} className="flex items-center gap-2.5 bg-slate-950 p-2.5 rounded-xl border border-slate-800 cursor-pointer hover:border-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={(pdfConfig as any)[sec.key]}
+                      onChange={e => setPdfConfig({ ...pdfConfig, [sec.key]: e.target.checked })}
+                      className="rounded text-amber-400 focus:ring-amber-400 bg-slate-900 border-slate-700"
+                    />
+                    <span className="text-slate-300 font-medium">{sec.label}</span>
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
 
-            {/* Nivel de Riesgo */}
-            <div>
-              <select
-                value={filterStatus}
-                onChange={e => setFilterStatus(e.target.value as any)}
-                className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:border-amber-400"
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowPDFModal(false)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition-all"
               >
-                <option value="TODOS">Todos los Niveles</option>
-                <option value="CONFORME">Conforme (≥80%)</option>
-                <option value="ALERTA">Alerta (70% - 79%)</option>
-                <option value="RIESGO">Riesgo (&lt;70%)</option>
-              </select>
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleGenerateFullPDF}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5"
+              >
+                <Download size={14} />
+                <span>Generar y Descargar Reporte PDF</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL: VISOR DE DIAPOSITIVAS / PRESENTACIÓN EN VIVO (SLIDES PLAYER)
+          ========================================================================= */}
+      {showSlidePlayer && (
+        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col justify-between p-4 sm:p-6 animate-in fade-in">
+          {/* Barra Superior del Visor */}
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-amber-400 text-slate-950 rounded-xl font-black text-xs">
+                SLIDE {currentSlideIndex + 1} / 7
+              </div>
+              <div>
+                <h3 className="text-sm sm:text-base font-black text-white uppercase">
+                  {[
+                    'Portada Corporativa Oficial Duncan',
+                    'Resumen Ejecutivo y Resultados de Gestión',
+                    'Evaluación de los 4 Pilares Normativos SSA',
+                    'Ranking y Desempeño de Distribuidoras',
+                    'Inspección de Flota Pesada y Montacargas',
+                    'Asignación y Cumplimiento por Departamento',
+                    'Conclusiones y Compromisos de Mejora Continua'
+                  ][currentSlideIndex]}
+                </h3>
+                <p className="text-xs text-slate-400">Presentación Oficial de Gestión SSA • Período {selectedPeriod}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsAutoplay(!isAutoplay)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  isAutoplay ? 'bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-300'
+                }`}
+              >
+                {isAutoplay ? <Pause size={13} /> : <Play size={13} />}
+                <span>{isAutoplay ? 'Pausar Auto' : 'Auto-Play'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleGeneratePresentationPDF}
+                className="bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-400/30 px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+              >
+                <Download size={13} />
+                <span>Descargar PDF</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowSlidePlayer(false)}
+                className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition-colors"
+              >
+                <X size={20} />
+              </button>
             </div>
           </div>
 
-          {/* Tabla de Sedes */}
-          <div className="overflow-x-auto max-h-[600px] border border-slate-800 rounded-xl">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead className="sticky top-0 bg-slate-950 z-10 border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider">
-                <tr>
-                  <th className="py-2.5 px-3">Establecimiento / Sede</th>
-                  <th className="py-2.5 px-3">Ámbito</th>
-                  <th className="py-2.5 px-3">Región Asignada</th>
-                  <th className="py-2.5 px-3 text-center">Ronda 1</th>
-                  <th className="py-2.5 px-3 text-center">Ronda 2</th>
-                  <th className="py-2.5 px-3 text-center">Puntaje Final</th>
-                  <th className="py-2.5 px-3 text-center">Ponderación</th>
-                  <th className="py-2.5 px-3 text-right">Estatus SSA</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60 font-medium bg-slate-900/60">
-                {filteredMatrixRows.map((row, idx) => {
-                  const ef = row.ef ?? (row.ronda2 ?? row.ronda1 ?? 0);
-                  const isConforme = ef >= 80;
-                  const isAlerta = ef >= 70 && ef < 80;
-
-                  return (
-                    <tr key={idx} className="hover:bg-slate-800/50 transition-colors">
-                      <td className="py-2.5 px-3 font-bold text-white flex items-center gap-2">
-                        {row.isDist ? (
-                          <Building2 size={14} className="text-amber-400 shrink-0" />
-                        ) : (
-                          <Store size={14} className="text-blue-400 shrink-0" />
-                        )}
-                        <span>{row.item}</span>
-                      </td>
-                      <td className="py-2.5 px-3">
-                        <span className={`text-[10px] font-black px-2 py-0.5 rounded ${
-                          row.isDist ? 'bg-amber-400/10 text-amber-300 border border-amber-400/30' : 'bg-blue-400/10 text-blue-300 border border-blue-400/30'
-                        }`}>
-                          {row.ambito}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-300 font-semibold">{row.regionName}</td>
-                      <td className="py-2.5 px-3 text-center font-mono text-slate-300">{row.ronda1 ? `${row.ronda1}%` : '—'}</td>
-                      <td className="py-2.5 px-3 text-center font-mono text-slate-300">{row.ronda2 ? `${row.ronda2}%` : '—'}</td>
-                      <td className="py-2.5 px-3 text-center font-mono font-black text-white text-sm">
-                        {ef ? `${ef}%` : '—'}
-                      </td>
-                      <td className="py-2.5 px-3 text-center text-slate-400 font-mono">
-                        {row.pond ? `${row.pond}%` : '—'}
-                      </td>
-                      <td className="py-2.5 px-3 text-right">
-                        <span className={`text-[10px] font-black px-2.5 py-0.5 rounded border ${
-                          isConforme
-                            ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-300'
-                            : (isAlerta ? 'bg-amber-950/80 border-amber-500/50 text-amber-300' : 'bg-red-950/80 border-red-500/50 text-red-300')
-                        }`}>
-                          {isConforme ? 'Conforme' : (isAlerta ? 'Alerta' : 'Riesgo')}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* =========================================================================
-          TAB 3: DISTRIBUIDORAS (4 PILARES)
-          ========================================================================= */}
-      {activeTab === 'distribuidoras' && (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-          <div>
-            <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
-              <Building2 size={18} className="text-amber-400" />
-              10 Distribuidoras Oficiales Duncan — Evaluación de los 4 Pilares
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Desglose detallado para almacenes y centros mayoristas de distribución nacional
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {metrics.regions.map((reg, idx) => {
-              const d = reg.distribuidora;
-              if (!d) return null;
-              return (
-                <div key={idx} className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-black text-white uppercase flex items-center gap-1.5">
-                        <Building2 size={16} className="text-amber-400" />
-                        {d.item}
-                      </h3>
-                      <p className="text-[11px] text-slate-400 font-medium">Sede Regional {reg.name}</p>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-xl font-black text-amber-400">{d.ef ?? reg.promReg}%</span>
-                      <p className="text-[10px] text-slate-500 font-bold uppercase">Puntaje Final</p>
-                    </div>
-                  </div>
-
-                  {/* 4 Pilares */}
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800/80 text-[11px]">
-                    <div className="bg-slate-900/80 p-2 rounded-lg">
-                      <span className="text-slate-400 block text-[10px]">Infraestructura</span>
-                      <span className="font-bold text-amber-400">{reg.pillars.infra}%</span>
-                    </div>
-                    <div className="bg-slate-900/80 p-2 rounded-lg">
-                      <span className="text-slate-400 block text-[10px]">Aspectos Legales</span>
-                      <span className="font-bold text-blue-400">{reg.pillars.legal}%</span>
-                    </div>
-                    <div className="bg-slate-900/80 p-2 rounded-lg">
-                      <span className="text-slate-400 block text-[10px]">SSA y Riesgos</span>
-                      <span className="font-bold text-emerald-400">{reg.pillars.ssa}%</span>
-                    </div>
-                    <div className="bg-slate-900/80 p-2 rounded-lg">
-                      <span className="text-slate-400 block text-[10px]">Vehículos / Flota</span>
-                      <span className="font-bold text-purple-400">{reg.pillars.veh}%</span>
-                    </div>
-                  </div>
+          {/* Contenido Central de la Diapositiva */}
+          <div className="my-auto py-6 max-w-5xl mx-auto w-full">
+            {currentSlideIndex === 0 && (
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 sm:p-12 text-center space-y-5 shadow-2xl">
+                <span className="text-xs font-black text-amber-400 uppercase tracking-widest bg-amber-400/10 px-4 py-1.5 rounded-full border border-amber-400/30">
+                  Acumuladores Duncan, C.A.
+                </span>
+                <h1 className="text-3xl sm:text-5xl font-black text-white uppercase tracking-tight">
+                  Informe Consolidado Ejecutivo SSA
+                </h1>
+                <p className="text-base sm:text-lg text-slate-300 max-w-2xl mx-auto">
+                  Matriz Integral 70 Sedes • 10 Distribuidoras • 50 Servicentros • Flota Pesada y Montacargas
+                </p>
+                <div className="pt-4 inline-flex items-center gap-4 text-xs font-bold text-slate-400">
+                  <span>Período: <strong className="text-white">{selectedPeriod}</strong></span>
+                  <span>•</span>
+                  <span>Puntaje Global: <strong className="text-amber-400">{metrics.globalScore}%</strong></span>
+                  <span>•</span>
+                  <span>Fecha: <strong className="text-white">{new Date().toLocaleDateString('es-VE')}</strong></span>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+              </div>
+            )}
 
-      {/* =========================================================================
-          TAB 4: SERVICENTROS (3 PILARES)
-          ========================================================================= */}
-      {activeTab === 'servicentros' && (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-          <div>
-            <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
-              <Store size={18} className="text-amber-400" />
-              50 Servicentros Oficiales Duncan — Evaluación de 3 Pilares
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Puntos de atención y servicio al cliente organizados por su distribuidora nodriza
-            </p>
-          </div>
-
-          <div className="overflow-x-auto max-h-[600px] border border-slate-800 rounded-xl">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead className="sticky top-0 bg-slate-950 z-10 border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider">
-                <tr>
-                  <th className="py-2.5 px-3">Servicentro</th>
-                  <th className="py-2.5 px-3">Distribuidora Asignada</th>
-                  <th className="py-2.5 px-3 text-center">Ronda 1</th>
-                  <th className="py-2.5 px-3 text-center">Ronda 2</th>
-                  <th className="py-2.5 px-3 text-center">Puntaje Final</th>
-                  <th className="py-2.5 px-3 text-center">Ponderación</th>
-                  <th className="py-2.5 px-3 text-right">Estatus</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60 font-medium bg-slate-900/60">
-                {metrics.servicentrosList.map((sc, idx) => {
-                  const ef = sc.ef ?? sc.ronda1 ?? 0;
-                  const isConforme = ef >= 80;
-                  const isAlerta = ef >= 70 && ef < 80;
-                  return (
-                    <tr key={idx} className="hover:bg-slate-800/50 transition-colors">
-                      <td className="py-2 px-3 font-bold text-white flex items-center gap-1.5">
-                        <Store size={13} className="text-blue-400 shrink-0" />
-                        <span>{sc.item}</span>
-                      </td>
-                      <td className="py-2 px-3 text-slate-300">{sc.distribuidora}</td>
-                      <td className="py-2 px-3 text-center font-mono text-slate-300">{sc.ronda1 ? `${sc.ronda1}%` : '—'}</td>
-                      <td className="py-2 px-3 text-center font-mono text-slate-300">{sc.ronda2 ? `${sc.ronda2}%` : '—'}</td>
-                      <td className="py-2 px-3 text-center font-mono font-black text-white text-sm">{ef ? `${ef}%` : '—'}</td>
-                      <td className="py-2 px-3 text-center text-slate-400 font-mono">{sc.pond ? `${sc.pond}%` : '—'}</td>
-                      <td className="py-2 px-3 text-right">
-                        <span className={`text-[10px] font-black px-2 py-0.5 rounded border ${
-                          isConforme
-                            ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-300'
-                            : (isAlerta ? 'bg-amber-950/80 border-amber-500/50 text-amber-300' : 'bg-red-950/80 border-red-500/50 text-red-300')
-                        }`}>
-                          {isConforme ? 'Conforme' : (isAlerta ? 'Alerta' : 'Riesgo')}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* =========================================================================
-          TAB 5: FLOTA Y MONTACARGAS
-          ========================================================================= */}
-      {activeTab === 'flota' && (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-          <div>
-            <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
-              <Truck size={18} className="text-amber-400" />
-              Inspección de Flota de Carga Pesada y Equipos Montacargas
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Control técnico preventivo, seguridad vial y mantenimiento por centro de distribución
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {metrics.regions.map((reg, idx) => (
-              <div key={idx} className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-black text-white uppercase flex items-center gap-1.5">
-                    <Building2 size={15} className="text-amber-400" />
-                    Región {reg.name}
-                  </h3>
-                  <span className="text-xs text-slate-400 font-bold">100% Auditado</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800/80">
-                  <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
-                    <div className="flex items-center gap-2 text-purple-400 mb-1">
-                      <Truck size={16} />
-                      <span className="text-xs font-bold text-white">Vehículos Carga</span>
-                    </div>
-                    <span className="text-xl font-black text-purple-400">
-                      {reg.flota && reg.flota.ef ? `${reg.flota.ef}%` : '80.0%'}
-                    </span>
-                    <p className="text-[10px] text-slate-500 mt-0.5">Frenos, Luces y Neumáticos</p>
+            {currentSlideIndex === 1 && (
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 space-y-6 shadow-2xl">
+                <h2 className="text-2xl font-black text-white uppercase flex items-center gap-3">
+                  <Award size={28} className="text-amber-400" />
+                  Diagnóstico y Desempeño Nacional
+                </h2>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                    <p className="text-xs text-slate-400 uppercase font-black">Puntaje Global</p>
+                    <p className="text-3xl font-black text-amber-400 mt-1">{metrics.globalScore}%</p>
+                    <p className="text-[11px] text-emerald-400 mt-0.5">Meta: 80.0%</p>
                   </div>
-
-                  <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
-                    <div className="flex items-center gap-2 text-amber-400 mb-1">
-                      <Wrench size={16} />
-                      <span className="text-xs font-bold text-white">Montacargas</span>
-                    </div>
-                    <span className="text-xl font-black text-amber-400">
-                      {reg.montacargas && reg.montacargas.ef ? `${reg.montacargas.ef}%` : '85.0%'}
-                    </span>
-                    <p className="text-[10px] text-slate-500 mt-0.5">Sistemas Hidráulicos</p>
+                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                    <p className="text-xs text-slate-400 uppercase font-black">Ronda 1 vs Ronda 2</p>
+                    <p className="text-2xl font-black text-blue-400 mt-1">{metrics.ronda1Avg}% / {metrics.ronda2Avg}%</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Evolución Positiva</p>
+                  </div>
+                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                    <p className="text-xs text-slate-400 uppercase font-black">Sedes Conformes</p>
+                    <p className="text-2xl font-black text-emerald-400 mt-1">{metrics.conformesCount} Sedes</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">≥ 80% Cumplimiento</p>
+                  </div>
+                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                    <p className="text-xs text-slate-400 uppercase font-black">Equipos Auditados</p>
+                    <p className="text-2xl font-black text-purple-400 mt-1">{metrics.totalVehiculos + metrics.totalMontacargas}</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Flota y Maquinaria</p>
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            )}
 
-      {/* =========================================================================
-          TAB 6: PANEL DE HALLAZGOS
-          ========================================================================= */}
-      {activeTab === 'hallazgos' && (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-          <div>
-            <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
-              <Wrench size={18} className="text-amber-400" />
-              Panel de Hallazgos y Planes de Acción (C / OM / NC / NA)
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Consolidación de desviaciones operativas y seguimiento por área de responsabilidad
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {metrics.departmentStats.map((dept, i) => (
-              <div key={i} className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-black text-white uppercase flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: dept.color }} />
-                    {dept.nombre}
-                  </h3>
-                  <span className="text-xs font-black text-amber-400">{dept.pctCumplimiento}%</span>
-                </div>
-
-                <div className="grid grid-cols-4 gap-1.5 text-center text-[10px] pt-1">
-                  <div className="bg-emerald-950/60 border border-emerald-500/30 p-2 rounded-lg">
-                    <span className="block text-slate-400">C</span>
-                    <span className="font-bold text-emerald-400 text-xs">{dept.c}</span>
-                  </div>
-                  <div className="bg-amber-950/60 border border-amber-500/30 p-2 rounded-lg">
-                    <span className="block text-slate-400">OM</span>
-                    <span className="font-bold text-amber-400 text-xs">{dept.om}</span>
-                  </div>
-                  <div className="bg-red-950/60 border border-red-500/30 p-2 rounded-lg">
-                    <span className="block text-slate-400">NC</span>
-                    <span className="font-bold text-red-400 text-xs">{dept.nc}</span>
-                  </div>
-                  <div className="bg-slate-900 border border-slate-800 p-2 rounded-lg">
-                    <span className="block text-slate-400">NA</span>
-                    <span className="font-bold text-slate-300 text-xs">{dept.na}</span>
-                  </div>
-                </div>
-
-                <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                  <div
-                    className="h-full bg-emerald-500 rounded-full"
-                    style={{ width: `${dept.pctCumplimiento}%` }}
-                  />
+            {currentSlideIndex === 2 && (
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 space-y-4 shadow-2xl">
+                <h2 className="text-2xl font-black text-white uppercase flex items-center gap-3">
+                  <ShieldCheck size={28} className="text-amber-400" />
+                  Evaluación de los 4 Pilares Normativos SSA
+                </h2>
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { name: 'Pilar 1: Infraestructura', val: metrics.pillarsAvg.infra, desc: 'Edificaciones, ventilación, ergonomía e iluminación.' },
+                    { name: 'Pilar 2: Aspectos Legales', val: metrics.pillarsAvg.legal, desc: 'Bomberos, RACDA, INPSASEL y libros de actas CSSL.' },
+                    { name: 'Pilar 3: SSA y Riesgos', val: metrics.pillarsAvg.ssa, desc: 'Comités de seguridad, delegados, extintores y EPP.' },
+                    { name: 'Pilar 4: Vehículos y Flota', val: metrics.pillarsAvg.veh, desc: 'Transporte de carga pesada y equipos montacargas.' }
+                  ].map((p, i) => (
+                    <div key={i} className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-white">{p.name}</span>
+                        <span className="text-xl font-black text-amber-400">{p.val}%</span>
+                      </div>
+                      <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                        <div className="h-full bg-amber-400 rounded-full" style={{ width: `${p.val}%` }} />
+                      </div>
+                      <p className="text-xs text-slate-400">{p.desc}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            )}
 
-      {/* =========================================================================
-          TAB 7: COMPARATIVO HISTÓRICO ANUAL (3 PERÍODOS)
-          ========================================================================= */}
-      {activeTab === 'comparativo' && (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-          <div>
-            <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
-              <TrendingUp size={18} className="text-amber-400" />
-              Comparativo Histórico Anual (2024-2025 vs 2025-2026 vs 2026-2027)
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Evolución sostenida de los indicadores de gestión de seguridad, salud y ambiente del Grupo Duncan
-            </p>
+            {currentSlideIndex === 3 && (
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 space-y-4 shadow-2xl">
+                <h2 className="text-2xl font-black text-white uppercase flex items-center gap-3">
+                  <Building2 size={28} className="text-amber-400" />
+                  Ranking de las 10 Distribuidoras Oficiales
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                  {metrics.regions.map((r, i) => (
+                    <div key={i} className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-center space-y-1">
+                      <span className="text-xs font-bold text-white block">{r.name}</span>
+                      <span className="text-lg font-black text-amber-400 block">{r.promReg}%</span>
+                      <span className="text-[10px] text-emerald-400 font-bold">R2: {r.ronda2}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {currentSlideIndex === 4 && (
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 space-y-4 shadow-2xl">
+                <h2 className="text-2xl font-black text-white uppercase flex items-center gap-3">
+                  <Truck size={28} className="text-amber-400" />
+                  Flota Pesada y Equipos Montacargas
+                </h2>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-2">
+                    <span className="text-xs font-bold text-purple-400 uppercase">Vehículos de Carga Pesada</span>
+                    <p className="text-3xl font-black text-white">{metrics.totalVehiculos} Unidades</p>
+                    <p className="text-xs text-slate-400">Inspección de frenos, luces, neumáticos y extintores a bordo.</p>
+                  </div>
+                  <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-2">
+                    <span className="text-xs font-bold text-amber-400 uppercase">Equipos Montacargas</span>
+                    <p className="text-3xl font-black text-white">{metrics.totalMontacargas} Unidades</p>
+                    <p className="text-xs text-slate-400">Certificación de operadores, sistemas hidráulicos y alarmas de reversa.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {currentSlideIndex === 5 && (
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 space-y-4 shadow-2xl">
+                <h2 className="text-2xl font-black text-white uppercase flex items-center gap-3">
+                  <Wrench size={28} className="text-amber-400" />
+                  Asignación y Cumplimiento por Departamento
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {metrics.departmentStats.map((d, i) => (
+                    <div key={i} className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white">{d.nombre}</span>
+                        <span className="text-xs font-black text-amber-400">{d.pctCumplimiento}%</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">Conformes: {d.c} • Hallazgos: {d.nc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {currentSlideIndex === 6 && (
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 space-y-5 shadow-2xl text-left">
+                <h2 className="text-2xl font-black text-white uppercase flex items-center gap-3">
+                  <CheckCircle2 size={28} className="text-emerald-400" />
+                  Conclusiones y Compromisos de Gestión
+                </h2>
+                <div className="space-y-3 text-xs sm:text-sm text-slate-300">
+                  <p className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                    1. El índice de cumplimiento global nacional alcanza un <strong className="text-amber-400">{metrics.globalScore}%</strong>, superando las metas operativas iniciales.
+                  </p>
+                  <p className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                    2. Las 10 Distribuidoras mayoristas consolidan un desempeño óptimo en los Pilares Legales y de Seguridad Laboral.
+                  </p>
+                  <p className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                    3. Continuidad de planes de acción en Servicentros con inspecciones semestrales regulares de seguimiento.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="h-80 w-full pt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={metrics.comparisonData} margin={{ top: 20, right: 30, left: -10, bottom: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis dataKey="period" stroke="#94a3b8" fontSize={12} />
-                <YAxis domain={[70, 90]} stroke="#94a3b8" fontSize={12} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', fontSize: '12px' }}
-                  itemStyle={{ color: '#f8fafc', fontWeight: 'bold' }}
+          {/* Barra Inferior con Navegación de Diapositivas */}
+          <div className="flex items-center justify-between pt-3 border-t border-slate-800 max-w-5xl mx-auto w-full">
+            <button
+              type="button"
+              onClick={() => setCurrentSlideIndex(prev => (prev <= 0 ? 6 : prev - 1))}
+              className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl transition-all"
+            >
+              <ChevronLeft size={16} />
+              <span>Anterior</span>
+            </button>
+
+            {/* Puntos de Diapositivas */}
+            <div className="flex items-center gap-2">
+              {[0, 1, 2, 3, 4, 5, 6].map(i => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setCurrentSlideIndex(i)}
+                  className={`w-3 h-3 rounded-full transition-all ${
+                    currentSlideIndex === i ? 'bg-amber-400 scale-125' : 'bg-slate-800 hover:bg-slate-700'
+                  }`}
+                  title={`Ir a lámina ${i + 1}`}
                 />
-                <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-                <Line type="monotone" dataKey="score" stroke="#f59e0b" strokeWidth={3} name="Puntaje Global (%)" />
-                <Line type="monotone" dataKey="infra" stroke="#3b82f6" strokeWidth={2} name="Infraestructura (%)" />
-                <Line type="monotone" dataKey="legal" stroke="#10b981" strokeWidth={2} name="Legal (%)" />
-                <Line type="monotone" dataKey="ssa" stroke="#8b5cf6" strokeWidth={2} name="SSA y Riesgos (%)" />
-                <Line type="monotone" dataKey="veh" stroke="#ec4899" strokeWidth={2} name="Vehículos (%)" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+              ))}
+            </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 border-t border-slate-800">
-            {metrics.comparisonData.map((yr, idx) => (
-              <div key={idx} className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-slate-300">Período {yr.period}</span>
-                  <span className="text-base font-black text-amber-400">{yr.score}%</span>
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-slate-400">
-                  <span>Ronda 1: <strong>{yr.r1}%</strong></span>
-                  <span>Ronda 2: <strong>{yr.r2}%</strong></span>
-                </div>
-              </div>
-            ))}
+            <button
+              type="button"
+              onClick={() => setCurrentSlideIndex(prev => (prev >= 6 ? 0 : prev + 1))}
+              className="flex items-center gap-1.5 px-4 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded-xl transition-all"
+            >
+              <span>Siguiente</span>
+              <ChevronRight size={16} />
+            </button>
           </div>
         </div>
       )}
