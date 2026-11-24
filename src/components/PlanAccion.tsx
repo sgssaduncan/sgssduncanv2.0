@@ -295,10 +295,10 @@ export default function PlanAccionList() {
           <button
             onClick={() => setShowInspectionSelectorModal(true)}
             className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all cursor-pointer"
-            title="Generar o enviar por correo el Plan de Acción Oficial por Inspección (Plantilla Oficial Institucional)"
+            title="Generar Plan de Acción Oficial por Inspección en PDF Editable, Excel Profesional (.xlsx) o enviar por Correo"
           >
             <Shield size={16} />
-            Plan Oficial por Inspección (Email)
+            Plan Oficial por Sede (PDF / Excel)
           </button>
           <button
             onClick={() => handleQuickExport('excel', 'filtered')}

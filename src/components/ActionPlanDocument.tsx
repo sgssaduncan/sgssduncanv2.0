@@ -14,12 +14,15 @@ import {
   User,
   ArrowLeft,
   Download,
-  Share2
+  Share2,
+  Sparkles,
+  Check
 } from 'lucide-react';
 import type { Inspeccion, PlanAccion } from '../types';
 import { generatePlanesAccionFromInspeccion } from '../lib/planAccionGenerator';
 import { 
   exportActionPlanToExcel, 
+  exportActionPlanToPDF,
   downloadActionPlanCSV, 
   generateActionPlanEmailData,
   ActionPlanExportMeta 
@@ -41,6 +44,8 @@ export default function ActionPlanDocument({ inspeccion, metadata, onClose, embe
   }, [inspeccion]);
 
   const [items, setItems] = useState<PlanAccion[]>(initialItems);
+  const [exportingPDF, setExportingPDF] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
 
   // Manejo de edición inline rápida de fechas o recursos
   const handleItemChange = (index: number, field: keyof PlanAccion, value: string) => {
@@ -92,13 +97,12 @@ export default function ActionPlanDocument({ inspeccion, metadata, onClose, embe
   };
 
   // 1. Enviar por correo electrónico
-  const handleSendEmail = () => {
+  const handleSendEmail = async () => {
     try {
-      // Descargar primero el archivo oficial en Excel para que el usuario pueda adjuntarlo
-      exportActionPlanToExcel(inspeccion, items, exportMeta);
+      toast.success("Generando archivos Excel y PDF para adjuntar...");
+      await exportActionPlanToExcel(inspeccion, items, exportMeta);
+      exportActionPlanToPDF(inspeccion, items, exportMeta);
       const emailData = generateActionPlanEmailData(inspeccion, items, exportMeta);
-      
-      toast.success("Descargando archivo Excel y abriendo cliente de correo...");
       window.location.href = emailData.mailtoUrl;
     } catch (e) {
       console.error(e);
@@ -107,16 +111,16 @@ export default function ActionPlanDocument({ inspeccion, metadata, onClose, embe
   };
 
   // 2. Compartir por WhatsApp
-  const handleShareWhatsApp = () => {
+  const handleShareWhatsApp = async () => {
     try {
-      exportActionPlanToExcel(inspeccion, items, exportMeta);
-      const emailData = generateActionPlanEmailData(inspeccion, items, exportMeta);
+      await exportActionPlanToExcel(inspeccion, items, exportMeta);
+      exportActionPlanToPDF(inspeccion, items, exportMeta);
       const waText = `*PLAN DE ACCIÓN OFICIAL SG-SSA DUNCAN*\n\n` +
         `*Establecimiento:* ${estNombre}\n` +
         `*Inspección N°:* ${correlStr} · ${formatDate(inspeccion.fecha)}\n` +
         `*Cumplimiento:* ${puntuacionVal}% (${nivelConf})\n` +
         `*Total Desviaciones:* ${items.length} puntos requeridos\n\n` +
-        `Se ha descargado la matriz oficial en formato Excel (.xlsx). Por favor adjúntela a esta conversación.`;
+        `Se han descargado la matriz oficial en Excel (.xlsx) y el PDF editable para su seguimiento.`;
       
       const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(waText)}`;
       window.open(url, '_blank');
@@ -127,18 +131,35 @@ export default function ActionPlanDocument({ inspeccion, metadata, onClose, embe
     }
   };
 
-  // 3. Exportar Excel
-  const handleExportExcel = () => {
+  // 3. Exportar PDF Editable e Interactivo
+  const handleExportPDF = () => {
     try {
-      exportActionPlanToExcel(inspeccion, items, exportMeta);
-      toast.success("Plan de Acción exportado a Excel (.xlsx)");
+      setExportingPDF(true);
+      exportActionPlanToPDF(inspeccion, items, exportMeta);
+      toast.success("¡Plan de Acción exportado a PDF editable e interactivo!");
     } catch (e) {
       console.error(e);
-      toast.error("Error al exportar a Excel");
+      toast.error("Error al exportar a PDF");
+    } finally {
+      setExportingPDF(false);
     }
   };
 
-  // 4. Exportar CSV
+  // 4. Exportar Excel Oficial (.xlsx) con Visual Idéntica al PDF
+  const handleExportExcel = async () => {
+    try {
+      setExportingExcel(true);
+      await exportActionPlanToExcel(inspeccion, items, exportMeta);
+      toast.success("¡Plan de Acción exportado a Excel (.xlsx) con maquetación oficial!");
+    } catch (e) {
+      console.error(e);
+      toast.error("Error al exportar a Excel");
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
+  // 5. Exportar CSV
   const handleExportCSV = () => {
     try {
       downloadActionPlanCSV(inspeccion, items, exportMeta);
@@ -149,7 +170,7 @@ export default function ActionPlanDocument({ inspeccion, metadata, onClose, embe
     }
   };
 
-  // 5. Imprimir
+  // 6. Imprimir
   const handlePrint = () => {
     window.print();
   };
@@ -157,7 +178,7 @@ export default function ActionPlanDocument({ inspeccion, metadata, onClose, embe
   return (
     <div className={`bg-white text-slate-800 ${embedded ? '' : 'max-w-5xl mx-auto my-4 p-4 sm:p-6 rounded-2xl shadow-xl border border-slate-200 animate-in fade-in'}`}>
       {/* BARRA DE ACCIÓN SUPERIOR (Oculta al imprimir) */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-4 mb-5 border-b border-slate-200 print:hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-4 mb-4 border-b border-slate-200 print:hidden">
         <div className="flex items-center gap-2">
           {onClose && (
             <button
@@ -181,6 +202,31 @@ export default function ActionPlanDocument({ inspeccion, metadata, onClose, embe
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Botón PDF Editable */}
+          <button
+            type="button"
+            onClick={handleExportPDF}
+            disabled={exportingPDF}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs shadow-sm transition-all touch-active"
+            title="Descargar en formato PDF editable e interactivo (AcroForm)"
+          >
+            <FileText className="h-4 w-4" />
+            <span>PDF Editable</span>
+          </button>
+
+          {/* Botón Excel Oficial */}
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            disabled={exportingExcel}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-sm transition-all touch-active"
+            title="Descargar en formato Excel (.xlsx) con maquetación y colores idénticos al reporte oficial"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            <span>Excel (.xlsx)</span>
+          </button>
+
+          {/* Botón Enviar por Correo */}
           <button
             type="button"
             onClick={handleSendEmail}
@@ -188,47 +234,40 @@ export default function ActionPlanDocument({ inspeccion, metadata, onClose, embe
             title="Enviar Plan de Acción por Correo Electrónico"
           >
             <Mail className="h-4 w-4" />
-            <span>Enviar por Correo</span>
+            <span>Enviar Correo</span>
           </button>
 
+          {/* Botón WhatsApp */}
           <button
             type="button"
             onClick={handleShareWhatsApp}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-sm transition-all touch-active"
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-xl font-bold text-xs shadow-2xs transition-all touch-active"
             title="Compartir por WhatsApp"
           >
-            <MessageCircle className="h-4 w-4" />
+            <MessageCircle className="h-4 w-4 text-emerald-600" />
             <span className="hidden sm:inline">WhatsApp</span>
           </button>
 
-          <button
-            type="button"
-            onClick={handleExportExcel}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-xl font-bold text-xs shadow-2xs transition-all"
-            title="Descargar en formato Excel (.xlsx)"
-          >
-            <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
-            <span>Excel</span>
-          </button>
-
+          {/* Botón CSV */}
           <button
             type="button"
             onClick={handleExportCSV}
             className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl font-bold text-xs shadow-2xs transition-all"
-            title="Descargar en formato CSV (.csv)"
+            title="Descargar datos crudos en formato CSV (.csv)"
           >
-            <FileText className="h-4 w-4 text-blue-600" />
+            <Download className="h-4 w-4 text-slate-600" />
             <span>CSV</span>
           </button>
 
+          {/* Botón Imprimir */}
           <button
             type="button"
             onClick={handlePrint}
             className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-xs shadow-sm transition-all"
-            title="Imprimir documento o guardar en PDF"
+            title="Imprimir documento en impresora"
           >
             <Printer className="h-4 w-4" />
-            <span className="hidden sm:inline">Imprimir / PDF</span>
+            <span className="hidden sm:inline">Imprimir</span>
           </button>
 
           {onClose && (
@@ -241,6 +280,23 @@ export default function ActionPlanDocument({ inspeccion, metadata, onClose, embe
               <X className="h-5 w-5" />
             </button>
           )}
+        </div>
+      </div>
+
+      {/* BANNER INFORMATIVO DE FIDELIDAD VISUAL Y CAMPOS EDITABLES */}
+      <div className="mb-4 p-3 bg-gradient-to-r from-blue-50/80 via-slate-50 to-amber-50/80 border border-slate-200 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs text-slate-700 print:hidden shadow-2xs">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="p-1.5 bg-yellow-400 text-slate-950 font-black rounded-lg shadow-2xs shrink-0">
+            <Sparkles size={16} />
+          </div>
+          <div>
+            <p className="font-bold text-slate-900 text-xs">
+              Visualización y Configuración Oficial Duncan (PDF Editable & Excel Idéntico)
+            </p>
+            <p className="text-[11px] text-slate-500">
+              El archivo <strong>PDF</strong> incorpora campos interactivos editables en Adobe Acrobat y navegadores; el archivo <strong>Excel (.xlsx)</strong> mantiene los colores, bordes y estructura corporativa oficial.
+            </p>
+          </div>
         </div>
       </div>
 
