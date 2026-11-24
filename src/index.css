@@ -141,3 +141,55 @@
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* WhatsApp / Telegram Tactile Mobile Feel */
+.touch-active {
+  transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.12s ease;
+}
+.touch-active:active {
+  transform: scale(0.96);
+}
+
+.bottom-nav-safe {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0.5rem));
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.filter-chip-active {
+  background-color: #0f172a;
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.15);
+}
+.filter-chip-inactive {
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+.filter-chip-inactive:hover {
+  background-color: #e2e8f0;
+  color: #1e293b;
+}
+
+.chat-card {
+  background-color: #ffffff;
+  border-radius: 1rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.chat-card:active {
+  transform: scale(0.985);
+}

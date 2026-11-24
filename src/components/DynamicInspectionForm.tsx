@@ -26,23 +26,23 @@ interface Props {
   inspeccionId?: string;
 }
 
-// Response button component
+// Response button component (Optimizado para toque táctil en móviles)
 function ResponseButton({ value, selected, onClick, disabled }: { value: string; selected: boolean; onClick: () => void; disabled?: boolean }) {
-  const styles: Record<string, { bg: string; icon: any; label: string }> = {
-    "C": { bg: "bg-emerald-100 text-emerald-700 border-emerald-300", icon: CheckCircle2, label: "C" },
-    "NC": { bg: "bg-red-100 text-red-700 border-red-300", icon: XCircle, label: "NC" },
-    "OM": { bg: "bg-amber-100 text-amber-700 border-amber-300", icon: AlertTriangle, label: "OM" },
-    "NA": { bg: "bg-slate-100 text-slate-500 border-slate-300", icon: MinusCircle, label: "NA" },
-    "Bueno": { bg: "bg-emerald-100 text-emerald-700 border-emerald-300", icon: CheckCircle2, label: "Bueno" },
-    "Dañado": { bg: "bg-red-100 text-red-700 border-red-300", icon: XCircle, label: "Dañado" },
-    "No Aplica": { bg: "bg-slate-100 text-slate-500 border-slate-300", icon: MinusCircle, label: "N/A" },
-    "Si": { bg: "bg-emerald-100 text-emerald-700 border-emerald-300", icon: CheckCircle2, label: "Sí" },
-    "No": { bg: "bg-red-100 text-red-700 border-red-300", icon: XCircle, label: "No" },
-    "Operativo": { bg: "bg-emerald-100 text-emerald-700 border-emerald-300", icon: CheckCircle2, label: "Operativo" },
-    "No Operativo": { bg: "bg-red-100 text-red-700 border-red-300", icon: XCircle, label: "No Operativo" },
+  const styles: Record<string, { bg: string; icon: any; label: string; ring: string }> = {
+    "C": { bg: "bg-emerald-600 text-white border-emerald-600 shadow-sm", icon: CheckCircle2, label: "C · Conforme", ring: "ring-emerald-400" },
+    "NC": { bg: "bg-red-600 text-white border-red-600 shadow-sm", icon: XCircle, label: "NC · No Conforme", ring: "ring-red-400" },
+    "OM": { bg: "bg-amber-500 text-white border-amber-500 shadow-sm", icon: AlertTriangle, label: "OM · Mejora", ring: "ring-amber-400" },
+    "NA": { bg: "bg-slate-600 text-white border-slate-600 shadow-sm", icon: MinusCircle, label: "NA · No Aplica", ring: "ring-slate-400" },
+    "Bueno": { bg: "bg-emerald-600 text-white border-emerald-600 shadow-sm", icon: CheckCircle2, label: "Bueno", ring: "ring-emerald-400" },
+    "Dañado": { bg: "bg-red-600 text-white border-red-600 shadow-sm", icon: XCircle, label: "Dañado", ring: "ring-red-400" },
+    "No Aplica": { bg: "bg-slate-600 text-white border-slate-600 shadow-sm", icon: MinusCircle, label: "No Aplica", ring: "ring-slate-400" },
+    "Si": { bg: "bg-emerald-600 text-white border-emerald-600 shadow-sm", icon: CheckCircle2, label: "Sí", ring: "ring-emerald-400" },
+    "No": { bg: "bg-red-600 text-white border-red-600 shadow-sm", icon: XCircle, label: "No", ring: "ring-red-400" },
+    "Operativo": { bg: "bg-emerald-600 text-white border-emerald-600 shadow-sm", icon: CheckCircle2, label: "Operativo", ring: "ring-emerald-400" },
+    "No Operativo": { bg: "bg-red-600 text-white border-red-600 shadow-sm", icon: XCircle, label: "No Operativo", ring: "ring-red-400" },
   };
 
-  const style = styles[value] || { bg: "bg-slate-100 text-slate-600 border-slate-300", icon: MinusCircle, label: value };
+  const style = styles[value] || { bg: "bg-slate-700 text-white border-slate-700", icon: MinusCircle, label: value, ring: "ring-slate-400" };
   const Icon = style.icon;
 
   return (
@@ -50,12 +50,12 @@ function ResponseButton({ value, selected, onClick, disabled }: { value: string;
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
-        selected ? `${style.bg} ring-2 ring-offset-1 ring-current shadow-sm scale-105` : "bg-white text-slate-400 border-slate-200 hover:bg-slate-50"
-      } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+      className={`flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border text-xs sm:text-sm font-bold transition-all touch-active flex-1 sm:flex-initial min-w-[70px] sm:min-w-[90px] ${
+        selected ? `${style.bg} ring-2 ring-offset-1 ${style.ring} shadow-md scale-102` : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50 shadow-2xs"
+      } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer active:scale-95"}`}
     >
-      <Icon className="h-3.5 w-3.5" />
-      {style.label}
+      <Icon className="h-4 w-4 shrink-0" />
+      <span>{style.label}</span>
     </button>
   );
 }
@@ -216,15 +216,17 @@ function SectionCard({
                         ))}
                       </select>
                     ) : (
-                      options.map(opt => (
-                        <ResponseButton
-                          key={opt}
-                          value={opt}
-                          selected={responses[item.id] === opt}
-                          onClick={() => onResponse(item.id, opt)}
-                          disabled={readOnly}
-                        />
-                      ))
+                      <div className="flex flex-wrap gap-2 w-full sm:w-auto pt-1 sm:pt-0">
+                        {options.map(opt => (
+                          <ResponseButton
+                            key={opt}
+                            value={opt}
+                            selected={responses[item.id] === opt}
+                            onClick={() => onResponse(item.id, opt)}
+                            disabled={readOnly}
+                          />
+                        ))}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -488,24 +490,24 @@ export function DynamicInspectionForm({ formDef, initialResponses, initialObserv
         </div>
       )}
 
-      {/* Save & Complete buttons at bottom */}
+      {/* Save & Complete buttons at bottom (Grandes y táctiles) */}
       {!readOnly && (
-        <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-slate-200">
+        <div className="flex flex-col sm:flex-row justify-end gap-3 pt-5 border-t border-slate-200 pb-16 lg:pb-0">
           <button
             type="button"
             onClick={handleSave}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-xl transition-colors shadow-xs text-sm"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 py-3.5 px-6 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-2xl transition-all shadow-xs text-sm touch-active"
           >
-            <Save className="h-4 w-4" />
-            Guardar Borrador
+            <Save className="h-5 w-5" />
+            <span>Guardar Borrador</span>
           </button>
           <button
             type="button"
             onClick={handleComplete}
-            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl transition-colors shadow-sm text-sm"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 py-3.5 px-8 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl transition-all shadow-md shadow-emerald-600/20 text-sm touch-active"
           >
-            <CheckCircle2 className="h-4 w-4" />
-            Finalizar Inspección
+            <CheckCircle2 className="h-5 w-5" />
+            <span>Finalizar Inspección</span>
           </button>
         </div>
       )}

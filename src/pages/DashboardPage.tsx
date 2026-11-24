@@ -2,14 +2,18 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useSGD } from '../contexts/SGDContext';
 import {
-  Shield, ClipboardCheck, Target, CheckCircle2, AlertTriangle,
+  ClipboardCheck, Target, CheckCircle2, AlertTriangle,
   TrendingUp, Plus, ArrowRight, Clock, Building2, BarChart3,
-  Wifi, WifiOff, RefreshCw, AlertCircle, Package
+  Wifi, WifiOff, RefreshCw, AlertCircle, Package, Users,
+  ShieldCheck, ChevronRight, Sparkles, FileText, CheckCircle
 } from 'lucide-react';
 import { cn, formatDate, getEstadoBadgeClass, getResultadoBadgeClass, getPrioridadColor } from '../lib/utils';
 
 export default function DashboardPage() {
-  const { stats, planStats, inspecciones, planAccion, isOnline, sheetsUrl, isSyncing, syncNow, pendingSyncCount } = useSGD();
+  const { 
+    stats, planStats, inspecciones, planAccion, 
+    isOnline, sheetsUrl, currentUser 
+  } = useSGD();
 
   const recentInsps = inspecciones.slice(-5).reverse();
   const urgentActions = planAccion.filter(p => {
@@ -18,7 +22,7 @@ export default function DashboardPage() {
     return s === 'pendiente' || s === 'vencido' || s === 'vencida' || isOverdue;
   }).slice(0, 5);
   
-  // Conteo oficial de C, OM, NC y cálculo de tasa ponderada con OM = 0.5 puntos
+  // Conteo oficial de C, OM, NC y cálculo de tasa ponderada
   const cCount = inspecciones.filter(i => i.resultado === 'C').length || stats.conformes;
   const omCount = inspecciones.filter(i => i.resultado === 'OM').length || ((stats as any).observaciones ?? 0);
   const ncCount = inspecciones.filter(i => i.resultado === 'NC').length || stats.noConformes;
@@ -27,101 +31,242 @@ export default function DashboardPage() {
     ? Math.round(((cCount + (omCount * 0.5)) / totalInsps) * 100)
     : 0;
 
+  const firstName = currentUser?.nombre?.split(' ')[0] || 'Inspector';
+
   return (
-    <div className="space-y-6 fade-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <img src="/duncan-logo-bw.png" alt="Duncan Logo" className="h-10 w-auto object-contain hidden sm:block" />
-          <div className="sm:border-l sm:border-slate-300 sm:pl-3">
-            <h1 className="text-2xl font-bold text-slate-900">
-              Panel de Control
+    <div className="space-y-5 fade-in max-w-6xl mx-auto">
+      {/* ============================================================ */}
+      {/* SALUDO AMIGABLE & ACCESO RÁPIDO (ESTILO SUPER-APP)          */}
+      {/* ============================================================ */}
+      <div className="bg-gradient-to-br from-slate-900 via-slate-850 to-slate-900 text-white p-5 sm:p-7 rounded-3xl shadow-md border border-slate-800 relative overflow-hidden">
+        {/* Decoración de fondo suave */}
+        <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-64 h-64 bg-yellow-400/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute left-1/2 bottom-0 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-800/80 border border-slate-700/80 text-[11px] font-bold text-yellow-400">
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Sistema SG-SSA Duncan 2.0</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+              ¡Hola, {firstName}! 👋
             </h1>
-            <p className="text-sm text-slate-500 mt-0.5">Sistema de Gestión de Seguridad, Salud y Ambiente — SG-SSA</p>
+            <p className="text-xs sm:text-sm text-slate-300 max-w-xl">
+              Panel interactivo simplificado. Registra inspecciones, resuelve planes de acción y monitorea la seguridad en un solo toque.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <Link
+              to="/inspecciones/nueva"
+              className="btn-primary w-full sm:w-auto flex items-center justify-center gap-2 py-3 px-5 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-black text-sm shadow-lg shadow-yellow-400/20 active:scale-95 transition-all touch-active"
+            >
+              <Plus className="h-5 w-5 stroke-[2.5]" />
+              <span>Nueva Inspección</span>
+            </Link>
           </div>
         </div>
-        <Link to="/inspecciones/nueva" className="btn-primary flex items-center gap-2 w-fit">
-          <Plus className="h-4 w-4" /> Nueva Inspección
+      </div>
+
+      {/* ============================================================ */}
+      {/* 4 ACCIONES RÁPIDAS GIGANTES (GRANDES TARJETAS TÁCTILES)      */}
+      {/* ============================================================ */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* Botón 1: Inspecciones */}
+        <Link
+          to="/inspecciones/nueva"
+          className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs hover:border-yellow-400 hover:shadow-sm transition-all flex flex-col justify-between group touch-active"
+        >
+          <div className="w-12 h-12 rounded-2xl bg-yellow-400 text-slate-950 flex items-center justify-center font-bold shadow-xs mb-3 group-hover:scale-105 transition-transform">
+            <ClipboardCheck className="h-6 w-6" />
+          </div>
+          <div>
+            <p className="text-sm font-black text-slate-900 group-hover:text-yellow-600 transition-colors">
+              Hacer Inspección
+            </p>
+            <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">
+              Evaluar sede o equipo
+            </p>
+          </div>
+        </Link>
+
+        {/* Botón 2: Planes de Acción */}
+        <Link
+          to="/plan-accion"
+          className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs hover:border-amber-400 hover:shadow-sm transition-all flex flex-col justify-between group touch-active relative"
+        >
+          <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center font-bold shadow-xs mb-3 group-hover:scale-105 transition-transform">
+            <Target className="h-6 w-6" />
+          </div>
+          <div>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-black text-slate-900 group-hover:text-amber-600 transition-colors">
+                Planes de Acción
+              </p>
+              {planStats.pendientes > 0 && (
+                <span className="text-[10px] font-black bg-rose-500 text-white px-1.5 py-0.5 rounded-full">
+                  {planStats.pendientes}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">
+              Hallazgos por corregir
+            </p>
+          </div>
+        </Link>
+
+        {/* Botón 3: Dotación EPP */}
+        <Link
+          to="/dotacion"
+          className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs hover:border-blue-400 hover:shadow-sm transition-all flex flex-col justify-between group touch-active"
+        >
+          <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-xs mb-3 group-hover:scale-105 transition-transform">
+            <Package className="h-6 w-6" />
+          </div>
+          <div>
+            <p className="text-sm font-black text-slate-900 group-hover:text-blue-600 transition-colors">
+              Dotación & EPP
+            </p>
+            <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">
+              Uniformes y protección
+            </p>
+          </div>
+        </Link>
+
+        {/* Botón 4: Trabajadores */}
+        <Link
+          to="/trabajadores"
+          className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs hover:border-teal-400 hover:shadow-sm transition-all flex flex-col justify-between group touch-active"
+        >
+          <div className="w-12 h-12 rounded-2xl bg-teal-600 text-white flex items-center justify-center font-bold shadow-xs mb-3 group-hover:scale-105 transition-transform">
+            <Users className="h-6 w-6" />
+          </div>
+          <div>
+            <p className="text-sm font-black text-slate-900 group-hover:text-teal-600 transition-colors">
+              Trabajadores
+            </p>
+            <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">
+              Nómina de todo el grupo
+            </p>
+          </div>
         </Link>
       </div>
 
-      {/* Banner offline / sin configurar */}
-      {!sheetsUrl && (
-        <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800">
-          <AlertCircle className="h-5 w-5 flex-shrink-0 text-amber-600" />
-          <div className="text-sm">
-            <span className="font-medium">Modo solo-local.</span> Los datos se guardan en este dispositivo.{' '}
-            <Link to="/ajustes" className="underline font-medium hover:text-amber-900">Configura Google Sheets</Link> para sincronizar en la nube.
+      {/* ============================================================ */}
+      {/* TARJETA DE CUMPLIMIENTO GLOBAL SIMPLIFICADA                  */}
+      {/* ============================================================ */}
+      <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-2xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+          <div>
+            <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-blue-600" />
+              <span>Nivel de Cumplimiento Global</span>
+            </h2>
+            <p className="text-xs text-slate-500">
+              Evaluación ponderada oficial de todas las inspecciones activas del Grupo Duncan
+            </p>
+          </div>
+
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+              {conformePct}%
+            </span>
+            <span className="text-xs font-bold text-slate-400">
+              Meta: 85%
+            </span>
           </div>
         </div>
-      )}
 
-      {/* KPI Grid de Indicadores Oficiales */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
-        <StatCard label="Total Inspecciones" value={totalInsps} icon={ClipboardCheck} color="blue" />
-        <StatCard label="Conformes (C)" value={cCount} icon={CheckCircle2} color="green" />
-        <StatCard label="Oportunidad Mejora (OM)" value={`${omCount} (+0.5)`} icon={AlertTriangle} color="amber" />
-        <StatCard label="No Conformes (NC)" value={ncCount} icon={AlertCircle} color="red" />
-        <StatCard label="Cumplimiento Global" value={`${conformePct}%`} icon={TrendingUp} color="blue" />
+        {/* Barra segmentada clara */}
+        <div className="w-full h-3.5 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+          <div 
+            style={{ width: `${totalInsps > 0 ? (cCount / totalInsps) * 100 : 0}%` }}
+            className="bg-emerald-500 transition-all duration-500" 
+            title={`Conformes: ${cCount}`}
+          />
+          <div 
+            style={{ width: `${totalInsps > 0 ? (omCount / totalInsps) * 100 : 0}%` }}
+            className="bg-amber-400 transition-all duration-500" 
+            title={`Oportunidades de Mejora: ${omCount}`}
+          />
+          <div 
+            style={{ width: `${totalInsps > 0 ? (ncCount / totalInsps) * 100 : 0}%` }}
+            className="bg-red-500 transition-all duration-500" 
+            title={`No Conformes: ${ncCount}`}
+          />
+        </div>
+
+        {/* 3 Métricas claras en lenguaje sencillo */}
+        <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-100 text-center">
+          <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-100">
+            <p className="text-xs font-bold text-emerald-800">Conformes</p>
+            <p className="text-lg font-black text-emerald-700">{cCount}</p>
+          </div>
+
+          <div className="p-2 rounded-xl bg-amber-50 border border-amber-100">
+            <p className="text-xs font-bold text-amber-800">Por Mejorar</p>
+            <p className="text-lg font-black text-amber-700">{omCount}</p>
+          </div>
+
+          <div className="p-2 rounded-xl bg-red-50 border border-red-100">
+            <p className="text-xs font-bold text-red-800">No Conformes</p>
+            <p className="text-lg font-black text-red-700">{ncCount}</p>
+          </div>
+        </div>
       </div>
 
-      {/* Plan de Acción Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <div className="card p-4 text-center">
-          <p className="text-2xl font-bold text-slate-900">{planStats.total}</p>
-          <p className="text-xs text-slate-500 mt-1">Total Plan Acción</p>
-        </div>
-        <div className="card p-4 text-center">
-          <p className="text-2xl font-bold text-amber-600">{planStats.pendientes}</p>
-          <p className="text-xs text-slate-500 mt-1">Pendientes</p>
-        </div>
-        <div className="card p-4 text-center">
-          <p className="text-2xl font-bold text-blue-600">{planStats.enEjecucion}</p>
-          <p className="text-xs text-slate-500 mt-1">En Ejecución</p>
-        </div>
-        <div className="card p-4 text-center">
-          <p className="text-2xl font-bold text-emerald-600">{planStats.cerradas}</p>
-          <p className="text-xs text-slate-500 mt-1">Cerradas</p>
-        </div>
-        <div className="card p-4 text-center">
-          <p className="text-2xl font-bold text-red-600">{planStats.vencidas}</p>
-          <p className="text-xs text-slate-500 mt-1">Vencidas</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* ============================================================ */}
+      {/* FEEDS DE INSPECCIONES Y PLANES (ESTILO CHAT / TELEGRAM)      */}
+      {/* ============================================================ */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Inspecciones Recientes */}
-        <div className="card">
-          <div className="card-header flex items-center justify-between">
-            <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-              <Clock className="h-5 w-5 text-blue-500" /> Inspecciones Recientes
-            </h2>
-            <Link to="/inspecciones" className="text-xs text-blue-600 hover:text-blue-500 flex items-center gap-1 font-medium">
-              Ver todas <ArrowRight className="h-3 w-3" />
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-2xs overflow-hidden flex flex-col">
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-blue-600" />
+              <h2 className="font-bold text-slate-900 text-base">Inspecciones Recientes</h2>
+            </div>
+            <Link 
+              to="/inspecciones" 
+              className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 active:scale-95"
+            >
+              Ver todas <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
-          <div className="divide-y divide-slate-100">
+
+          <div className="divide-y divide-slate-100 flex-1">
             {recentInsps.length === 0 ? (
-              <div className="py-10 text-center text-slate-400">
-                <ClipboardCheck className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">Sin inspecciones aún</p>
-                <Link to="/inspecciones/nueva" className="text-xs text-blue-600 hover:underline mt-1 inline-block">
-                  Crear la primera
+              <div className="py-12 text-center text-slate-400">
+                <ClipboardCheck className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                <p className="text-sm font-medium">Sin inspecciones registradas</p>
+                <Link to="/inspecciones/nueva" className="text-xs text-blue-600 font-bold hover:underline mt-1 inline-block">
+                  Crear la primera inspección
                 </Link>
               </div>
             ) : recentInsps.map((insp: any) => (
-              <Link key={insp._id} to={`/inspecciones/${insp._id}`}
-                className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-900 truncate">{insp.establecimientoNombre}</p>
-                  <p className="text-xs text-slate-500">{insp.tipoNombre} · {formatDate(insp.fecha)}</p>
+              <Link 
+                key={insp._id} 
+                to={`/inspecciones/${insp._id}`}
+                className="flex items-center gap-3 p-3.5 sm:p-4 hover:bg-slate-50/80 transition-colors touch-active group"
+              >
+                <div className="w-10 h-10 rounded-2xl bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                  {insp.tipoCodigo || 'INSP'}
                 </div>
-                <div className="flex-shrink-0 flex flex-col items-end gap-1">
-                  <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', getEstadoBadgeClass(insp.estado))}>
-                    {insp.estado === 'completada' ? 'Completada' : insp.estado === 'en_progreso' ? 'En Progreso' : 'Borrador'}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
+                    {insp.establecimientoNombre}
+                  </p>
+                  <p className="text-xs text-slate-500 truncate">
+                    {insp.tipoNombre} · {formatDate(insp.fecha)}
+                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                  <span className={cn('text-[11px] font-bold px-2 py-0.5 rounded-full', getEstadoBadgeClass(insp.estado))}>
+                    {insp.estado === 'completada' ? 'Completada' : 'En Progreso'}
                   </span>
                   {insp.resultado && (
-                    <span className={cn('text-xs px-2 py-0.5 rounded-full font-bold', getResultadoBadgeClass(insp.resultado))}>
+                    <span className={cn('text-[11px] font-bold px-2 py-0.5 rounded-full', getResultadoBadgeClass(insp.resultado))}>
                       {insp.resultado}
                     </span>
                   )}
@@ -131,85 +276,58 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Acciones Urgentes */}
-        <div className="card">
-          <div className="card-header flex items-center justify-between">
-            <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-              <Target className="h-5 w-5 text-amber-500" /> Acciones Urgentes
-            </h2>
-            <Link to="/plan-accion" className="text-xs text-blue-600 hover:text-blue-500 flex items-center gap-1 font-medium">
-              Ver todas <ArrowRight className="h-3 w-3" />
+        {/* Acciones y Hallazgos Pendientes */}
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-2xs overflow-hidden flex flex-col">
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-amber-600" />
+              <h2 className="font-bold text-slate-900 text-base">Tareas Pendientes (Planes)</h2>
+            </div>
+            <Link 
+              to="/plan-accion" 
+              className="text-xs font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1 active:scale-95"
+            >
+              Ver plan <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
-          <div className="divide-y divide-slate-100">
+
+          <div className="divide-y divide-slate-100 flex-1">
             {urgentActions.length === 0 ? (
-              <div className="py-10 text-center text-slate-400">
-                <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">¡Todo al día! Sin acciones urgentes</p>
+              <div className="py-12 text-center text-slate-400">
+                <CheckCircle className="h-10 w-10 mx-auto mb-2 opacity-30 text-emerald-500" />
+                <p className="text-sm font-bold text-slate-700">¡Al día! Sin acciones urgentes pendientes</p>
+                <p className="text-xs text-slate-400 mt-0.5">Todas las no conformidades han sido atendidas.</p>
               </div>
-            ) : urgentActions.map((accion: any) => (
-              <div key={accion._id} className="px-5 py-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-900 truncate">{accion.hallazgo}</p>
-                    <p className="text-xs text-slate-500 truncate">{accion.establecimientoNombre}</p>
-                  </div>
-                  <span className={cn('badge text-xs flex-shrink-0', getPrioridadColor(accion.prioridad))}>
-                    {accion.prioridad}
-                  </span>
+            ) : urgentActions.map((action: any) => (
+              <Link 
+                key={action.id || action._id} 
+                to="/plan-accion"
+                className="flex items-start gap-3 p-3.5 sm:p-4 hover:bg-slate-50/80 transition-colors touch-active group"
+              >
+                <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <AlertTriangle className="h-5 w-5" />
                 </div>
-                <div className="flex items-center gap-2 mt-1.5">
-                  <span className={cn('text-xs px-2 py-0.5 rounded-full', getEstadoBadgeClass(accion.estado))}>
-                    {accion.estado}
-                  </span>
-                  {accion.fechaLimite && (
-                    <span className="text-xs text-slate-400">Límite: {formatDate(accion.fechaLimite)}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-slate-900 truncate group-hover:text-amber-600 transition-colors">
+                    {action.hallazgo || action.item}
+                  </p>
+                  <p className="text-xs text-slate-500 truncate">
+                    {action.establecimientoNombre || 'Sede Duncan'}
+                  </p>
+                  {action.fechaLimite && (
+                    <p className="text-[11px] text-red-600 font-semibold mt-0.5">
+                      Vence: {formatDate(action.fechaLimite)}
+                    </p>
                   )}
                 </div>
-              </div>
+                <span className={cn('text-[10px] font-black px-2 py-0.5 rounded-full flex-shrink-0 uppercase', getPrioridadColor(action.prioridad))}>
+                  {action.prioridad || 'Media'}
+                </span>
+              </Link>
             ))}
           </div>
         </div>
       </div>
-
-      {/* Links rápidos */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { to: '/inspecciones/nueva', icon: Plus, label: 'Nueva Inspección', color: 'bg-blue-600 hover:bg-blue-500 text-white' },
-          { to: '/dotacion', icon: Package, label: 'Dotación EPP', color: 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200' },
-          { to: '/reportes', icon: BarChart3, label: 'Reportes', color: 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200' },
-          { to: '/ajustes', icon: Building2, label: 'Configuración', color: 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200' },
-        ].map(({ to, icon: Icon, label, color }) => (
-          <Link key={to} to={to} className={cn('flex flex-col items-center gap-2 p-4 rounded-xl text-sm font-medium shadow-sm transition-colors', color)}>
-            <Icon className="h-5 w-5" />
-            <span className="text-center leading-tight">{label}</span>
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function StatCard({ label, value, icon: Icon, color }: { label: string; value: string | number; icon: any; color: string }) {
-  const colors: Record<string, string> = {
-    blue:  'bg-blue-100 text-blue-600',
-    green: 'bg-emerald-100 text-emerald-600',
-    red:   'bg-red-100 text-red-600',
-    amber: 'bg-amber-100 text-amber-600',
-  };
-  const textColors: Record<string, string> = {
-    blue:  'text-blue-700',
-    green: 'text-emerald-700',
-    red:   'text-red-700',
-    amber: 'text-amber-700',
-  };
-  return (
-    <div className="card p-5">
-      <div className={cn('inline-flex p-2 rounded-lg mb-3', colors[color])}>
-        <Icon className="h-4 w-4" />
-      </div>
-      <p className={cn('text-3xl font-bold', textColors[color])}>{value}</p>
-      <p className="text-xs text-slate-500 mt-1">{label}</p>
     </div>
   );
 }
