@@ -854,29 +854,68 @@ export function exportActionPlanToPDF(
         }
       }
     },
+    willDrawCell: (data) => {
+      // PREVENCIÓN DE TEXTO DOBLE SUPERPUESTO:
+      // Para las columnas interactivas editables (7: Fecha ejecución, 8: Fecha verificación, 9: Recursos, 10: Observaciones),
+      // guardamos el texto original para inyectarlo en el campo interactivo AcroForm, y vaciamos data.cell.text
+      // para que autoTable pinte el fondo y las líneas de la celda pero NO imprima texto estático en el lienzo.
+      // Así se evita que el visor de PDF (Acrobat, Chrome, Edge) muestre simultáneamente el texto estático y el campo interactivo.
+      if (data.section === 'body' && [7, 8, 9, 10].includes(data.column.index)) {
+        const rawText = Array.isArray(data.cell.text)
+          ? data.cell.text.join('\n')
+          : String(data.cell.text || data.cell.raw || '');
+        (data.cell as any)._acroVal = rawText;
+        data.cell.text = [];
+      }
+    },
     didDrawCell: (data) => {
       // CAMPOS INTERACTIVOS EDITABLES (ACROFORM) en columnas de acción
-      // Permite editar directamente en Adobe Acrobat, Chrome o Edge:
+      // Permite editar directamente en Adobe Acrobat, Chrome o Edge sin texto fantasma de fondo:
       // Columna 7: Fecha ejecución
       // Columna 8: Fecha verificación
       // Columna 9: Recursos necesarios
       // Columna 10: Observaciones / Seguimiento
       if (data.section === 'body' && [7, 8, 9, 10].includes(data.column.index)) {
+        const cellVal = (data.cell as any)._acroVal || String(data.cell.raw || '');
+        let acroAdded = false;
+
         try {
           const AcroFormTextField = (doc as any).AcroFormTextField || (doc as any).AcroForm?.TextField;
           if (AcroFormTextField && typeof (doc as any).addField === 'function') {
             const tf = new AcroFormTextField();
             const colName = data.column.index === 7 ? 'fEjec' : data.column.index === 8 ? 'fVerif' : data.column.index === 9 ? 'recursos' : 'obs';
             tf.fieldName = `${colName}_row_${data.row.index}`;
-            tf.Rect = [data.cell.x + 0.4, data.cell.y + 0.4, data.cell.width - 0.8, data.cell.height - 0.8];
-            const cellVal = Array.isArray(data.cell.text) ? data.cell.text.join(' ') : String(data.cell.text || '');
+            // Margen fino de 0.3 mm para alineación perfecta dentro de la celda
+            tf.Rect = [
+              data.cell.x + 0.3,
+              data.cell.y + 0.3,
+              Math.max(1, data.cell.width - 0.6),
+              Math.max(1, data.cell.height - 0.6)
+            ];
             tf.value = cellVal;
             tf.multiline = data.column.index >= 9;
             tf.fontSize = 6.8;
+            if (data.column.index === 7 || data.column.index === 8) {
+              tf.textAlign = 'center';
+            }
             (doc as any).addField(tf);
+            acroAdded = true;
           }
-        } catch {
-          // Si el visor o versión no soporta AcroForm, el contenido permanece visible
+        } catch (e) {
+          console.warn('AcroForm field skipped:', e);
+          acroAdded = false;
+        }
+
+        // Respaldo de seguridad: si el visor o librería no soportase AcroForm,
+        // renderiza el texto estático limpio como fallback
+        if (!acroAdded && cellVal) {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(6.8);
+          doc.setTextColor(30, 41, 59);
+          const align = (data.column.index === 7 || data.column.index === 8) ? 'center' : 'left';
+          const posX = align === 'center' ? data.cell.x + (data.cell.width / 2) : data.cell.x + 1.2;
+          const posY = data.cell.y + 3.2;
+          doc.text(cellVal, posX, posY, { align, maxWidth: data.cell.width - 2 });
         }
       }
     }
