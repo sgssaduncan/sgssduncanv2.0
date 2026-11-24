@@ -416,6 +416,16 @@ export const gsApi = {
         }
       }
 
+      let fotosObj = i.fotos;
+      if (typeof fotosObj === 'string') {
+        try { const p = JSON.parse(fotosObj); if (p && typeof p === 'object') fotosObj = p; } catch {}
+      }
+
+      let coordsObj = i.coordenadas;
+      if (typeof coordsObj === 'string') {
+        try { const p = JSON.parse(coordsObj); if (p && typeof p === 'object') coordsObj = p; } catch {}
+      }
+
       const finalPunt = parsedPunt !== undefined ? parsedPunt : (typeof i.puntuacion === 'number' ? i.puntuacion : undefined);
       const isComp = (i.estado || '').toLowerCase() === 'completada' || (i.estado || '').toLowerCase() === 'completado' || ((i.resultado || finalPunt !== undefined) && Object.keys(respuestasObj).length > 0 && (i.estado || '').toLowerCase() !== 'borrador');
       const finalEstado = isComp ? 'completada' : (i.estado || 'en_progreso');
@@ -431,7 +441,13 @@ export const gsApi = {
         estado: finalEstado,
         puntuacion: finalPunt,
         respuestas: respuestasObj,
-        formResponses: typeof i.formResponses === 'string' ? i.formResponses : JSON.stringify(respuestasObj)
+        formResponses: typeof i.formResponses === 'string' ? i.formResponses : JSON.stringify(respuestasObj),
+        fotos: fotosObj || undefined,
+        coordenadas: coordsObj || undefined,
+        geoLat: coordsObj?.lat ?? i.geoLat,
+        geoLon: coordsObj?.lng ?? i.geoLon,
+        geoAccuracy: coordsObj?.accuracy ?? i.geoAccuracy,
+        geoTimestamp: coordsObj?.timestamp ?? i.geoTimestamp
       };
     };
 
@@ -495,11 +511,59 @@ export const gsApi = {
             if (loc.formAdditional) rem.formAdditional = loc.formAdditional;
             if (loc.formSignatures) rem.formSignatures = loc.formSignatures;
           }
+          if (loc.fotos && (!rem.fotos || Object.keys(rem.fotos).length === 0)) {
+            rem.fotos = loc.fotos;
+          }
+          if (loc.coordenadas && !rem.coordenadas) {
+            rem.coordenadas = loc.coordenadas;
+            rem.geoLat = loc.geoLat;
+            rem.geoLon = loc.geoLon;
+            rem.geoAccuracy = loc.geoAccuracy;
+            rem.geoTimestamp = loc.geoTimestamp;
+          }
         }
 
         if (remRespCount === 0 && backupResponses) {
           rem.respuestas = backupResponses;
           rem.formResponses = JSON.stringify(backupResponses);
+        }
+
+        // Respaldo redundante para fotos desde localStorage si el remoto viene vacío
+        if (!rem.fotos || Object.keys(rem.fotos).length === 0) {
+          try {
+            const keys = [remId, remCorrel, remRef].filter(Boolean);
+            for (const k of keys) {
+              const raw = localStorage.getItem(`sgd_inspection_photos_${k}`);
+              if (raw) {
+                const p = JSON.parse(raw);
+                if (p && typeof p === 'object' && Object.keys(p).length > 0) {
+                  rem.fotos = p;
+                  break;
+                }
+              }
+            }
+          } catch {}
+        }
+
+        // Respaldo redundante para coordenadas GPS desde localStorage si el remoto viene vacío
+        if (!rem.coordenadas) {
+          try {
+            const keys = [remId, remCorrel, remRef].filter(Boolean);
+            for (const k of keys) {
+              const raw = localStorage.getItem(`sgd_inspection_coords_${k}`);
+              if (raw) {
+                const p = JSON.parse(raw);
+                if (p && p.lat && p.lng) {
+                  rem.coordenadas = p;
+                  rem.geoLat = p.lat;
+                  rem.geoLon = p.lng;
+                  rem.geoAccuracy = p.accuracy;
+                  rem.geoTimestamp = p.timestamp;
+                  break;
+                }
+              }
+            }
+          } catch {}
         }
 
         const finalRespCount = rem.respuestas && typeof rem.respuestas === 'object' ? Object.keys(rem.respuestas).length : 0;
@@ -640,6 +704,12 @@ export const gsApi = {
     correlativo?: number | string;
     referencia?: string;
     respuestas?: Record<string, any>;
+    fotos?: Record<string, string[] | string>;
+    coordenadas?: { lat: number; lng: number; accuracy?: number; timestamp?: string };
+    geoLat?: number;
+    geoLon?: number;
+    geoAccuracy?: number;
+    geoTimestamp?: string;
   }) {
     const list = getLocal<any>(SK.INSPECCIONES) || [];
     const targetId = String(payload.inspeccionId || payload._id || payload.id || payload.correlativo || '').trim();
@@ -666,7 +736,7 @@ export const gsApi = {
       );
     });
 
-    const updatedFields = {
+    const updatedFields: any = {
       formResponses: payload.responses,
       respuestas: parsedResp,
       formObservations: payload.observations,
@@ -676,6 +746,12 @@ export const gsApi = {
       resultado: payload.resultado,
       actualizadoEn: new Date().toISOString()
     };
+    if (payload.fotos) updatedFields.fotos = payload.fotos;
+    if (payload.coordenadas) updatedFields.coordenadas = payload.coordenadas;
+    if (payload.geoLat !== undefined) updatedFields.geoLat = payload.geoLat;
+    if (payload.geoLon !== undefined) updatedFields.geoLon = payload.geoLon;
+    if (payload.geoAccuracy !== undefined) updatedFields.geoAccuracy = payload.geoAccuracy;
+    if (payload.geoTimestamp) updatedFields.geoTimestamp = payload.geoTimestamp;
 
     if (idx !== -1) {
       list[idx] = { ...list[idx], ...updatedFields };
@@ -707,6 +783,12 @@ export const gsApi = {
       for (const k of keys) {
         localStorage.setItem(`sgd_inspection_responses_${k}`, payload.responses);
         localStorage.setItem(`sgd_draft_resp_${k}`, payload.responses);
+        if (payload.fotos) {
+          localStorage.setItem(`sgd_inspection_photos_${k}`, JSON.stringify(payload.fotos));
+        }
+        if (payload.coordenadas) {
+          localStorage.setItem(`sgd_inspection_coords_${k}`, JSON.stringify(payload.coordenadas));
+        }
         localStorage.setItem(`sgd_inspection_score_${k}`, JSON.stringify({
           puntuacion: payload.puntuacion,
           resultado: payload.resultado
@@ -731,6 +813,12 @@ export const gsApi = {
       puntuacion: payload.puntuacion,
       resultado: payload.resultado,
       firmas: payload.signatures ? JSON.parse(payload.signatures) : {},
+      fotos: payload.fotos,
+      coordenadas: payload.coordenadas,
+      geoLat: payload.geoLat,
+      geoLon: payload.geoLon,
+      geoAccuracy: payload.geoAccuracy,
+      geoTimestamp: payload.geoTimestamp,
       actualizadoEn: new Date().toISOString()
     };
     await postGAS('saveFormData', gasPayload);
@@ -747,6 +835,12 @@ export const gsApi = {
     resultado?: string;
     observaciones?: string;
     firmas?: any;
+    fotos?: any;
+    coordenadas?: any;
+    geoLat?: number;
+    geoLon?: number;
+    geoAccuracy?: number;
+    geoTimestamp?: string;
   }) {
     const list = getLocal<any>(SK.INSPECCIONES) || [];
     const targetId = String(payload.id || payload._id || payload.correlativo || '').trim();
@@ -764,6 +858,12 @@ export const gsApi = {
       if (payload.resultado) list[idx].resultado = payload.resultado;
       if (payload.respuestas) list[idx].respuestas = payload.respuestas;
       if (payload.responses) list[idx].formResponses = payload.responses;
+      if (payload.fotos) list[idx].fotos = payload.fotos;
+      if (payload.coordenadas) list[idx].coordenadas = payload.coordenadas;
+      if (payload.geoLat !== undefined) list[idx].geoLat = payload.geoLat;
+      if (payload.geoLon !== undefined) list[idx].geoLon = payload.geoLon;
+      if (payload.geoAccuracy !== undefined) list[idx].geoAccuracy = payload.geoAccuracy;
+      if (payload.geoTimestamp) list[idx].geoTimestamp = payload.geoTimestamp;
       setLocal(SK.INSPECCIONES, list);
       // Auto-generar y sincronizar planes de acción canónicos para NC/OM
       syncPlanesAccionForInspeccion(list[idx]).catch(e => console.warn('Error auto-syncing action plans on complete:', e));
@@ -782,6 +882,12 @@ export const gsApi = {
       responses: payload.responses || currentItem?.formResponses,
       observaciones: payload.observaciones || currentItem?.formObservations,
       firmas: payload.firmas || currentItem?.formSignatures,
+      fotos: payload.fotos || currentItem?.fotos,
+      coordenadas: payload.coordenadas || currentItem?.coordenadas,
+      geoLat: payload.geoLat ?? currentItem?.geoLat,
+      geoLon: payload.geoLon ?? currentItem?.geoLon,
+      geoAccuracy: payload.geoAccuracy ?? currentItem?.geoAccuracy,
+      geoTimestamp: payload.geoTimestamp || currentItem?.geoTimestamp,
       estado: 'completada'
     });
     return true;

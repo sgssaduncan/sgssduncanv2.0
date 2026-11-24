@@ -236,6 +236,86 @@ export default function InspectionReport({
     return calculateScore(formDef, parsedRespuestas);
   }, [metadata.tipo, inspection, parsedRespuestas]);
 
+  // Resolver coordenadas GPS con retrocompatibilidad y respaldo en localStorage
+  const resolvedCoords = React.useMemo(() => {
+    if (inspection.coordenadas && inspection.coordenadas.lat && inspection.coordenadas.lng) {
+      return inspection.coordenadas;
+    }
+    if (inspection.geoLat && inspection.geoLon) {
+      return {
+        lat: inspection.geoLat,
+        lng: inspection.geoLon,
+        accuracy: inspection.geoAccuracy,
+        timestamp: inspection.geoTimestamp
+      };
+    }
+    const targetId = inspection._id || inspection.id || String(inspection.correlativo || '');
+    if (targetId && typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(`sgd_inspection_coords_${targetId}`);
+        if (stored) {
+          const p = JSON.parse(stored);
+          if (p && p.lat && p.lng) return p;
+        }
+      } catch {}
+    }
+    return null;
+  }, [inspection]);
+
+  // Resolver fotos normalizadas soportando fotos individuales o arrays múltiples por ítem
+  const resolvedPhotosList = React.useMemo(() => {
+    let rawFotos = inspection.fotos;
+    if (!rawFotos || Object.keys(rawFotos).length === 0) {
+      const targetId = inspection._id || inspection.id || String(inspection.correlativo || '');
+      if (targetId && typeof window !== 'undefined') {
+        try {
+          const stored = localStorage.getItem(`sgd_inspection_photos_${targetId}`);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed && typeof parsed === 'object') rawFotos = parsed;
+          }
+        } catch {}
+      }
+    }
+
+    if (!rawFotos || typeof rawFotos !== 'object') return [];
+
+    const list: { itemId: string; itemName: string; url: string; index: number; total: number }[] = [];
+
+    Object.entries(rawFotos).forEach(([itemId, val]) => {
+      let itemName = itemId;
+      (metadata.tipo?.secciones || []).forEach((sec: any) => {
+        const found = (sec.items || []).find((it: any) => it.id === itemId);
+        if (found) itemName = found.pregunta || found.label || itemId;
+      });
+
+      let urls: string[] = [];
+      if (Array.isArray(val)) {
+        urls = val;
+      } else if (typeof val === 'string' && val.trim().length > 0) {
+        try {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed)) urls = parsed;
+          else urls = [val];
+        } catch {
+          urls = [val];
+        }
+      }
+
+      urls.forEach((url, uIdx) => {
+        list.push({
+          itemId,
+          itemName,
+          url,
+          index: uIdx + 1,
+          total: urls.length
+        });
+      });
+    });
+
+    return list;
+  }, [inspection, metadata.tipo]);
+
   React.useEffect(() => {
     if (showPrintPreview && reportRef.current) {
       const populate = () => {
@@ -545,7 +625,7 @@ export default function InspectionReport({
                 <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#475569', borderRight: '1px solid #cbd5e1' }}>Inspector</td>
                 <td style={{ padding: '4px 8px' }}>{inspection.inspector || inspection.inspectorId || 'Francisco Rojas'}</td>
               </tr>
-              <tr>
+              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
                 <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#475569', borderRight: '1px solid #cbd5e1' }}>Resultado</td>
                 <td style={{ padding: '4px 8px', fontWeight: 'bold', color: (scoreResult?.resultado || inspection.resultado) === 'C' ? '#166534' : (scoreResult?.resultado || inspection.resultado) === 'NC' ? '#b91c1c' : '#c2410c', borderRight: '1px solid #cbd5e1' }}>
                   {(scoreResult?.resultado || inspection.resultado || 'C') === 'C' ? 'CONFORME (C)' : (scoreResult?.resultado || inspection.resultado) === 'OM' ? 'OPORTUNIDAD DE MEJORA (OM)' : 'NO CONFORME (NC)'}
@@ -553,6 +633,28 @@ export default function InspectionReport({
                 <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#475569', borderRight: '1px solid #cbd5e1' }}>Puntuación</td>
                 <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#1e40af', fontSize: '9px' }}>
                   {scoreResult ? scoreResult.puntuacion : (typeof inspection.puntuacion === 'number' ? inspection.puntuacion : 100)}%
+                </td>
+              </tr>
+              <tr>
+                <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#475569', borderRight: '1px solid #cbd5e1' }}>Geolocalización GPS</td>
+                <td colSpan={3} style={{ padding: '4px 8px' }}>
+                  {resolvedCoords ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <strong style={{ color: '#0f172a' }}>📍 Lat: {resolvedCoords.lat.toFixed(6)}, Lng: {resolvedCoords.lng.toFixed(6)}</strong>
+                      {resolvedCoords.accuracy && <span style={{ color: '#64748b' }}>(±{Math.round(resolvedCoords.accuracy)}m precisión)</span>}
+                      {resolvedCoords.timestamp && <span style={{ color: '#94a3b8', fontSize: '7.5px' }}>[{new Date(resolvedCoords.timestamp).toLocaleTimeString('es-VE')}]</span>}
+                      <a
+                        href={resolvedCoords.mapUrl || `https://www.google.com/maps?q=${resolvedCoords.lat},${resolvedCoords.lng}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ color: '#1e40af', fontWeight: 'bold', textDecoration: 'underline', marginLeft: '4px' }}
+                      >
+                        [Ver en Google Maps ↗]
+                      </a>
+                    </span>
+                  ) : (
+                    <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>No geolocalizada con GPS en campo</span>
+                  )}
                 </td>
               </tr>
             </tbody>
@@ -690,28 +792,36 @@ export default function InspectionReport({
             </div>
           )}
 
-          {/* EVIDENCIA FOTOGRÁFICA */}
-          {inspection.fotos && Object.keys(inspection.fotos).length > 0 && (
+          {/* EVIDENCIA FOTOGRÁFICA Y DETALLES GRÁFICOS */}
+          {resolvedPhotosList.length > 0 && (
             <div style={{ marginBottom: "14px", border: '1px solid #cbd5e1', borderRadius: '3px', overflow: 'hidden' }}>
-              <div style={{ backgroundColor: '#f1f5f9', padding: '4px 8px', fontWeight: 'bold', fontSize: '8.5px', color: '#1e293b', borderBottom: '1px solid #cbd5e1' }}>
-                REGISTRO FOTOGRÁFICO
+              <div style={{ backgroundColor: '#f1f5f9', padding: '4px 8px', fontWeight: 'bold', fontSize: '8.5px', color: '#1e293b', borderBottom: '1px solid #cbd5e1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>REGISTRO FOTOGRÁFICO Y EVIDENCIAS DE CAMPO ({resolvedPhotosList.length} FOTOGRAFÍAS)</span>
+                <span style={{ fontSize: '7.5px', color: '#64748b' }}>EVIDENCIA TÉCNICA CERTIFICADA</span>
               </div>
               <div style={{ padding: "8px", backgroundColor: "#fff", display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center' }}>
-                {Object.entries(inspection.fotos).map(([fotoId, url], i) => {
-                  let itemName = fotoId;
-                  (metadata.tipo?.secciones || []).forEach((sec: any) => {
-                    const found = (sec.items || []).find((it: any) => it.id === fotoId);
-                    if (found) itemName = found.pregunta || found.label || fotoId;
-                  });
-                  return (
-                    <div key={i} style={{ width: '45%', border: '1px solid #e2e8f0', padding: '4px', textAlign: 'center', backgroundColor: '#f8fafc', borderRadius: '3px' }}>
-                      <img src={url} alt={`Evidencia ${i + 1}`} style={{ maxWidth: '100%', maxHeight: '160px', width: 'auto', height: 'auto', margin: '0 auto', display: 'block', borderRadius: '2px' }} />
-                      <div style={{ fontSize: '7.5px', marginTop: '4px', fontWeight: 'bold', color: '#334155' }}>
-                        {itemName.replace(/^\d+\.\d+\s+¿?/, '').replace(/\?$/, '')}
-                      </div>
+                {resolvedPhotosList.map((photoItem, i) => (
+                  <div key={i} style={{ width: '47%', border: '1px solid #e2e8f0', padding: '6px', textAlign: 'center', backgroundColor: '#f8fafc', borderRadius: '4px' }}>
+                    <div style={{ marginBottom: '4px', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '7.5px', fontWeight: 'bold', color: '#1e40af', backgroundColor: '#dbeafe', padding: '1px 4px', borderRadius: '2px' }}>
+                        Ítem {photoItem.itemId}
+                      </span>
+                      {photoItem.total > 1 && (
+                        <span style={{ fontSize: '7px', fontWeight: 'bold', color: '#475569' }}>
+                          Foto {photoItem.index} de {photoItem.total}
+                        </span>
+                      )}
                     </div>
-                  );
-                })}
+                    <img 
+                      src={photoItem.url} 
+                      alt={`Evidencia ${photoItem.itemId}-${photoItem.index}`} 
+                      style={{ maxWidth: '100%', maxHeight: '180px', width: 'auto', height: 'auto', margin: '0 auto', display: 'block', borderRadius: '2px', objectFit: 'contain' }} 
+                    />
+                    <div style={{ fontSize: '7.5px', marginTop: '4px', fontWeight: 'bold', color: '#334155', lineHeight: '1.2' }}>
+                      {photoItem.itemName.replace(/^\d+\.\d+\s+¿?/, '').replace(/\?$/, '')}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}

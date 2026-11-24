@@ -90,6 +90,50 @@ export default function InspeccionFormPage() {
     }
   }, [inspeccion]);
 
+  const initialPhotos = useMemo(() => {
+    let raw: Record<string, any> = {};
+    if (inspeccion?.fotos && typeof inspeccion.fotos === 'object' && Object.keys(inspeccion.fotos).length > 0) {
+      raw = { ...inspeccion.fotos };
+    } else {
+      const keys = [id, inspeccion?._id, inspeccion?.id, inspeccion?.correlativo ? String(inspeccion.correlativo) : null].filter(Boolean) as string[];
+      for (const k of keys) {
+        const stored = localStorage.getItem(`sgd_inspection_photos_${k}`);
+        if (stored) {
+          try {
+            const p = JSON.parse(stored);
+            if (p && typeof p === 'object') { raw = p; break; }
+          } catch {}
+        }
+      }
+    }
+    return raw;
+  }, [inspeccion, id]);
+
+  const initialCoords = useMemo(() => {
+    if (inspeccion?.coordenadas && inspeccion.coordenadas.lat && inspeccion.coordenadas.lng) {
+      return inspeccion.coordenadas;
+    }
+    if (inspeccion?.geoLat && inspeccion?.geoLon) {
+      return {
+        lat: inspeccion.geoLat,
+        lng: inspeccion.geoLon,
+        accuracy: inspeccion.geoAccuracy,
+        timestamp: inspeccion.geoTimestamp
+      };
+    }
+    const keys = [id, inspeccion?._id, inspeccion?.id, inspeccion?.correlativo ? String(inspeccion.correlativo) : null].filter(Boolean) as string[];
+    for (const k of keys) {
+      const stored = localStorage.getItem(`sgd_inspection_coords_${k}`);
+      if (stored) {
+        try {
+          const p = JSON.parse(stored);
+          if (p && p.lat && p.lng) return p;
+        } catch {}
+      }
+    }
+    return null;
+  }, [inspeccion, id]);
+
   const [saving, setSaving] = useState(false);
   const [completing, setCompleting] = useState(false);
 
@@ -126,6 +170,8 @@ export default function InspeccionFormPage() {
     observations: Record<string, string>;
     additional: Record<string, string>;
     signatures: Record<string, string>;
+    photos: Record<string, string[]>;
+    coords: { lat: number; lng: number; accuracy?: number; timestamp?: string } | null;
     score: ReturnType<typeof calculateScore>;
   }) => {
     setSaving(true);
@@ -139,6 +185,10 @@ export default function InspeccionFormPage() {
         try {
           localStorage.setItem(`sgd_inspection_responses_${k}`, JSON.stringify(data.responses));
           localStorage.setItem(`sgd_draft_resp_${k}`, JSON.stringify(data.responses));
+          localStorage.setItem(`sgd_inspection_photos_${k}`, JSON.stringify(data.photos));
+          if (data.coords) {
+            localStorage.setItem(`sgd_inspection_coords_${k}`, JSON.stringify(data.coords));
+          }
           localStorage.setItem(`sgd_inspection_score_${k}`, JSON.stringify({
             puntuacion: data.score.puntuacion,
             resultado: data.score.resultado
@@ -157,6 +207,12 @@ export default function InspeccionFormPage() {
         observations: JSON.stringify(data.observations),
         additional: JSON.stringify(data.additional),
         signatures: JSON.stringify(data.signatures),
+        fotos: data.photos,
+        coordenadas: data.coords || undefined,
+        geoLat: data.coords?.lat,
+        geoLon: data.coords?.lng,
+        geoAccuracy: data.coords?.accuracy,
+        geoTimestamp: data.coords?.timestamp,
         puntuacion: data.score.puntuacion,
         resultado: data.score.resultado,
       });
@@ -175,6 +231,8 @@ export default function InspeccionFormPage() {
     observations: Record<string, string>;
     additional: Record<string, string>;
     signatures: Record<string, string>;
+    photos: Record<string, string[]>;
+    coords: { lat: number; lng: number; accuracy?: number; timestamp?: string } | null;
     score: ReturnType<typeof calculateScore>;
   }) => {
     setCompleting(true);
@@ -187,6 +245,10 @@ export default function InspeccionFormPage() {
         try {
           localStorage.setItem(`sgd_inspection_responses_${k}`, JSON.stringify(data.responses));
           localStorage.setItem(`sgd_draft_resp_${k}`, JSON.stringify(data.responses));
+          localStorage.setItem(`sgd_inspection_photos_${k}`, JSON.stringify(data.photos));
+          if (data.coords) {
+            localStorage.setItem(`sgd_inspection_coords_${k}`, JSON.stringify(data.coords));
+          }
           localStorage.setItem(`sgd_inspection_score_${k}`, JSON.stringify({
             puntuacion: data.score.puntuacion,
             resultado: data.score.resultado
@@ -206,6 +268,12 @@ export default function InspeccionFormPage() {
         observations: JSON.stringify(data.observations),
         additional: JSON.stringify(data.additional),
         signatures: JSON.stringify(data.signatures),
+        fotos: data.photos,
+        coordenadas: data.coords || undefined,
+        geoLat: data.coords?.lat,
+        geoLon: data.coords?.lng,
+        geoAccuracy: data.coords?.accuracy,
+        geoTimestamp: data.coords?.timestamp,
         puntuacion: data.score.puntuacion,
         resultado: data.score.resultado,
       });
@@ -217,7 +285,13 @@ export default function InspeccionFormPage() {
         respuestas: data.responses,
         responses: JSON.stringify(data.responses),
         observaciones: JSON.stringify(data.observations),
-        signatures: JSON.stringify(data.signatures)
+        signatures: JSON.stringify(data.signatures),
+        fotos: data.photos,
+        coordenadas: data.coords || undefined,
+        geoLat: data.coords?.lat,
+        geoLon: data.coords?.lng,
+        geoAccuracy: data.coords?.accuracy,
+        geoTimestamp: data.coords?.timestamp
       });
       toast.success('¡Inspección completada con éxito!');
       navigate(`/inspecciones/${targetId}`);
@@ -266,6 +340,8 @@ export default function InspeccionFormPage() {
         initialResponses={initialResponses}
         initialObservations={initialObservations}
         initialAdditional={initialAdditional}
+        initialPhotos={initialPhotos}
+        initialCoords={initialCoords}
         onSave={handleSave}
         onComplete={handleComplete}
         inspeccionId={inspeccion._id || inspeccion.id || String(inspeccion.correlativo) || id}

@@ -1164,6 +1164,24 @@ function handleSaveFormData(payload, session) {
       setCol(['formSignatures', 'firmas', 'firmaInspector'], sigStr);
     }
 
+    var rawFotos = payload.fotos;
+    if (rawFotos) {
+      var fotosStr = typeof rawFotos === 'string' ? rawFotos : JSON.stringify(sanitizeObject(rawFotos));
+      setCol(['fotos', 'evidencias', 'registroFotografico'], fotosStr);
+    }
+
+    var rawCoords = payload.coordenadas;
+    if (rawCoords) {
+      var coordsStr = typeof rawCoords === 'string' ? rawCoords : JSON.stringify(sanitizeObject(rawCoords));
+      setCol(['coordenadas', 'geoCoords', 'ubicacionGps'], coordsStr);
+    }
+    if (payload.geoLat !== undefined && payload.geoLat !== null) {
+      setCol(['geoLat', 'latitud'], payload.geoLat);
+    }
+    if (payload.geoLon !== undefined && payload.geoLon !== null) {
+      setCol(['geoLon', 'longitud'], payload.geoLon);
+    }
+
     setCol(['actualizadoEn'], nowStr);
 
     SpreadsheetApp.flush();
@@ -1225,6 +1243,24 @@ function handleCompleteInspeccion(payload, session) {
       setCol(['formSignatures', 'firmas', 'firmaInspector'], sigStr);
     }
 
+    var rawFotos = payload.fotos;
+    if (rawFotos) {
+      var fotosStr = typeof rawFotos === 'string' ? rawFotos : JSON.stringify(sanitizeObject(rawFotos));
+      setCol(['fotos', 'evidencias', 'registroFotografico'], fotosStr);
+    }
+
+    var rawCoords = payload.coordenadas;
+    if (rawCoords) {
+      var coordsStr = typeof rawCoords === 'string' ? rawCoords : JSON.stringify(sanitizeObject(rawCoords));
+      setCol(['coordenadas', 'geoCoords', 'ubicacionGps'], coordsStr);
+    }
+    if (payload.geoLat !== undefined && payload.geoLat !== null) {
+      setCol(['geoLat', 'latitud'], payload.geoLat);
+    }
+    if (payload.geoLon !== undefined && payload.geoLon !== null) {
+      setCol(['geoLon', 'longitud'], payload.geoLon);
+    }
+
     setCol(['horaFin'], sanitizeCell(payload.horaFin || Utilities.formatDate(new Date(), 'America/Caracas', 'HH:mm')));
     setCol(['actualizadoEn'], nowStr);
 
@@ -1232,7 +1268,6 @@ function handleCompleteInspeccion(payload, session) {
     var foundId = data[rowIndex - 1][0];
     return { success: true, _id: foundId, estado: 'completada' };
   });
-}
 }
 
 function handleDeleteInspeccion(payload, session) {

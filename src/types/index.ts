@@ -143,7 +143,7 @@ export interface Inspeccion {
   formObservations?: string;
   formAdditional?: string;
   formSignatures?: string;
-  fotos?: Record<string, string>;
+  fotos?: Record<string, string[] | string>;
   firmas?: {
     inspector?: string;
     revisor?: string;
@@ -151,9 +151,14 @@ export interface Inspeccion {
   coordenadas?: {
     lat: number;
     lng: number;
+    accuracy?: number;
+    timestamp?: string;
+    mapUrl?: string;
   };
   geoLat?: number;
   geoLon?: number;
+  geoAccuracy?: number;
+  geoTimestamp?: string;
   puntuacionConformidad?: number;
   puntuacion?: number;
   observaciones?: string;

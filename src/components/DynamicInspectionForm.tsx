@@ -1,18 +1,51 @@
 import { useState, useMemo, useEffect } from "react";
-import { CheckCircle2, Info, XCircle, AlertTriangle, MinusCircle, ChevronDown, ChevronUp, Save, BarChart3 } from "lucide-react";
+import { 
+  CheckCircle2, 
+  Info, 
+  XCircle, 
+  AlertTriangle, 
+  MinusCircle, 
+  ChevronDown, 
+  ChevronUp, 
+  Save, 
+  BarChart3,
+  MapPin,
+  Camera,
+  Trash2,
+  ExternalLink,
+  RefreshCw,
+  X,
+  Maximize2,
+  Loader2,
+  Image as ImageIcon
+} from "lucide-react";
 import type { InspectionFormDef, FormSection, FormItem, ResponseType } from "../lib/formDefinitions";
 import { calculateScore } from "../lib/formDefinitions";
+import { compressMultipleFiles } from "../lib/imageCompressor";
+import toast from "react-hot-toast";
+
+export interface GeoLocationData {
+  lat: number;
+  lng: number;
+  accuracy?: number;
+  timestamp?: string;
+  mapUrl?: string;
+}
 
 interface Props {
   formDef: InspectionFormDef;
   initialResponses?: Record<string, string>;
   initialObservations?: Record<string, string>;
   initialAdditional?: Record<string, string>;
+  initialPhotos?: Record<string, string[] | string>;
+  initialCoords?: GeoLocationData | null;
   onSave: (data: {
     responses: Record<string, string>;
     observations: Record<string, string>;
     additional: Record<string, string>;
     signatures: Record<string, string>;
+    photos: Record<string, string[]>;
+    coords: GeoLocationData | null;
     score: ReturnType<typeof calculateScore>;
   }) => void;
   onComplete?: (data: {
@@ -20,6 +53,8 @@ interface Props {
     observations: Record<string, string>;
     additional: Record<string, string>;
     signatures: Record<string, string>;
+    photos: Record<string, string[]>;
+    coords: GeoLocationData | null;
     score: ReturnType<typeof calculateScore>;
   }) => void;
   readOnly?: boolean;
@@ -80,6 +115,10 @@ function SectionCard({
   onObservation, 
   readOnly,
   sectionIndex,
+  photos,
+  onAddPhotos,
+  onRemovePhoto,
+  onPreviewPhoto,
 }: { 
   section: FormSection; 
   responses: Record<string, string>;
@@ -88,6 +127,10 @@ function SectionCard({
   onObservation: (sectionId: string, value: string) => void;
   readOnly?: boolean;
   sectionIndex: number;
+  photos: Record<string, string[]>;
+  onAddPhotos: (itemId: string, files: FileList | null) => void;
+  onRemovePhoto: (itemId: string, index: number) => void;
+  onPreviewPhoto: (url: string, title: string, index: number, total: number) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
   const [expandedDetails, setExpandedDetails] = useState<Record<string, boolean>>({});
@@ -124,108 +167,225 @@ function SectionCard({
 
       {expanded && (
         <div className="border-t border-slate-100">
-          <div className="divide-y divide-slate-50">
+          <div className="divide-y divide-slate-100">
             {section.items.map((item) => {
               const options = getOptionsForType(item.responseType, item);
               const isSelectType = item.responseType === "SELECT";
+              const itemPhotos = photos[item.id] || [];
+              const cameraInputId = `camera-input-${item.id}`;
+              const galleryInputId = `gallery-input-${item.id}`;
               
               return (
-                <div key={item.id} className={`px-4 sm:px-6 py-3.5 flex flex-col sm:flex-row sm:items-start justify-between gap-3 ${responses[item.id] ? "" : "bg-amber-50/20"}`}>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                      <span className="text-slate-600 font-mono text-xs font-black bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
-                        {item.id}
+                <div key={item.id} className={`px-4 sm:px-6 py-4 flex flex-col gap-3 transition-colors ${responses[item.id] ? "" : "bg-amber-50/15"}`}>
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                        <span className="text-slate-600 font-mono text-xs font-black bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                          {item.id}
+                        </span>
+                        {item.grupoPilar && (
+                          <span className={`text-[10px] font-black px-1.5 py-0.5 rounded border uppercase ${
+                            item.grupoPilar === 'INFRA' ? 'bg-amber-100 text-amber-800 border-amber-300' :
+                            item.grupoPilar === 'LEGAL' ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                            item.grupoPilar === 'SSA' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                            'bg-purple-100 text-purple-800 border-purple-300'
+                          }`}>
+                            {item.grupoPilar}
+                          </span>
+                        )}
+                        {item.areaResponsable && (
+                          <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200">
+                            {item.areaResponsable}
+                          </span>
+                        )}
+                        {itemPhotos.length > 0 && (
+                          <span className="text-[10px] font-black bg-blue-100 text-blue-700 border border-blue-300 px-1.5 py-0.5 rounded inline-flex items-center gap-1">
+                            <Camera className="h-3 w-3" /> {itemPhotos.length} {itemPhotos.length === 1 ? 'Foto' : 'Fotos'}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-sm font-semibold text-slate-800 block">
+                        {item.label}
                       </span>
-                      {item.grupoPilar && (
-                        <span className={`text-[10px] font-black px-1.5 py-0.5 rounded border uppercase ${
-                          item.grupoPilar === 'INFRA' ? 'bg-amber-100 text-amber-800 border-amber-300' :
-                          item.grupoPilar === 'LEGAL' ? 'bg-blue-100 text-blue-800 border-blue-300' :
-                          item.grupoPilar === 'SSA' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
-                          'bg-purple-100 text-purple-800 border-purple-300'
-                        }`}>
-                          {item.grupoPilar}
+                      {item.aspectoLegal && (
+                        <span className="text-[11px] text-slate-500 font-medium block mt-0.5">
+                          ⚖️ {item.aspectoLegal}
                         </span>
                       )}
-                      {item.areaResponsable && (
-                        <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200">
-                          {item.areaResponsable}
-                        </span>
+                      {item.preguntaOriginal && item.preguntaOriginal !== item.label && (
+                        <button
+                          type="button"
+                          onClick={() => setExpandedDetails(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+                          className="text-[11px] text-blue-600 hover:text-blue-800 font-bold inline-flex items-center gap-1 mt-1"
+                        >
+                          <Info className="h-3 w-3" />
+                          <span>{expandedDetails[item.id] ? "Ocultar texto normativo completo" : "Ver texto normativo completo"}</span>
+                        </button>
+                      )}
+                      {expandedDetails[item.id] && item.preguntaOriginal && (
+                        <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-200 mt-1.5 italic">
+                          "{item.preguntaOriginal}"
+                        </p>
                       )}
                     </div>
-                    <span className="text-sm font-semibold text-slate-800 block">
-                      {item.label}
-                    </span>
-                    {item.aspectoLegal && (
-                      <span className="text-[11px] text-slate-500 font-medium block mt-0.5">
-                        ⚖️ {item.aspectoLegal}
-                      </span>
-                    )}
-                    {item.preguntaOriginal && item.preguntaOriginal !== item.label && (
-                      <button
-                        type="button"
-                        onClick={() => setExpandedDetails(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
-                        className="text-[11px] text-blue-600 hover:text-blue-800 font-bold inline-flex items-center gap-1 mt-1"
-                      >
-                        <Info className="h-3 w-3" />
-                        <span>{expandedDetails[item.id] ? "Ocultar texto normativo completo" : "Ver texto normativo completo"}</span>
-                      </button>
-                    )}
-                    {expandedDetails[item.id] && item.preguntaOriginal && (
-                      <p className="text-xs text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-200 mt-1 italic">
-                        "{item.preguntaOriginal}"
-                      </p>
-                    )}
+
+                    {/* Controles de respuesta */}
+                    <div className="flex flex-wrap gap-1.5 shrink-0">
+                      {item.responseType === "TEXT" ? (
+                        <input
+                          type="text"
+                          value={responses[item.id] || ""}
+                          onChange={e => onResponse(item.id, e.target.value)}
+                          disabled={readOnly}
+                          placeholder="Escriba aquí..."
+                          className="w-full sm:w-56 border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      ) : item.responseType === "NUMBER" ? (
+                        <input
+                          type="number"
+                          value={responses[item.id] || ""}
+                          onChange={e => onResponse(item.id, e.target.value)}
+                          disabled={readOnly}
+                          placeholder="0"
+                          className="w-24 border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      ) : item.responseType === "DATE" ? (
+                        <input
+                          type="date"
+                          value={responses[item.id] || ""}
+                          onChange={e => onResponse(item.id, e.target.value)}
+                          disabled={readOnly}
+                          className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      ) : isSelectType ? (
+                        <select
+                          value={responses[item.id] || ""}
+                          onChange={e => onResponse(item.id, e.target.value)}
+                          disabled={readOnly}
+                          className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">Seleccione...</option>
+                          {options.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="flex flex-wrap gap-2 w-full sm:w-auto pt-1 sm:pt-0">
+                          {options.map(opt => (
+                            <ResponseButton
+                              key={opt}
+                              value={opt}
+                              selected={responses[item.id] === opt}
+                              onClick={() => onResponse(item.id, opt)}
+                              disabled={readOnly}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-1.5 shrink-0">
-                    {item.responseType === "TEXT" ? (
-                      <input
-                        type="text"
-                        value={responses[item.id] || ""}
-                        onChange={e => onResponse(item.id, e.target.value)}
-                        disabled={readOnly}
-                        placeholder="Escriba aquí..."
-                        className="w-full sm:w-56 border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    ) : item.responseType === "NUMBER" ? (
-                      <input
-                        type="number"
-                        value={responses[item.id] || ""}
-                        onChange={e => onResponse(item.id, e.target.value)}
-                        disabled={readOnly}
-                        placeholder="0"
-                        className="w-24 border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    ) : item.responseType === "DATE" ? (
-                      <input
-                        type="date"
-                        value={responses[item.id] || ""}
-                        onChange={e => onResponse(item.id, e.target.value)}
-                        disabled={readOnly}
-                        className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    ) : isSelectType ? (
-                      <select
-                        value={responses[item.id] || ""}
-                        onChange={e => onResponse(item.id, e.target.value)}
-                        disabled={readOnly}
-                        className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">Seleccione...</option>
-                        {options.map(opt => (
-                          <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <div className="flex flex-wrap gap-2 w-full sm:w-auto pt-1 sm:pt-0">
-                        {options.map(opt => (
-                          <ResponseButton
-                            key={opt}
-                            value={opt}
-                            selected={responses[item.id] === opt}
-                            onClick={() => onResponse(item.id, opt)}
-                            disabled={readOnly}
+
+                  {/* SECCIÓN DE EVIDENCIA FOTOGRÁFICA Y DETALLES GRÁFICOS */}
+                  <div className="pt-2 border-t border-slate-100 flex flex-col gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+                        <Camera className="h-3.5 w-3.5 text-slate-400" />
+                        <span>Evidencias Gráficas ({itemPhotos.length}):</span>
+                      </div>
+
+                      {!readOnly && (
+                        <div className="flex items-center gap-2">
+                          {/* Input oculto para Cámara Directa */}
+                          <input
+                            id={cameraInputId}
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            className="hidden"
+                            onChange={(e) => {
+                              onAddPhotos(item.id, e.target.files);
+                              e.target.value = '';
+                            }}
                           />
+                          <label
+                            htmlFor={cameraInputId}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg cursor-pointer transition-colors shadow-2xs active:scale-95"
+                            title="Tomar foto con la cámara"
+                          >
+                            <Camera className="h-3.5 w-3.5 text-blue-600" />
+                            <span>Cámara</span>
+                          </label>
+
+                          {/* Input oculto para Galería / Selección múltiple */}
+                          <input
+                            id={galleryInputId}
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => {
+                              onAddPhotos(item.id, e.target.files);
+                              e.target.value = '';
+                            }}
+                          />
+                          <label
+                            htmlFor={galleryInputId}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg cursor-pointer transition-colors shadow-2xs active:scale-95"
+                            title="Seleccionar fotos de la galería o archivos"
+                          >
+                            <ImageIcon className="h-3.5 w-3.5 text-emerald-600" />
+                            <span>Galería (+)</span>
+                          </label>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Galería de miniaturas por ítem */}
+                    {itemPhotos.length > 0 ? (
+                      <div className="flex items-center gap-2.5 overflow-x-auto py-1 scrollbar-thin">
+                        {itemPhotos.map((photoUrl, photoIdx) => (
+                          <div
+                            key={photoIdx}
+                            className="relative group shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden border border-slate-300 bg-slate-100 shadow-2xs"
+                          >
+                            <img
+                              src={photoUrl}
+                              alt={`Evidencia ${item.id}-${photoIdx + 1}`}
+                              className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
+                              onClick={() => onPreviewPhoto(photoUrl, item.label, photoIdx, itemPhotos.length)}
+                            />
+                            
+                            <div className="absolute bottom-0 inset-x-0 bg-slate-900/60 text-white text-[9px] font-bold text-center py-0.5">
+                              {photoIdx + 1}/{itemPhotos.length}
+                            </div>
+
+                            {/* Botón ampliar */}
+                            <button
+                              type="button"
+                              onClick={() => onPreviewPhoto(photoUrl, item.label, photoIdx, itemPhotos.length)}
+                              className="absolute top-1 left-1 p-1 bg-slate-900/70 hover:bg-slate-900 text-white rounded-md opacity-80 group-hover:opacity-100 transition-opacity"
+                              title="Ampliar foto"
+                            >
+                              <Maximize2 className="h-3 w-3" />
+                            </button>
+
+                            {/* Botón eliminar */}
+                            {!readOnly && (
+                              <button
+                                type="button"
+                                onClick={() => onRemovePhoto(item.id, photoIdx)}
+                                className="absolute top-1 right-1 p-1 bg-red-600 hover:bg-red-700 text-white rounded-md shadow-xs opacity-80 group-hover:opacity-100 transition-opacity"
+                                title="Eliminar esta foto"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            )}
+                          </div>
                         ))}
+                      </div>
+                    ) : (
+                      <div className="text-[11px] text-slate-400 italic">
+                        Sin fotografías adjuntas. Puede tomar fotos ilimitadas según su criterio.
                       </div>
                     )}
                   </div>
@@ -252,7 +412,18 @@ function SectionCard({
   );
 }
 
-export function DynamicInspectionForm({ formDef, initialResponses, initialObservations, initialAdditional, onSave, onComplete, readOnly, inspeccionId }: Props) {
+export function DynamicInspectionForm({ 
+  formDef, 
+  initialResponses, 
+  initialObservations, 
+  initialAdditional, 
+  initialPhotos,
+  initialCoords,
+  onSave, 
+  onComplete, 
+  readOnly, 
+  inspeccionId 
+}: Props) {
   const [responses, setResponses] = useState<Record<string, string>>(() => {
     if (initialResponses && Object.keys(initialResponses).length > 0) return initialResponses;
     if (typeof window !== "undefined") {
@@ -269,15 +440,97 @@ export function DynamicInspectionForm({ formDef, initialResponses, initialObserv
     }
     return {};
   });
+
   const [observations, setObservations] = useState<Record<string, string>>(initialObservations || {});
   const [additional, setAdditional] = useState<Record<string, string>>(initialAdditional || {});
   const [signatures, setSignatures] = useState<Record<string, string>>({});
+
+  // Manejo de fotos múltiples por ítem
+  const [photos, setPhotos] = useState<Record<string, string[]>>(() => {
+    const normalized: Record<string, string[]> = {};
+    if (initialPhotos) {
+      Object.entries(initialPhotos).forEach(([key, val]) => {
+        if (Array.isArray(val)) {
+          normalized[key] = val;
+        } else if (typeof val === 'string' && val.trim().length > 0) {
+          // Podría ser un JSON stringificado
+          try {
+            const parsed = JSON.parse(val);
+            if (Array.isArray(parsed)) normalized[key] = parsed;
+            else normalized[key] = [val];
+          } catch {
+            normalized[key] = [val];
+          }
+        }
+      });
+      return normalized;
+    }
+    if (typeof window !== "undefined" && inspeccionId) {
+      try {
+        const raw = localStorage.getItem(`sgd_inspection_photos_${inspeccionId}`);
+        if (raw) {
+          const p = JSON.parse(raw);
+          if (p && typeof p === "object") return p;
+        }
+      } catch {}
+    }
+    return {};
+  });
+
+  // Manejo de geolocalización GPS
+  const [coords, setCoords] = useState<GeoLocationData | null>(() => {
+    if (initialCoords && initialCoords.lat && initialCoords.lng) return initialCoords;
+    if (typeof window !== "undefined" && inspeccionId) {
+      try {
+        const raw = localStorage.getItem(`sgd_inspection_coords_${inspeccionId}`);
+        if (raw) {
+          const p = JSON.parse(raw);
+          if (p && p.lat && p.lng) return p;
+        }
+      } catch {}
+    }
+    return null;
+  });
+  const [locating, setLocating] = useState(false);
+
+  // Visor Lightbox a pantalla completa
+  const [previewPhoto, setPreviewPhoto] = useState<{
+    url: string;
+    title: string;
+    index: number;
+    total: number;
+  } | null>(null);
 
   useEffect(() => {
     if (initialResponses && Object.keys(initialResponses).length > 0) {
       setResponses(prev => Object.keys(prev).length === 0 ? initialResponses : { ...initialResponses, ...prev });
     }
   }, [initialResponses]);
+
+  useEffect(() => {
+    if (initialPhotos && Object.keys(initialPhotos).length > 0) {
+      const normalized: Record<string, string[]> = {};
+      Object.entries(initialPhotos).forEach(([key, val]) => {
+        if (Array.isArray(val)) normalized[key] = val;
+        else if (typeof val === 'string' && val.trim().length > 0) {
+          try {
+            const parsed = JSON.parse(val);
+            if (Array.isArray(parsed)) normalized[key] = parsed;
+            else normalized[key] = [val];
+          } catch {
+            normalized[key] = [val];
+          }
+        }
+      });
+      setPhotos(prev => ({ ...normalized, ...prev }));
+    }
+  }, [initialPhotos]);
+
+  useEffect(() => {
+    if (initialCoords && initialCoords.lat && initialCoords.lng) {
+      setCoords(initialCoords);
+    }
+  }, [initialCoords]);
 
   // Persistencia inmediata en tiempo real en localStorage
   useEffect(() => {
@@ -291,6 +544,22 @@ export function DynamicInspectionForm({ formDef, initialResponses, initialObserv
       }
     }
   }, [responses, inspeccionId, formDef?.code]);
+
+  useEffect(() => {
+    if (inspeccionId && typeof window !== "undefined") {
+      try {
+        localStorage.setItem(`sgd_inspection_photos_${inspeccionId}`, JSON.stringify(photos));
+      } catch {}
+    }
+  }, [photos, inspeccionId]);
+
+  useEffect(() => {
+    if (inspeccionId && coords && typeof window !== "undefined") {
+      try {
+        localStorage.setItem(`sgd_inspection_coords_${inspeccionId}`, JSON.stringify(coords));
+      } catch {}
+    }
+  }, [coords, inspeccionId]);
 
   const score = useMemo(() => calculateScore(formDef, responses), [formDef, responses]);
 
@@ -310,22 +579,100 @@ export function DynamicInspectionForm({ formDef, initialResponses, initialObserv
     setObservations(prev => ({ ...prev, [sectionId]: value }));
   };
 
+  // Función de captura GPS
+  const handleGetLocation = () => {
+    if (readOnly) return;
+    if (!navigator.geolocation) {
+      toast.error("Su navegador no soporta geolocalización GPS");
+      return;
+    }
+
+    setLocating(true);
+    const toastId = toast.loading("Obteniendo coordenadas satelitales GPS...");
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const newCoords: GeoLocationData = {
+          lat: Number(pos.coords.latitude.toFixed(6)),
+          lng: Number(pos.coords.longitude.toFixed(6)),
+          accuracy: Math.round(pos.coords.accuracy),
+          timestamp: new Date().toISOString(),
+          mapUrl: `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`
+        };
+        setCoords(newCoords);
+        setLocating(false);
+        toast.success(`📍 GPS registrado (Precisión: ±${newCoords.accuracy}m)`, { id: toastId });
+      },
+      (err) => {
+        setLocating(false);
+        console.warn("Error GPS:", err);
+        let msg = "No se pudo obtener la ubicación GPS.";
+        if (err.code === 1) msg = "Permiso de ubicación denegado. Habilite el GPS en el navegador.";
+        else if (err.code === 2) msg = "Señal GPS no disponible temporalmente.";
+        else if (err.code === 3) msg = "Tiempo de espera agotado al conectar con el satélite.";
+        toast.error(msg, { id: toastId });
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0
+      }
+    );
+  };
+
+  // Agregar fotos comprimidas client-side
+  const handleAddPhotos = async (itemId: string, files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const toastId = toast.loading(`Comprimiendo ${files.length} ${files.length === 1 ? 'imagen' : 'imágenes'}...`);
+    try {
+      const compressedList = await compressMultipleFiles(files, { maxWidth: 1200, maxHeight: 1200, quality: 0.75 });
+      setPhotos(prev => {
+        const existing = prev[itemId] || [];
+        return {
+          ...prev,
+          [itemId]: [...existing, ...compressedList]
+        };
+      });
+      toast.success(`${compressedList.length} ${compressedList.length === 1 ? 'foto agregada' : 'fotos agregadas'}`, { id: toastId });
+    } catch (err) {
+      console.error("Error al procesar imágenes:", err);
+      toast.error("Error al procesar las fotos", { id: toastId });
+    }
+  };
+
+  // Eliminar foto de un ítem
+  const handleRemovePhoto = (itemId: string, index: number) => {
+    if (readOnly) return;
+    setPhotos(prev => {
+      const existing = prev[itemId] || [];
+      const updated = existing.filter((_, i) => i !== index);
+      const next = { ...prev };
+      if (updated.length > 0) {
+        next[itemId] = updated;
+      } else {
+        delete next[itemId];
+      }
+      return next;
+    });
+    toast.success("Foto eliminada");
+  };
+
   const handleSave = () => {
-    onSave({ responses, observations, additional, signatures, score });
+    onSave({ responses, observations, additional, signatures, photos, coords, score });
   };
 
   const handleComplete = () => {
     if (onComplete) {
-      onComplete({ responses, observations, additional, signatures, score });
+      onComplete({ responses, observations, additional, signatures, photos, coords, score });
     } else {
-      onSave({ responses, observations, additional, signatures, score });
+      onSave({ responses, observations, additional, signatures, photos, coords, score });
     }
   };
 
   return (
     <div className="space-y-4">
       {/* Score card - sticky at top */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 sticky top-0 z-10">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5 sticky top-0 z-10">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className={`flex items-center justify-center w-16 h-16 rounded-xl text-2xl font-bold ${
@@ -368,6 +715,7 @@ export function DynamicInspectionForm({ formDef, initialResponses, initialObserv
               </div>
             </div>
           </div>
+
           <div className="flex items-center gap-2">
             <div className="w-24 sm:w-32 h-2 bg-slate-100 rounded-full overflow-hidden">
               <div className={`h-full rounded-full transition-all ${completionPct === 100 ? "bg-emerald-500" : "bg-blue-500"}`} style={{ width: `${completionPct}%` }} />
@@ -393,6 +741,89 @@ export function DynamicInspectionForm({ formDef, initialResponses, initialObserv
                   Finalizar
                 </button>
               </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* BLOQUE DE GEOLOCALIZACIÓN GPS (REQUERIMIENTO OBLIGATORIO) */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className={`p-2.5 rounded-xl ${coords ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
+              <MapPin className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-slate-900 text-sm">Geolocalización de la Inspección</h3>
+                {coords ? (
+                  <span className="badge badge-green text-[10px] font-bold">📍 GPS REGISTRADO</span>
+                ) : (
+                  <span className="badge badge-amber text-[10px] font-bold">PENDIENTE REGISTRAR</span>
+                )}
+              </div>
+              {coords ? (
+                <div className="mt-1 text-xs text-slate-600 space-y-0.5">
+                  <p className="font-mono font-bold text-slate-800">
+                    Lat: {coords.lat.toFixed(6)} · Lng: {coords.lng.toFixed(6)}
+                    {coords.accuracy && <span className="text-slate-500 font-sans font-normal ml-1.5">(±{coords.accuracy}m precisión)</span>}
+                  </p>
+                  {coords.timestamp && (
+                    <p className="text-[11px] text-slate-500">
+                      Capturado: {new Date(coords.timestamp).toLocaleString('es-VE')}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Capture la ubicación GPS para certificar la presencia física en el establecimiento.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-start sm:self-center">
+            {coords && (
+              <a
+                href={coords.mapUrl || `https://www.google.com/maps?q=${coords.lat},${coords.lng}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition-colors shadow-2xs"
+                title="Abrir ubicación en Google Maps"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                <span>Ver en Mapa</span>
+              </a>
+            )}
+
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={handleGetLocation}
+                disabled={locating}
+                className={`inline-flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all shadow-xs touch-active ${
+                  coords 
+                    ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300"
+                    : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20"
+                } ${locating ? "opacity-60 cursor-not-allowed" : ""}`}
+              >
+                {locating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin text-current" />
+                    <span>Conectando con GPS...</span>
+                  </>
+                ) : coords ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    <span>Actualizar GPS</span>
+                  </>
+                ) : (
+                  <>
+                    <MapPin className="h-4 w-4" />
+                    <span>Registrar GPS Actual</span>
+                  </>
+                )}
+              </button>
             )}
           </div>
         </div>
@@ -465,6 +896,10 @@ export function DynamicInspectionForm({ formDef, initialResponses, initialObserv
           onObservation={handleObservation}
           readOnly={readOnly}
           sectionIndex={idx}
+          photos={photos}
+          onAddPhotos={handleAddPhotos}
+          onRemovePhoto={handleRemovePhoto}
+          onPreviewPhoto={(url, title, index, total) => setPreviewPhoto({ url, title, index, total })}
         />
       ))}
 
@@ -509,6 +944,40 @@ export function DynamicInspectionForm({ formDef, initialResponses, initialObserv
             <CheckCircle2 className="h-5 w-5" />
             <span>Finalizar Inspección</span>
           </button>
+        </div>
+      )}
+
+      {/* VISOR MODAL LIGHTBOX A PANTALLA COMPLETA */}
+      {previewPhoto && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xs flex flex-col justify-between p-4 animate-in fade-in duration-150"
+          onClick={() => setPreviewPhoto(null)}
+        >
+          <div className="flex items-center justify-between text-white pb-2 max-w-4xl mx-auto w-full" onClick={e => e.stopPropagation()}>
+            <div className="min-w-0 pr-4">
+              <h4 className="font-bold text-sm truncate">{previewPhoto.title}</h4>
+              <p className="text-xs text-slate-400">Evidencia gráfica {previewPhoto.index + 1} de {previewPhoto.total}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPreviewPhoto(null)}
+              className="p-2 text-white bg-slate-800/80 hover:bg-slate-700 rounded-full transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="flex-1 flex items-center justify-center p-2 max-w-4xl mx-auto w-full" onClick={e => e.stopPropagation()}>
+            <img
+              src={previewPhoto.url}
+              alt={previewPhoto.title}
+              className="max-h-[75vh] max-w-full object-contain rounded-lg shadow-2xl border border-slate-700"
+            />
+          </div>
+
+          <div className="text-center text-xs text-slate-400 pt-2" onClick={e => e.stopPropagation()}>
+            Toque fuera de la imagen o presione Cerrar para volver al formulario
+          </div>
         </div>
       )}
     </div>

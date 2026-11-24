@@ -202,6 +202,12 @@ export function SGDProvider({ children }: { children: React.ReactNode }) {
           formObservations: payload.observations || item.formObservations,
           formAdditional: payload.additional || item.formAdditional,
           formSignatures: payload.signatures || item.formSignatures,
+          fotos: payload.fotos || item.fotos,
+          coordenadas: payload.coordenadas || item.coordenadas,
+          geoLat: payload.geoLat ?? item.geoLat,
+          geoLon: payload.geoLon ?? item.geoLon,
+          geoAccuracy: payload.geoAccuracy ?? item.geoAccuracy,
+          geoTimestamp: payload.geoTimestamp || item.geoTimestamp,
           actualizadoEn: new Date().toISOString()
         };
       }
@@ -228,7 +234,13 @@ export function SGDProvider({ children }: { children: React.ReactNode }) {
           puntuacion: extraData?.puntuacion !== undefined ? extraData.puntuacion : item.puntuacion,
           resultado: extraData?.resultado || item.resultado,
           respuestas: extraData?.respuestas || item.respuestas,
-          formResponses: extraData?.responses || item.formResponses
+          formResponses: extraData?.responses || item.formResponses,
+          fotos: extraData?.fotos || item.fotos,
+          coordenadas: extraData?.coordenadas || item.coordenadas,
+          geoLat: extraData?.geoLat ?? item.geoLat,
+          geoLon: extraData?.geoLon ?? item.geoLon,
+          geoAccuracy: extraData?.geoAccuracy ?? item.geoAccuracy,
+          geoTimestamp: extraData?.geoTimestamp || item.geoTimestamp
         };
       }
       return item;
