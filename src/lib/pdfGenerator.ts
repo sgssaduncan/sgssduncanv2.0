@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { formatDate } from './utils';
+import { formatDate, getReportHeaderTitle } from './utils';
 import { getFormDefinition, calculateScore, resolveItemResponse, classifyResponse } from './formDefinitions';
 import { DUNCAN_LOGO_BW } from './logos';
 import { INITIAL_EMPRESAS, INITIAL_LOCALIDADES, INITIAL_ESTABLECIMIENTOS, INITIAL_TIPOS_INSPECCION } from '../data/seedData';
@@ -174,10 +174,11 @@ export function generarInspeccionPDF(inspection: Inspeccion, metadataInput?: any
   doc.text('Sistema de Gestión de Seguridad, Salud y Ambiente (SG-SSA)', 56, 16);
 
   // Línea 3: Título Oficial de la Inspección
+  const headerTitle = getReportHeaderTitle(tipoNombre, tipoCodigo);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(30, 64, 175); // Blue 800 (#1E40AF)
-  doc.text(`INFORME OFICIAL: ${tipoNombre.toUpperCase()}`, 56, 21);
+  doc.text(headerTitle, 56, 21);
 
   // Línea divisoria horizontal
   doc.setDrawColor(203, 213, 225);
@@ -396,7 +397,7 @@ export function generarInspeccionPDF(inspection: Inspeccion, metadataInput?: any
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(7.5);
         doc.setTextColor(30, 64, 175);
-        doc.text(`SGD DUNCAN — INFORME OFICIAL: ${tipoNombre.toUpperCase()}`, marginX, 10);
+        doc.text(`SGD DUNCAN — ${headerTitle}`, marginX, 10);
         doc.setTextColor(100, 116, 139);
         doc.setFont('helvetica', 'normal');
         doc.text(`N° ${correlativoStr} | ${emisionDate}`, pageWidth - marginX, 10, { align: 'right' });

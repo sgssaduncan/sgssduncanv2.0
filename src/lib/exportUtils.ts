@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { getReportHeaderTitle } from './utils';
 import { auditService } from '../services/auditService';
 import type { Inspeccion, Empresa, Localidad, Establecimiento, TipoInspeccion, UserProfile, PlanAccion, Empleado } from '../types';
 import type { EvaluacionMedica } from '../types/medical';
@@ -437,7 +438,7 @@ export function exportSingleInspectionToExcel(
 
   // Hoja 1: Información General
   const generalInfo = [
-    ['REPORTE DE INSPECCIÓN INDIVIDUAL'],
+    [getReportHeaderTitle(metadata?.tipo?.nombre || inspection.tipoNombre || inspection.tipoInspeccionId, metadata?.tipo?.codigo || inspection.tipoCodigo)],
     ['Sistema de Gestión de Seguridad y Salud en el Trabajo - SGD Duncan'],
     [],
     ['Campo', 'Valor'],

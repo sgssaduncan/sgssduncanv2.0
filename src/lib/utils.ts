@@ -77,3 +77,73 @@ export function capitalize(str?: string): string {
   if (!str) return '';
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
+
+/**
+ * Normaliza y estandariza el título oficial del encabezado de cualquier informe de inspección.
+ * Criterio estándar SGD Duncan: "INFORME DE INSPECCIÓN <TIPO>"
+ * Ejemplos:
+ * - "SSA Distribuidoras" -> "INFORME DE INSPECCIÓN DISTRIBUIDORA"
+ * - "SSA Servicentros"   -> "INFORME DE INSPECCIÓN SERVICENTRO"
+ * - "Extintores"         -> "INFORME DE INSPECCIÓN EXTINTORES"
+ * - "Montacargas"        -> "INFORME DE INSPECCIÓN MONTACARGAS"
+ * - "Kit para Derrames"  -> "INFORME DE INSPECCIÓN KIT PARA DERRAMES"
+ */
+export function getReportHeaderTitle(tipoNombre?: string, tipoCodigo?: string): string {
+  const code = (tipoCodigo || '').toUpperCase().trim();
+  const raw = (tipoNombre || '').trim();
+  const rawUpper = raw.toUpperCase();
+
+  // Mapeos específicos canónicos directos por código o nombre
+  if (code === 'DD' || rawUpper.includes('DISTRIBUIDOR')) {
+    return 'INFORME DE INSPECCIÓN DISTRIBUIDORA';
+  }
+  if (code === 'SC' || rawUpper.includes('SERVICENTRO')) {
+    return 'INFORME DE INSPECCIÓN SERVICENTRO';
+  }
+  if (code === 'EXT' || rawUpper.includes('EXTINTOR')) {
+    return 'INFORME DE INSPECCIÓN EXTINTORES';
+  }
+  if (code === 'MTCG' || code === 'MTCG_SSA' || rawUpper.includes('MONTACARGA')) {
+    return 'INFORME DE INSPECCIÓN MONTACARGAS';
+  }
+  if (code === 'KPD' || rawUpper.includes('DERRAME')) {
+    return 'INFORME DE INSPECCIÓN KIT PARA DERRAMES';
+  }
+  if (code === 'LEM' || rawUpper.includes('LÁMPARA') || rawUpper.includes('LAMPARA')) {
+    return 'INFORME DE INSPECCIÓN LÁMPARAS DE EMERGENCIA';
+  }
+  if (code === 'HEQ' || rawUpper.includes('HERRAMIENTA')) {
+    return 'INFORME DE INSPECCIÓN HERRAMIENTAS Y EQUIPOS';
+  }
+  if (code === 'VHT' || code === 'VTC' || rawUpper.includes('VEHÍCULO') || rawUpper.includes('VEHICULO') || rawUpper.includes('TRANSPORTE')) {
+    return 'INFORME DE INSPECCIÓN VEHÍCULO / TRANSPORTE';
+  }
+  if (code === 'PB' || rawUpper.includes('BOMBERO')) {
+    return 'INFORME DE INSPECCIÓN PERMISOS DE BOMBEROS';
+  }
+  if (code === 'OL' || rawUpper.includes('ORDEN Y LIMPIEZA')) {
+    return 'INFORME DE INSPECCIÓN ORDEN Y LIMPIEZA';
+  }
+  if (code === 'DP' || rawUpper.includes('DOTACIÓN') || rawUpper.includes('DOTACION')) {
+    return 'INFORME DE INSPECCIÓN DOTACIÓN';
+  }
+  if (code === 'DI' || rawUpper.includes('DETECCIÓN') || rawUpper.includes('DETECCION') || rawUpper.includes('INCENDIO')) {
+    return 'INFORME DE INSPECCIÓN DETECCIÓN DE INCENDIOS';
+  }
+
+  // Regla general para cualquier otra inspección presente o futura
+  let cleaned = rawUpper
+    .replace(/^INFORME\s+OFICIAL\s*:\s*/i, '')
+    .replace(/^INFORME\s+DE\s+INSPECCI[OÓ]N\s*(DE\s+|PARA\s+)?/i, '')
+    .replace(/^INFORME\s*(DE\s+|PARA\s+)?/i, '')
+    .replace(/^INSPECCI[OÓ]N\s+SSA\s*(DE\s+|PARA\s+)?/i, '')
+    .replace(/^INSPECCI[OÓ]N\s*(DE\s+|PARA\s+)?/i, '')
+    .replace(/^SSA\s+/i, '')
+    .trim();
+
+  if (!cleaned || cleaned === 'GEN' || cleaned === 'TÉCNICA' || cleaned === 'TECNICA') {
+    cleaned = 'GENERAL';
+  }
+
+  return `INFORME DE INSPECCIÓN ${cleaned}`;
+}

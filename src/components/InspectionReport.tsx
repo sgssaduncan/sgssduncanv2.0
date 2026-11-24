@@ -24,7 +24,7 @@ import {
 // @ts-ignore
 import html2pdf from "html2pdf.js";
 import toast from "react-hot-toast";
-import { cn, formatDate, formatDateTime } from "../lib/utils";
+import { cn, formatDate, formatDateTime, getReportHeaderTitle } from "../lib/utils";
 import { exportSingleInspectionToExcel, exportSingleInspectionToCSV } from "../lib/exportUtils";
 import type {
   Inspeccion,
@@ -365,7 +365,8 @@ export default function InspectionReport({
 
       // Descargar archivo automáticamente para WhatsApp o Email
       doc.save(fileName);
-      const message = `Estimados,\n\nSe ha generado el Reporte de Inspección Técnico Oficial: ${refCode} - ${metadata.tipo?.nombre || inspection.tipoNombre}.\n\n📄 Archivo: ${fileName}\n\n(Nota: El documento PDF corporativo se ha descargado a su dispositivo, por favor adjúntelo a esta conversación).\n\nAtentamente,\nControl Técnico SSA Duncan.`;
+      const headerTitle = getReportHeaderTitle(metadata.tipo?.nombre || inspection.tipoNombre, metadata.tipo?.codigo || inspection.tipoCodigo);
+      const message = `Estimados,\n\nSe ha generado el ${headerTitle}: ${refCode}.\n\n📄 Archivo: ${fileName}\n\n(Nota: El documento PDF corporativo se ha descargado a su dispositivo, por favor adjúntelo a esta conversación).\n\nAtentamente,\nControl Técnico SSA Duncan.`;
 
       toast.dismiss(toastId);
       if (method === "whatsapp") {
@@ -582,7 +583,7 @@ export default function InspectionReport({
                   Sistema de Gestión de Seguridad, Salud y Ambiente (SG-SSA)
                 </div>
                 <div style={{ fontSize: '9.5px', fontWeight: 'bold', color: '#1e40af', marginTop: '2px' }}>
-                  INFORME OFICIAL: {(metadata.tipo?.nombre || inspection.tipoNombre || 'Inspección Técnica').toUpperCase()}
+                  {getReportHeaderTitle(metadata.tipo?.nombre || inspection.tipoNombre, metadata.tipo?.codigo || inspection.tipoCodigo)}
                 </div>
               </div>
             </div>
