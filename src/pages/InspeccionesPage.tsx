@@ -359,10 +359,10 @@ export default function InspeccionesPage() {
                             type="button"
                             onClick={() => setSelectedInspectionForPlan(insp)}
                             className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 transition-all touch-active"
-                            title="Plan de Acción Oficial (Email/Excel)"
+                            title="Plan de Acción Oficial (Descargar en PDF Editable, Excel .xlsx o enviar por Email)"
                           >
                             <Mail className="h-3.5 w-3.5 text-amber-700" />
-                            <span>Plan Acción</span>
+                            <span>Plan Acción (PDF/Excel)</span>
                           </button>
                         )}
 
@@ -471,10 +471,10 @@ export default function InspeccionesPage() {
                                 type="button"
                                 onClick={() => setSelectedInspectionForPlan(insp)}
                                 className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                                title="Plan de Acción Oficial (Email/Excel)"
+                                title="Plan de Acción Oficial (Descargar en PDF Editable, Excel .xlsx o enviar por Email)"
                               >
                                 <Mail className="h-3.5 w-3.5 text-amber-700" />
-                                <span className="hidden lg:inline">Plan Acción</span>
+                                <span className="hidden lg:inline">Plan Acción (PDF/Excel)</span>
                               </button>
                             )}
 

@@ -40,6 +40,8 @@ import { INITIAL_EMPRESAS, INITIAL_LOCALIDADES, INITIAL_ESTABLECIMIENTOS, INITIA
 import { resolveEmpresaInfo } from "../lib/empresaResolver";
 import ActionPlanDocument from './ActionPlanDocument';
 import { generarInspeccionPDF } from "../lib/pdfGenerator";
+import { exportActionPlanToExcel, exportActionPlanToPDF } from "../lib/actionPlanExport";
+import { generatePlanesAccionFromInspeccion } from "../lib/planAccionGenerator";
 
 import { QRCodeSVG } from "qrcode.react";
 
@@ -408,6 +410,40 @@ export default function InspectionReport({
     }
   };
 
+  const handleDirectPlanPDF = () => {
+    try {
+      const items = generatePlanesAccionFromInspeccion(inspection);
+      exportActionPlanToPDF(inspection, items, {
+        empresaNombre: metadata?.empresa?.nombre,
+        localidadNombre: metadata?.localidad?.nombre,
+        establecimientoNombre: metadata?.establecimiento?.nombre,
+        tipoNombre: metadata?.tipo?.nombre,
+        tipoCodigo: metadata?.tipo?.codigo,
+      });
+      toast.success("¡Plan de Acción en PDF Editable descargado!");
+    } catch (e) {
+      console.error(e);
+      toast.error("Error al exportar Plan de Acción a PDF");
+    }
+  };
+
+  const handleDirectPlanExcel = async () => {
+    try {
+      const items = generatePlanesAccionFromInspeccion(inspection);
+      await exportActionPlanToExcel(inspection, items, {
+        empresaNombre: metadata?.empresa?.nombre,
+        localidadNombre: metadata?.localidad?.nombre,
+        establecimientoNombre: metadata?.establecimiento?.nombre,
+        tipoNombre: metadata?.tipo?.nombre,
+        tipoCodigo: metadata?.tipo?.codigo,
+      });
+      toast.success("¡Plan de Acción en Excel Oficial (.xlsx) descargado!");
+    } catch (e) {
+      console.error(e);
+      toast.error("Error al exportar Plan de Acción a Excel");
+    }
+  };
+
   const getResponseStyle = (val: string) => {
     const positive = ["C", "SI", "BUENO", "OPERATIVO", "OK", "CONFORME"];
     const negative = [
@@ -540,15 +576,35 @@ export default function InspectionReport({
             <Printer size={16} /> Imprimir / Vista Previa
           </button>
           {((scoreResult?.noConformes ?? 0) > 0 || (scoreResult?.observaciones ?? 0) > 0) && (
-            <button
-              onClick={() => setShowActionPlanModal(true)}
-              disabled={exporting}
-              className="flex items-center gap-1.5 px-3.5 py-2 ml-1 text-amber-950 bg-amber-200 hover:bg-amber-300 border border-amber-400 rounded font-black text-xs shadow-xs transition-all disabled:opacity-50 touch-active cursor-pointer"
-              title="Ver y enviar Plan de Acción derivado de esta inspección por correo"
-            >
-              <ClipboardList size={15} className="text-amber-800" />
-              <span>Plan de Acción ({((scoreResult?.noConformes ?? 0) + (scoreResult?.observaciones ?? 0))})</span>
-            </button>
+            <div className="flex items-center gap-1 ml-1 bg-amber-50 p-1 rounded-lg border border-amber-300">
+              <button
+                onClick={handleDirectPlanPDF}
+                disabled={exporting}
+                className="flex items-center gap-1 px-2.5 py-1.5 text-rose-800 bg-white hover:bg-rose-50 border border-rose-200 rounded font-bold text-xs shadow-2xs transition-all disabled:opacity-50 touch-active cursor-pointer"
+                title="Descargar Plan de Acción en PDF Editable e Interactivo"
+              >
+                <FileText size={14} className="text-rose-600" />
+                <span>Plan PDF</span>
+              </button>
+              <button
+                onClick={handleDirectPlanExcel}
+                disabled={exporting}
+                className="flex items-center gap-1 px-2.5 py-1.5 text-emerald-800 bg-white hover:bg-emerald-50 border border-emerald-200 rounded font-bold text-xs shadow-2xs transition-all disabled:opacity-50 touch-active cursor-pointer"
+                title="Descargar Plan de Acción en Excel Oficial (.xlsx)"
+              >
+                <FileSpreadsheet size={14} className="text-emerald-600" />
+                <span>Plan Excel</span>
+              </button>
+              <button
+                onClick={() => setShowActionPlanModal(true)}
+                disabled={exporting}
+                className="flex items-center gap-1 px-3 py-1.5 text-amber-950 bg-amber-200 hover:bg-amber-300 rounded font-black text-xs shadow-xs transition-all disabled:opacity-50 touch-active cursor-pointer"
+                title="Ver y enviar Plan de Acción derivado de esta inspección por correo"
+              >
+                <ClipboardList size={14} className="text-amber-800" />
+                <span>Ver Plan ({((scoreResult?.noConformes ?? 0) + (scoreResult?.observaciones ?? 0))})</span>
+              </button>
+            </div>
           )}
           <button
             onClick={() => handleShare("download")}
@@ -813,14 +869,35 @@ export default function InspectionReport({
                 <span style={{ fontWeight: 'bold', fontSize: '8.5px', color: '#92400e', textTransform: 'uppercase' }}>
                   ⚠️ PLAN DE ACCIÓN DERIVADO REQUERIDO ({((scoreResult?.noConformes ?? 0) + (scoreResult?.observaciones ?? 0))} DESVIACIONES REGISTRADAS)
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setShowActionPlanModal(true)}
-                  style={{ fontSize: '8px', fontWeight: 'bold', color: '#ffffff', backgroundColor: '#d97706', padding: '3px 9px', borderRadius: '4px', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                  className="print:hidden hover:bg-amber-700 transition-colors"
-                >
-                  Abrir Plan de Acción y Enviar por Correo ✉️
-                </button>
+                <div className="flex items-center gap-1.5 print:hidden">
+                  <button
+                    type="button"
+                    onClick={handleDirectPlanPDF}
+                    style={{ fontSize: '8px', fontWeight: 'bold', color: '#ffffff', backgroundColor: '#dc2626', padding: '3px 8px', borderRadius: '4px', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                    className="hover:bg-red-700 transition-colors"
+                    title="Descargar Plan de Acción en PDF Editable"
+                  >
+                    📄 Descargar PDF
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDirectPlanExcel}
+                    style={{ fontSize: '8px', fontWeight: 'bold', color: '#ffffff', backgroundColor: '#059669', padding: '3px 8px', borderRadius: '4px', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                    className="hover:bg-emerald-700 transition-colors"
+                    title="Descargar Plan de Acción en Excel Oficial (.xlsx)"
+                  >
+                    📊 Descargar Excel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowActionPlanModal(true)}
+                    style={{ fontSize: '8px', fontWeight: 'bold', color: '#ffffff', backgroundColor: '#d97706', padding: '3px 8px', borderRadius: '4px', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                    className="hover:bg-amber-700 transition-colors"
+                    title="Ver Plan interactivo y enviar por correo"
+                  >
+                    Abrir Plan & Correo ✉️
+                  </button>
+                </div>
               </div>
               <div style={{ padding: '8px 10px', fontSize: '8px', color: '#78350f', lineHeight: '1.4' }}>
                 Esta inspección registró <strong>{scoreResult?.noConformes ?? 0} No Conformidades (NC)</strong> y <strong>{scoreResult?.observaciones ?? 0} Oportunidades de Mejora (OM)</strong>. Se ha generado la matriz oficial de plan de acción para subsanación perentoria en campo con base legal COVENIN / LOPCYMAT.
