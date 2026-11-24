@@ -287,7 +287,7 @@ export default function PlanAccionList() {
 
   const getEffectiveInspectionForEstablecimiento = (establecimientoNombre: string): { inspection: Inspeccion; items: PlanAccion[] } => {
     const estNorm = (establecimientoNombre || '').toLowerCase().trim();
-    const items = planes.filter(p => (p.establecimientoNombre || '').toLowerCase().trim() === estNorm);
+    let items = planes.filter(p => (p.establecimientoNombre || '').toLowerCase().trim() === estNorm);
     
     let insp = inspecciones.find(i => (i.establecimientoNombre || '').toLowerCase().trim() === estNorm);
     
@@ -295,6 +295,17 @@ export default function PlanAccionList() {
       const itemWithCorrelativo = items.find(p => (p as any).inspeccionCorrelativo);
       if (itemWithCorrelativo) {
         insp = inspecciones.find(i => String(i.correlativo) === String((itemWithCorrelativo as any).inspeccionCorrelativo));
+      }
+    }
+
+    if (items.length === 0 && insp) {
+      try {
+        const extracted = generatePlanesAccionFromInspeccion(insp);
+        if (extracted && extracted.length > 0) {
+          items = extracted;
+        }
+      } catch (err) {
+        console.warn('Could not extract planes from inspection:', err);
       }
     }
 

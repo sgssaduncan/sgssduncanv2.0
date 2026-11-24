@@ -514,6 +514,12 @@ export function exportActionPlanToPDF(
   items: PlanAccion[],
   meta?: ActionPlanExportMeta
 ): { doc: jsPDF; fileName: string; blob: Blob } {
+  const safeStr = (val: any, fallback = ''): string => {
+    if (val === null || val === undefined) return fallback;
+    const s = String(val);
+    return s.trim() === '' ? fallback : s;
+  };
+
   const empNombre = (meta?.empresaNombre || inspeccion.empresaNombre || 'DISTRIBUIDORA DUNCAN C.A.').toUpperCase();
   const locNombre = (meta?.localidadNombre || inspeccion.localidadNombre || 'VALENCIA').toUpperCase();
   const estNombre = (meta?.establecimientoNombre || inspeccion.establecimientoNombre || 'DISTRIBUIDORA DUNCAN VALENCIA').toUpperCase();
@@ -531,8 +537,8 @@ export function exportActionPlanToPDF(
     ? '2026-04-24' 
     : new Date(dClose.getTime() + 15 * 86400000).toISOString().split('T')[0];
 
-  const inspector = inspeccion.inspector || 'Alberto Becerra';
-  const revisor = meta?.revisorNombre || 'Jesús Contreras';
+  const inspector = safeStr(inspeccion.inspector, 'Alberto Becerra');
+  const revisor = safeStr(meta?.revisorNombre, 'Jesús Contreras');
 
   const doc = new jsPDF({
     orientation: 'landscape',
@@ -663,21 +669,35 @@ export function exportActionPlanToPDF(
   );
 
   // 7. TABLA DE DESVIACIONES CON CAMPOS INTERACTIVOS EDITABLES (ACROFORM)
-  const tableData = items.map(item => {
-    const conf = item.conformidad || (item.prioridad === 'Critica' ? 'NC' : 'OM');
-    const prio = item.prioridad || (conf === 'NC' ? 'Alta' : 'Media');
+  const effectiveItems = items && items.length > 0 ? items : [{
+    aspectoEvaluado: 'Seguridad y Salud Laboral',
+    preguntaTexto: 'Establecimiento en cumplimiento normativo. No se registran desviaciones (NC/OM) pendientes.',
+    aspectoLegal: 'COVENIN / LOPCYMAT',
+    grupoPilar: 'SSA',
+    areaResponsable: 'OPERACIONES - SSA',
+    conformidad: 'C',
+    prioridad: 'Baja',
+    fechaEjecucion: '-',
+    fechaVerificacion: '-',
+    recursosNecesarios: 'Ninguno',
+    observaciones: 'Conforme con los estándares de seguridad y salud en el trabajo.'
+  } as any as PlanAccion];
+
+  const tableData = effectiveItems.map(item => {
+    const rawConf = item.conformidad || (item.prioridad === 'Critica' || item.prioridad === 'Inmediato' ? 'NC' : 'OM');
+    const prio = item.prioridad || (rawConf === 'NC' ? 'Alta' : 'Media');
     return [
-      item.aspectoEvaluado || item.seccion || 'Seguridad Industrial',
-      item.preguntaTexto || item.hallazgo || '',
-      item.aspectoLegal || item.notas || 'COVENIN / RCHST',
-      item.grupoPilar || 'SSA',
-      item.areaResponsable || item.departamento || 'VENTAS - OPERACIONES',
-      conf,
-      prio,
-      item.fechaEjecucion || item.fechaLimite || '',
-      item.fechaVerificacion || '',
-      item.recursosNecesarios || '',
-      item.observaciones || item.recomendacion || ''
+      safeStr(item.aspectoEvaluado || item.seccion, 'Seguridad Industrial'),
+      safeStr(item.preguntaTexto || item.hallazgo, 'Hallazgo registrado'),
+      safeStr(item.aspectoLegal || item.notas, 'COVENIN / RCHST'),
+      safeStr(item.grupoPilar, 'SSA'),
+      safeStr(item.areaResponsable || item.departamento, 'VENTAS - OPERACIONES'),
+      safeStr(rawConf, 'NC'),
+      safeStr(prio, 'Alta'),
+      safeStr(item.fechaEjecucion || item.fechaLimite, ''),
+      safeStr(item.fechaVerificacion, ''),
+      safeStr(item.recursosNecesarios, ''),
+      safeStr(item.observaciones || item.recomendacion, '')
     ];
   });
 
@@ -731,47 +751,45 @@ export function exportActionPlanToPDF(
     alternateRowStyles: {
       fillColor: [248, 250, 252]
     },
+    didParseCell: (data) => {
+      if (data.section === 'body') {
+        // Columna 5: Conformidad (NC vs OM vs C)
+        if (data.column.index === 5) {
+          const val = String(data.cell.raw || (Array.isArray(data.cell.text) ? data.cell.text[0] : data.cell.text) || '').trim().toUpperCase();
+          data.cell.styles.halign = 'center';
+          data.cell.styles.fontStyle = 'bold';
+          if (val === 'NC' || val.includes('NO CONFORME')) {
+            data.cell.text = ['NC'];
+            data.cell.styles.fillColor = [254, 226, 226]; // red-100
+            data.cell.styles.textColor = [153, 27, 27];   // red-800
+          } else if (val === 'C' || val.includes('CONFORME')) {
+            data.cell.text = ['C'];
+            data.cell.styles.fillColor = [220, 252, 231]; // emerald-100
+            data.cell.styles.textColor = [22, 101, 52];   // emerald-800
+          } else {
+            data.cell.text = ['OM'];
+            data.cell.styles.fillColor = [254, 243, 199]; // amber-100
+            data.cell.styles.textColor = [146, 64, 14];   // amber-800
+          }
+        }
+
+        // Columna 6: Prioridad
+        if (data.column.index === 6) {
+          const pVal = String(data.cell.raw || (Array.isArray(data.cell.text) ? data.cell.text[0] : data.cell.text) || '').trim();
+          data.cell.styles.halign = 'center';
+          data.cell.styles.fontStyle = 'bold';
+          if (pVal === 'Alta' || pVal === 'Critica' || pVal === 'Inmediato') {
+            data.cell.styles.textColor = [220, 38, 38];
+          } else if (pVal === 'Media' || pVal === 'Medio Plazo') {
+            data.cell.styles.textColor = [217, 119, 6];
+          } else {
+            data.cell.styles.textColor = [37, 99, 235];
+          }
+        }
+      }
+    },
     didDrawCell: (data) => {
-      // 1. Badge coloreado para No Conformidad (NC) y Oportunidad de Mejora (OM)
-      if (data.section === 'body' && data.column.index === 5) {
-        const val = data.cell.text[0];
-        doc.saveGraphicsState();
-        if (val === 'NC') {
-          doc.setFillColor(254, 226, 226); // red-100
-          doc.rect(data.cell.x + 0.8, data.cell.y + 0.8, data.cell.width - 1.6, data.cell.height - 1.6, 'F');
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7.5);
-          doc.setTextColor(153, 27, 27); // red-800
-          doc.text('NC', data.cell.x + (data.cell.width / 2), data.cell.y + (data.cell.height / 2) + 1.2, { align: 'center' });
-        } else {
-          doc.setFillColor(254, 243, 199); // amber-100
-          doc.rect(data.cell.x + 0.8, data.cell.y + 0.8, data.cell.width - 1.6, data.cell.height - 1.6, 'F');
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7.5);
-          doc.setTextColor(146, 64, 14); // amber-800
-          doc.text('OM', data.cell.x + (data.cell.width / 2), data.cell.y + (data.cell.height / 2) + 1.2, { align: 'center' });
-        }
-        doc.restoreGraphicsState();
-      }
-
-      // 2. Colores de Prioridad
-      if (data.section === 'body' && data.column.index === 6) {
-        const pVal = data.cell.text[0];
-        doc.saveGraphicsState();
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(7);
-        if (pVal === 'Alta' || pVal === 'Critica') {
-          doc.setTextColor(220, 38, 38);
-        } else if (pVal === 'Media') {
-          doc.setTextColor(217, 119, 6);
-        } else {
-          doc.setTextColor(37, 99, 235);
-        }
-        doc.text(pVal, data.cell.x + (data.cell.width / 2), data.cell.y + (data.cell.height / 2) + 1.2, { align: 'center' });
-        doc.restoreGraphicsState();
-      }
-
-      // 3. CAMPOS INTERACTIVOS EDITABLES (ACROFORM) en columnas de acción
+      // CAMPOS INTERACTIVOS EDITABLES (ACROFORM) en columnas de acción
       // Permite editar directamente en Adobe Acrobat, Chrome o Edge:
       // Columna 7: Fecha ejecución
       // Columna 8: Fecha verificación
@@ -785,13 +803,14 @@ export function exportActionPlanToPDF(
             const colName = data.column.index === 7 ? 'fEjec' : data.column.index === 8 ? 'fVerif' : data.column.index === 9 ? 'recursos' : 'obs';
             tf.fieldName = `${colName}_row_${data.row.index}`;
             tf.Rect = [data.cell.x + 0.4, data.cell.y + 0.4, data.cell.width - 0.8, data.cell.height - 0.8];
-            tf.value = data.cell.text.join(' ') || '';
+            const cellVal = Array.isArray(data.cell.text) ? data.cell.text.join(' ') : String(data.cell.text || '');
+            tf.value = cellVal;
             tf.multiline = data.column.index >= 9;
             tf.fontSize = 6.8;
             (doc as any).addField(tf);
           }
         } catch {
-          // Si el visor no soporta AcroForm, el texto dibujado permanece visible
+          // Si el visor o versión no soporta AcroForm, el contenido permanece visible
         }
       }
     }
