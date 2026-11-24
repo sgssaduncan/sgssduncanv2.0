@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation, Outlet, Navigate, useNavigate } from 'react-router-dom';
 import { useSGD } from '../contexts/SGDContext';
 import {
@@ -29,11 +29,17 @@ import {
   ArrowLeft,
   ChevronRight,
   Plus,
-  BookOpen
+  BookOpen,
+  SlidersHorizontal,
+  Star,
+  Search,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { isOwnerOrDeveloperEmail } from '../types';
 import type { Role } from '../types';
+import { menuPreferencesService, MenuPreferences } from '../services/menuPreferencesService';
+import MenuCustomizerModal from './MenuCustomizerModal';
 
 interface NavItem {
   to: string;
@@ -147,6 +153,28 @@ export default function Layout() {
   const { isOnline, pendingSyncCount, isSyncing, syncNow, sheetsUrl, currentUser, logout, planStats } = useSGD();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [customizerOpen, setCustomizerOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [mobileSearch, setMobileSearch] = useState('');
+  const [menuPrefs, setMenuPrefs] = useState<MenuPreferences>(() =>
+    menuPreferencesService.getPreferences(currentUser?.id)
+  );
+
+  useEffect(() => {
+    const loadPrefs = () => {
+      setMenuPrefs(menuPreferencesService.getPreferences(currentUser?.id));
+    };
+    loadPrefs();
+
+    const handleUpdate = () => {
+      loadPrefs();
+    };
+
+    window.addEventListener('sgd_menu_prefs_updated', handleUpdate);
+    return () => {
+      window.removeEventListener('sgd_menu_prefs_updated', handleUpdate);
+    };
+  }, [currentUser?.id]);
 
   // Redirigir al Login si no hay usuario autenticado
   if (!currentUser) {
@@ -185,6 +213,7 @@ export default function Layout() {
     if (p === '/inspecciones/nueva') return { title: 'Nueva Inspección', isSubpage: true, backTo: '/inspecciones' };
     if (p.includes('/formulario')) return { title: 'Completar Formulario', isSubpage: true, backTo: '/inspecciones' };
     if (p.startsWith('/inspecciones/')) return { title: 'Informe de Inspección', isSubpage: true, backTo: '/inspecciones' };
+    if (p.startsWith('/criterios')) return { title: 'Criterios & Frecuencias', isSubpage: false, backTo: '/' };
     if (p.startsWith('/plan-accion')) return { title: 'Planes de Acción', isSubpage: false, backTo: '/' };
     if (p.startsWith('/trabajadores')) return { title: 'Personal & Trabajadores', isSubpage: false, backTo: '/' };
     if (p.startsWith('/dotacion')) return { title: 'Dotación & EPP', isSubpage: false, backTo: '/' };
@@ -206,18 +235,68 @@ export default function Layout() {
 
   const headerInfo = getHeaderInfo();
 
-  // Bottom navigation items (estilo WhatsApp / Telegram)
-  const bottomTabs = [
-    { to: '/', icon: LayoutDashboard, label: 'Inicio', exact: true },
-    { to: '/inspecciones', icon: ClipboardCheck, label: 'Inspecciones' },
-    { 
-      to: '/plan-accion', 
-      icon: Target, 
-      label: 'Planes', 
-      badge: planStats?.pendientes > 0 ? String(planStats.pendientes) : undefined 
-    },
-    { to: '/trabajadores', icon: Users, label: 'Personal' },
-  ];
+  // Obtener todos los ítems accesibles para el usuario actual
+  const allNavItems = useMemo(() => {
+    return NAV_GROUPS.flatMap(g => g.items).filter(canAccessItem);
+  }, [userRole, isSuperAdminOrOwner]);
+
+  const itemByRoute = useMemo(() => {
+    const map = new Map<string, NavItem>();
+    allNavItems.forEach(it => map.set(it.to, it));
+    return map;
+  }, [allNavItems]);
+
+  // Ítems marcados como favoritos accesibles
+  const favoriteItems = useMemo(() => {
+    return menuPrefs.favorites
+      .map(route => itemByRoute.get(route))
+      .filter((it): it is NavItem => Boolean(it));
+  }, [menuPrefs.favorites, itemByRoute]);
+
+  // Mapa de orden para ordenar elementos
+  const orderIndexMap = useMemo(() => {
+    const map = new Map<string, number>();
+    menuPrefs.itemOrder.forEach((route, idx) => map.set(route, idx));
+    return map;
+  }, [menuPrefs.itemOrder]);
+
+  // Items para la barra inferior móvil (4 seleccionados por el usuario)
+  const bottomTabs = useMemo(() => {
+    const tabs = menuPrefs.bottomTabRoutes
+      .map(route => {
+        const item = itemByRoute.get(route);
+        if (!item) return null;
+        let badge = item.badge;
+        if (route === '/plan-accion' && planStats?.pendientes > 0) {
+          badge = String(planStats.pendientes);
+        }
+        return {
+          to: item.to,
+          icon: item.icon,
+          label: item.label,
+          exact: item.exact,
+          badge
+        };
+      })
+      .filter((it): it is NonNullable<typeof it> => Boolean(it));
+
+    // Si por permisos faltan pestañas, rellenar con las disponibles
+    if (tabs.length < 4) {
+      for (const item of allNavItems) {
+        if (!tabs.some(t => t.to === item.to)) {
+          tabs.push({
+            to: item.to,
+            icon: item.icon,
+            label: item.label,
+            exact: item.exact,
+            badge: item.to === '/plan-accion' && planStats?.pendientes > 0 ? String(planStats.pendientes) : item.badge
+          });
+        }
+        if (tabs.length >= 4) break;
+      }
+    }
+    return tabs.slice(0, 4);
+  }, [menuPrefs.bottomTabRoutes, itemByRoute, allNavItems, planStats?.pendientes]);
 
   return (
     <div className="flex h-screen bg-slate-100 overflow-hidden font-sans select-none sm:select-auto">
@@ -305,10 +384,102 @@ export default function Layout() {
           </div>
         )}
 
+        {/* Buscador Rápido de Módulos (Escritorio) */}
+        <div className="mx-3 mt-2.5">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar módulo..."
+              className="w-full pl-8 pr-7 py-1.5 bg-slate-800/80 border border-slate-700/80 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:border-yellow-400 transition-colors"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1.5 text-slate-400 hover:text-white text-xs font-bold"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Botón Personalizar Menús y Accesos (Escritorio) */}
+        <div className="mx-3 mt-2">
+          <button
+            onClick={() => setCustomizerOpen(true)}
+            className="w-full flex items-center justify-between px-3 py-2 bg-slate-800/70 hover:bg-yellow-400 hover:text-slate-950 text-slate-300 border border-slate-700/70 hover:border-yellow-400 rounded-xl text-xs font-bold transition-all group active:scale-98 shadow-xs"
+          >
+            <span className="flex items-center gap-2">
+              <SlidersHorizontal size={14} className="text-yellow-400 group-hover:text-slate-950 transition-colors" />
+              <span>Personalizar Menú</span>
+            </span>
+            <span className="text-[10px] text-slate-400 group-hover:text-slate-900 font-medium">
+              Ajustar
+            </span>
+          </button>
+        </div>
+
         {/* Menú de Navegación por Categorías */}
         <nav className="flex-1 px-3 py-3 space-y-4 overflow-y-auto">
+          {/* Sección de Favoritos ⭐ */}
+          {!searchQuery && favoriteItems.length > 0 && (
+            <div className="space-y-1 mb-2">
+              <div className="px-3 flex items-center justify-between text-[10px] font-black text-yellow-400 tracking-wider">
+                <span className="flex items-center gap-1.5">
+                  <Star size={11} className="fill-yellow-400 text-yellow-400" />
+                  MIS FAVORITOS
+                </span>
+                <span className="text-[9px] text-slate-400 font-normal">{favoriteItems.length} accesos</span>
+              </div>
+              <div className="space-y-0.5">
+                {favoriteItems.map((item) => {
+                  const Icon = item.icon;
+                  const active = isActive(item.to, item.exact);
+                  return (
+                    <Link
+                      key={`fav-${item.to}`}
+                      to={item.to}
+                      onClick={() => setSidebarOpen(false)}
+                      className={cn(
+                        'flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all group active:scale-98',
+                        active
+                          ? 'bg-yellow-400 text-slate-950 shadow-sm font-bold'
+                          : 'text-yellow-100 hover:bg-slate-800 hover:text-white bg-slate-800/40 border border-yellow-500/20'
+                      )}
+                    >
+                      <Icon className={cn('h-4 w-4 flex-shrink-0', active ? 'text-slate-950' : 'text-yellow-400')} />
+                      <span className="flex-1 truncate">{item.label}</span>
+                      <Star size={11} className={cn('flex-shrink-0 fill-current', active ? 'text-slate-950' : 'text-yellow-400/80')} />
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {NAV_GROUPS.map((group, gIdx) => {
-            const visibleItems = group.items.filter(canAccessItem);
+            const visibleItems = group.items
+              .filter(canAccessItem)
+              .filter(item => {
+                if (searchQuery.trim()) {
+                  const q = searchQuery.toLowerCase();
+                  return (
+                    item.label.toLowerCase().includes(q) ||
+                    (item.description && item.description.toLowerCase().includes(q)) ||
+                    group.category.toLowerCase().includes(q)
+                  );
+                }
+                return !menuPrefs.hiddenItems.includes(item.to);
+              })
+              .sort((a, b) => {
+                const ordA = orderIndexMap.has(a.to) ? orderIndexMap.get(a.to)! : 999;
+                const ordB = orderIndexMap.has(b.to) ? orderIndexMap.get(b.to)! : 999;
+                return ordA - ordB;
+              });
+
             if (visibleItems.length === 0) return null;
 
             return (
@@ -320,6 +491,7 @@ export default function Layout() {
                   {visibleItems.map((item) => {
                     const Icon = item.icon;
                     const active = isActive(item.to, item.exact);
+                    const isFav = menuPrefs.favorites.includes(item.to);
                     return (
                       <Link
                         key={item.to}
@@ -334,6 +506,9 @@ export default function Layout() {
                       >
                         <Icon className={cn('h-4 w-4 flex-shrink-0', active ? 'text-slate-950' : 'text-slate-400 group-hover:text-yellow-400')} />
                         <span className="flex-1 truncate">{item.label}</span>
+                        {isFav && !active && (
+                          <Star size={10} className="text-yellow-400/60 fill-yellow-400/60 flex-shrink-0" />
+                        )}
                         {item.badge && (
                           <span className={cn(
                             "text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider",
@@ -349,11 +524,28 @@ export default function Layout() {
               </div>
             );
           })}
+
+          {searchQuery.trim() && allNavItems.every(item => {
+            const q = searchQuery.toLowerCase();
+            return !item.label.toLowerCase().includes(q) && !(item.description && item.description.toLowerCase().includes(q));
+          }) && (
+            <div className="p-4 text-center text-xs text-slate-400">
+              No se encontraron módulos con "{searchQuery}"
+            </div>
+          )}
         </nav>
 
-        {/* Footer Sidebar */}
-        <div className="p-3 border-t border-slate-800 bg-slate-950/40 text-[11px] text-slate-400 text-center font-medium">
-          Grupo Duncan © 2026
+        {/* Footer Sidebar con botón de personalización rápido */}
+        <div className="p-3 border-t border-slate-800 bg-slate-950/40 flex items-center justify-between text-[11px] text-slate-400 font-medium">
+          <span>Grupo Duncan © 2026</span>
+          <button
+            onClick={() => setCustomizerOpen(true)}
+            className="hover:text-yellow-400 transition-colors flex items-center gap-1 text-[10px]"
+            title="Ajustar orden de menús"
+          >
+            <SlidersHorizontal size={11} />
+            <span>Configurar</span>
+          </button>
         </div>
       </aside>
 
@@ -370,58 +562,141 @@ export default function Layout() {
           <div className="px-5 pb-3 flex items-center justify-between border-b border-slate-100">
             <div>
               <h3 className="text-lg font-bold text-slate-900">Todas las Herramientas</h3>
-              <p className="text-xs text-slate-500">Selecciona el módulo al que deseas acceder</p>
+              <p className="text-xs text-slate-500">Selecciona o personaliza tus accesos directos</p>
             </div>
-            <button 
-              onClick={() => setMoreMenuOpen(false)}
-              className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full active:scale-95"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => {
+                  setMoreMenuOpen(false);
+                  setCustomizerOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-yellow-400 hover:text-slate-950 transition-colors active:scale-95 border border-slate-200"
+                title="Personalizar menús y accesos"
+              >
+                <SlidersHorizontal size={14} />
+                <span>Personalizar</span>
+              </button>
+              <button 
+                onClick={() => setMoreMenuOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full active:scale-95"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
           </div>
+
+          {/* Buscador en vivo de Herramientas (Móvil) */}
+          <div className="px-5 py-2.5 bg-slate-50/70 border-b border-slate-100">
+            <div className="relative">
+              <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                value={mobileSearch}
+                onChange={(e) => setMobileSearch(e.target.value)}
+                placeholder="Buscar módulo (ej: extintores, inspección, personal...)"
+                className="w-full pl-10 pr-9 py-2 bg-white border border-slate-200 rounded-2xl text-xs text-slate-800 placeholder-slate-400 shadow-2xs focus:outline-none focus:border-yellow-400 transition-all"
+              />
+              {mobileSearch && (
+                <button
+                  onClick={() => setMobileSearch('')}
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-xs bg-slate-100 rounded-full w-5 h-5 flex items-center justify-center font-bold"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Carrusel rápido de Favoritos ⭐ en el Drawer Móvil */}
+          {!mobileSearch && favoriteItems.length > 0 && (
+            <div className="px-4 pt-3 pb-1 border-b border-slate-100">
+              <p className="text-[10px] font-black text-slate-400 tracking-wider mb-2 flex items-center gap-1">
+                <Star size={11} className="fill-yellow-400 text-yellow-400" />
+                ACCESOS FAVORITOS
+              </p>
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+                {favoriteItems.map(item => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={`drawer-fav-${item.to}`}
+                      to={item.to}
+                      onClick={() => setMoreMenuOpen(false)}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-yellow-50 hover:bg-yellow-100 border border-yellow-200/80 text-xs font-bold text-slate-800 whitespace-nowrap active:scale-95 transition-all shadow-2xs"
+                    >
+                      <Icon className="h-3.5 w-3.5 text-yellow-600" />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Cuadrícula táctil estilo App de Mensajería */}
           <div className="flex-1 overflow-y-auto p-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {NAV_GROUPS.flatMap(g => g.items).filter(canAccessItem).map((item) => {
-              const Icon = item.icon;
-              const active = isActive(item.to, item.exact);
+            {allNavItems
+              .filter(item => {
+                if (mobileSearch.trim()) {
+                  const q = mobileSearch.toLowerCase();
+                  return (
+                    item.label.toLowerCase().includes(q) ||
+                    (item.description && item.description.toLowerCase().includes(q))
+                  );
+                }
+                return !menuPrefs.hiddenItems.includes(item.to);
+              })
+              .sort((a, b) => {
+                const ordA = orderIndexMap.has(a.to) ? orderIndexMap.get(a.to)! : 999;
+                const ordB = orderIndexMap.has(b.to) ? orderIndexMap.get(b.to)! : 999;
+                return ordA - ordB;
+              })
+              .map((item) => {
+                const Icon = item.icon;
+                const active = isActive(item.to, item.exact);
+                const isFav = menuPrefs.favorites.includes(item.to);
 
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  onClick={() => setMoreMenuOpen(false)}
-                  className={cn(
-                    'p-3.5 rounded-2xl border flex flex-col justify-between transition-all touch-active',
-                    active 
-                      ? 'bg-yellow-50 border-yellow-300 shadow-xs' 
-                      : 'bg-white hover:bg-slate-50 border-slate-200 shadow-2xs'
-                  )}
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className={cn(
-                      'w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-xs',
-                      item.color || 'bg-slate-700'
-                    )}>
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    {item.badge && (
-                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                        {item.badge}
-                      </span>
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setMoreMenuOpen(false)}
+                    className={cn(
+                      'p-3.5 rounded-2xl border flex flex-col justify-between transition-all touch-active relative',
+                      active 
+                        ? 'bg-yellow-50 border-yellow-300 shadow-xs' 
+                        : 'bg-white hover:bg-slate-50 border-slate-200 shadow-2xs'
                     )}
-                  </div>
-                  <div>
-                    <p className={cn('text-xs font-bold truncate', active ? 'text-slate-950' : 'text-slate-900')}>
-                      {item.label}
-                    </p>
-                    <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">
-                      {item.description || 'Acceder al módulo'}
-                    </p>
-                  </div>
-                </Link>
-              );
-            })}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className={cn(
+                        'w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-xs',
+                        item.color || 'bg-slate-700'
+                      )}>
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {isFav && (
+                          <Star size={12} className="text-yellow-400 fill-yellow-400" />
+                        )}
+                        {item.badge && (
+                          <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                            {item.badge}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <p className={cn('text-xs font-bold truncate', active ? 'text-slate-950' : 'text-slate-900')}>
+                        {item.label}
+                      </p>
+                      <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">
+                        {item.description || 'Acceder al módulo'}
+                      </p>
+                    </div>
+                  </Link>
+                );
+              })}
           </div>
 
           {/* Barra inferior de la hoja modal */}
@@ -506,6 +781,16 @@ export default function Layout() {
               </button>
             )}
 
+            {/* Botón rápido para personalizar menús (Accesible en móvil y desktop) */}
+            <button
+              type="button"
+              onClick={() => setCustomizerOpen(true)}
+              className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors active:scale-95"
+              title="Personalizar orden de menús y accesos rápidos"
+            >
+              <SlidersHorizontal size={18} />
+            </button>
+
             {/* Avatar del usuario con acceso rápido a cerrar sesión */}
             <div className="flex items-center gap-1.5 pl-1">
               <div 
@@ -588,6 +873,20 @@ export default function Layout() {
           </div>
         </nav>
       </div>
+
+      {/* Modal de Personalización de Menú */}
+      <MenuCustomizerModal
+        isOpen={customizerOpen}
+        onClose={() => setCustomizerOpen(false)}
+        userId={currentUser?.id}
+        allItems={allNavItems.map(it => ({
+          to: it.to,
+          label: it.label,
+          icon: it.icon,
+          color: it.color,
+          description: it.description
+        }))}
+      />
     </div>
   );
 }
