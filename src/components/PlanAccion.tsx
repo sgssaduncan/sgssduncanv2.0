@@ -25,7 +25,11 @@ import {
   Building2,
   Factory,
   Layers,
-  AlertTriangle
+  AlertTriangle,
+  Mail,
+  Send,
+  Eye,
+  Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, formatDate, formatDateTime } from '../lib/utils';
@@ -33,6 +37,7 @@ import { exportActionPlansToExcel, exportActionPlansToCSV } from '../lib/exportU
 import type { PlanAccion, EstadoPlanAccion, PrioridadPlanAccion, Empleado, Inspeccion } from '../types';
 import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
+import ActionPlanDocument from './ActionPlanDocument';
 
 export default function PlanAccionList() {
   const [planes, setPlanes] = React.useState<PlanAccion[]>([]);
@@ -48,6 +53,9 @@ export default function PlanAccionList() {
   const [showExportModal, setShowExportModal] = React.useState(false);
   const [exportScope, setExportScope] = React.useState<'filtered' | 'all'>('filtered');
   const [includeHistory, setIncludeHistory] = React.useState(true);
+  const [selectedInspectionForPlan, setSelectedInspectionForPlan] = React.useState<Inspeccion | null>(null);
+  const [showInspectionSelectorModal, setShowInspectionSelectorModal] = React.useState(false);
+  const [inspectionSearchQuery, setInspectionSearchQuery] = React.useState('');
   const { profile } = useAuth();
 
   const loadData = async () => {
@@ -236,6 +244,42 @@ export default function PlanAccionList() {
     };
   }, [planes]);
 
+  const inspectionsWithStats = React.useMemo(() => {
+    return inspecciones.map(insp => {
+      const inspIdStr = String(insp._id || insp.id || insp.correlativo || '');
+      const relatedPlanes = planes.filter(p => 
+        String(p.inspeccionId) === inspIdStr || 
+        (insp.correlativo && String((p as any).inspeccionCorrelativo) === String(insp.correlativo)) ||
+        (p.establecimientoNombre && insp.establecimientoNombre && p.establecimientoNombre.toLowerCase() === insp.establecimientoNombre.toLowerCase())
+      );
+      const ncCount = relatedPlanes.filter(p => p.prioridad === 'Critica' || p.prioridad === 'Inmediato' || (p.hallazgo || '').includes('NO CONFORME') || (p.hallazgo || '').includes('NC')).length;
+      const omCount = relatedPlanes.filter(p => p.prioridad === 'Media' || p.prioridad === 'Medio Plazo' || (p.hallazgo || '').includes('OPORTUNIDAD DE MEJORA') || (p.hallazgo || '').includes('OM')).length;
+
+      return {
+        inspection: insp,
+        totalPlanes: relatedPlanes.length,
+        ncCount,
+        omCount
+      };
+    });
+  }, [inspecciones, planes]);
+
+  const filteredInspectionsForSelector = React.useMemo(() => {
+    if (!inspectionSearchQuery.trim()) return inspectionsWithStats;
+    const q = inspectionSearchQuery.toLowerCase();
+    return inspectionsWithStats.filter(item => {
+      const i = item.inspection;
+      return (
+        (i.establecimientoNombre || '').toLowerCase().includes(q) ||
+        (i.empresaNombre || '').toLowerCase().includes(q) ||
+        (i.tipoNombre || '').toLowerCase().includes(q) ||
+        (i.inspector || '').toLowerCase().includes(q) ||
+        String(i.correlativo || '').includes(q) ||
+        (i.referencia || '').toLowerCase().includes(q)
+      );
+    });
+  }, [inspectionsWithStats, inspectionSearchQuery]);
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -248,6 +292,14 @@ export default function PlanAccionList() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            onClick={() => setShowInspectionSelectorModal(true)}
+            className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all cursor-pointer"
+            title="Generar o enviar por correo el Plan de Acción Oficial por Inspección (Plantilla Oficial Institucional)"
+          >
+            <Shield size={16} />
+            Plan Oficial por Inspección (Email)
+          </button>
           <button
             onClick={() => handleQuickExport('excel', 'filtered')}
             disabled={filtered.length === 0}
@@ -512,11 +564,139 @@ export default function PlanAccionList() {
           <PlanDetailModal 
             plan={selectedPlan} 
             empleados={empleados}
+            inspecciones={inspecciones}
             onClose={() => setSelectedPlan(null)}
             onUpdate={handleUpdate}
+            onOpenOfficialInspectionPlan={(insp) => setSelectedInspectionForPlan(insp)}
           />
         )}
       </AnimatePresence>
+
+      {/* MODAL SELECTOR DE INSPECCIÓN PARA PLAN OFICIAL */}
+      <AnimatePresence>
+        {showInspectionSelectorModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-white rounded-3xl p-6 sm:p-8 max-w-2xl w-full shadow-2xl border border-slate-100 max-h-[85vh] flex flex-col"
+            >
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
+                    <Shield className="text-blue-600" size={20} />
+                    Plan de Acción Oficial por Inspección
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Seleccione un establecimiento para generar el documento oficial (Plantilla Institucional) y enviarlo por correo o WhatsApp.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowInspectionSelectorModal(false)}
+                  className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Buscador */}
+              <div className="relative mb-4">
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={inspectionSearchQuery}
+                  onChange={(e) => setInspectionSearchQuery(e.target.value)}
+                  placeholder="Buscar por sede, tipo o inspector..."
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-blue-100"
+                />
+              </div>
+
+              {/* Lista de Inspecciones */}
+              <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 -mr-1">
+                {filteredInspectionsForSelector.length === 0 ? (
+                  <div className="p-8 text-center text-slate-400 text-xs italic">
+                    No se encontraron inspecciones con los criterios de búsqueda.
+                  </div>
+                ) : (
+                  filteredInspectionsForSelector.map(({ inspection: insp, totalPlanes, ncCount, omCount }) => {
+                    const puntuacion = typeof insp.puntuacion === 'number' ? insp.puntuacion : 92.3;
+                    const nivel = puntuacion >= 85 ? 'ALTO' : puntuacion >= 70 ? 'MEDIO' : 'BAJO';
+
+                    return (
+                      <div
+                        key={insp._id || insp.id}
+                        onClick={() => {
+                          setSelectedInspectionForPlan(insp);
+                          setShowInspectionSelectorModal(false);
+                        }}
+                        className="p-4 rounded-2xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50/30 transition-all cursor-pointer group flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono text-[10px] font-black bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                              INSP-{insp.correlativo || (insp.referencia ? insp.referencia.replace(/^REF-|^INSP-/, '') : '14')}
+                            </span>
+                            <span className="text-xs font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                              {insp.establecimientoNombre || 'Distribuidora Valencia'}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              ({insp.tipoNombre || 'Distribuidoras'})
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-3 text-[11px] text-slate-500 font-medium">
+                            <span className="flex items-center gap-1">
+                              <Calendar size={12} className="text-slate-400" />
+                              {formatDate(insp.fecha)}
+                            </span>
+                            <span>•</span>
+                            <span className="font-bold text-slate-700">
+                              Cumplimiento: {puntuacion}% ({nivel})
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                          {ncCount > 0 && (
+                            <span className="px-2 py-1 bg-red-100 text-red-700 rounded-lg text-[10px] font-black border border-red-200">
+                              {ncCount} NC
+                            </span>
+                          )}
+                          {omCount > 0 && (
+                            <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded-lg text-[10px] font-black border border-amber-200">
+                              {omCount} OM
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            className="px-3 py-1.5 bg-blue-600 group-hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
+                          >
+                            <Mail size={13} />
+                            <span>Generar Plan</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* DOCUMENTO OFICIAL DE PLAN DE ACCIÓN (PLANTILLA INSTITUCIONAL) */}
+      {selectedInspectionForPlan && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto animate-in fade-in print:p-0 print:bg-white">
+          <div className="w-full max-w-5xl my-auto">
+            <ActionPlanDocument
+              inspeccion={selectedInspectionForPlan}
+              onClose={() => setSelectedInspectionForPlan(null)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -646,14 +826,26 @@ function PlanCard({ plan, onClick, responsable }: { plan: PlanAccion, onClick: (
 interface ModalProps {
   plan: PlanAccion;
   empleados: Empleado[];
+  inspecciones?: Inspeccion[];
   onClose: () => void;
   onUpdate: (id: string, data: Partial<PlanAccion>) => Promise<void>;
+  onOpenOfficialInspectionPlan?: (inspeccion: Inspeccion) => void;
 }
 
-function PlanDetailModal({ plan, empleados, onClose, onUpdate }: ModalProps) {
+function PlanDetailModal({ plan, empleados, inspecciones = [], onClose, onUpdate, onOpenOfficialInspectionPlan }: ModalProps) {
   const [comment, setComment] = React.useState('');
   const [isClosing, setIsClosing] = React.useState(false);
   const [fotoEvidencia, setFotoEvidencia] = React.useState<string | null>(plan.fotoCierre || null);
+
+  const relatedInspection = React.useMemo(() => {
+    if (!plan) return null;
+    return inspecciones.find(i => 
+      String(i._id) === String(plan.inspeccionId) || 
+      String(i.id) === String(plan.inspeccionId) ||
+      (i.correlativo && String((plan as any).inspeccionCorrelativo || plan.inspeccionId) === String(i.correlativo)) ||
+      (plan.establecimientoNombre && i.establecimientoNombre && plan.establecimientoNombre.toLowerCase() === i.establecimientoNombre.toLowerCase())
+    ) || null;
+  }, [plan, inspecciones]);
 
   const handleStatusChange = async (newStatus: EstadoPlanAccion) => {
     if (newStatus === 'Cerrado') {
@@ -747,6 +939,21 @@ function PlanDetailModal({ plan, empleados, onClose, onUpdate }: ModalProps) {
               </div>
             )}
           </div>
+
+          {relatedInspection && onOpenOfficialInspectionPlan && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenOfficialInspectionPlan(relatedInspection);
+              }}
+              className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-md shadow-blue-200 active:scale-98"
+              title="Abrir matriz oficial de plan de acción consolidado para esta inspección"
+            >
+              <Mail size={16} />
+              <span>Abrir Plan de Acción Oficial de esta Inspección (Email)</span>
+            </button>
+          )}
 
           {plan.descripcion && (
             <div>

@@ -5,10 +5,11 @@ import { useSGD } from '../contexts/SGDContext';
 import {
   ClipboardCheck, Plus, BookOpen, Search, Filter, Trash2, Eye,
   CheckCircle2, Clock, FileText, AlertTriangle, ChevronDown, ChevronUp,
-  X, Sparkles
+  X, Sparkles, Mail
 } from 'lucide-react';
 import { cn, formatDate, getEstadoBadgeClass, getResultadoBadgeClass } from '../lib/utils';
 import toast from 'react-hot-toast';
+import ActionPlanDocument from '../components/ActionPlanDocument';
 
 function isInspectionComplete(insp: any): boolean {
   if (!insp) return false;
@@ -50,6 +51,7 @@ export default function InspeccionesPage() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [filterTipo, setFilterTipo] = useState('Todos');
   const [showCriteriosModal, setShowCriteriosModal] = useState(false);
+  const [selectedInspectionForPlan, setSelectedInspectionForPlan] = useState<any | null>(null);
 
   // Conteo rápido para las píldoras
   const counts = {
@@ -352,6 +354,18 @@ export default function InspeccionesPage() {
                           <span>{isCompleted ? 'Ver Reporte' : 'Ver'}</span>
                         </Link>
 
+                        {isCompleted && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedInspectionForPlan(insp)}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 transition-all touch-active"
+                            title="Plan de Acción Oficial (Email/Excel)"
+                          >
+                            <Mail className="h-3.5 w-3.5 text-amber-700" />
+                            <span>Plan Acción</span>
+                          </button>
+                        )}
+
                         {!isCompleted && (
                           <Link
                             to={`/inspecciones/${insp._id}/formulario`}
@@ -452,6 +466,18 @@ export default function InspeccionesPage() {
                               <span>{isCompleted ? 'Reporte' : 'Ver'}</span>
                             </Link>
 
+                            {isCompleted && (
+                              <button 
+                                type="button"
+                                onClick={() => setSelectedInspectionForPlan(insp)}
+                                className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                                title="Plan de Acción Oficial (Email/Excel)"
+                              >
+                                <Mail className="h-3.5 w-3.5 text-amber-700" />
+                                <span className="hidden lg:inline">Plan Acción</span>
+                              </button>
+                            )}
+
                             {!isCompleted && (
                               <Link 
                                 to={`/inspecciones/${insp._id}/formulario`}
@@ -499,6 +525,18 @@ export default function InspeccionesPage() {
         isOpen={showCriteriosModal}
         onClose={() => setShowCriteriosModal(false)}
       />
+
+      {/* Modal de Plan de Acción Institucional Oficial */}
+      {selectedInspectionForPlan && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto animate-in fade-in print:p-0 print:bg-white">
+          <div className="w-full max-w-5xl my-auto">
+            <ActionPlanDocument
+              inspeccion={selectedInspectionForPlan}
+              onClose={() => setSelectedInspectionForPlan(null)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

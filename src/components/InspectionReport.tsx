@@ -38,6 +38,7 @@ import { useAuth } from '../hooks/useAuth';
 import { getFormDefinition, calculateScore, resolveItemResponse, classifyResponse } from "../lib/formDefinitions";
 import { INITIAL_EMPRESAS, INITIAL_LOCALIDADES, INITIAL_ESTABLECIMIENTOS, INITIAL_TIPOS_INSPECCION } from '../data/seedData';
 import { resolveEmpresaInfo } from "../lib/empresaResolver";
+import ActionPlanDocument from './ActionPlanDocument';
 import { generarInspeccionPDF } from "../lib/pdfGenerator";
 
 import { QRCodeSVG } from "qrcode.react";
@@ -67,6 +68,7 @@ export default function InspectionReport({
   }>({});
   const [exporting, setExporting] = React.useState(false);
   const [showPrintPreview, setShowPrintPreview] = React.useState(false);
+  const [showActionPlanModal, setShowActionPlanModal] = React.useState(false);
   const reportRef = React.useRef<HTMLDivElement>(null);
 
   const tipoCod = (metadata.tipo?.codigo || inspection.tipoCodigo || '').toUpperCase();
@@ -537,6 +539,17 @@ export default function InspectionReport({
           >
             <Printer size={16} /> Imprimir / Vista Previa
           </button>
+          {((scoreResult?.noConformes ?? 0) > 0 || (scoreResult?.observaciones ?? 0) > 0) && (
+            <button
+              onClick={() => setShowActionPlanModal(true)}
+              disabled={exporting}
+              className="flex items-center gap-1.5 px-3.5 py-2 ml-1 text-amber-950 bg-amber-200 hover:bg-amber-300 border border-amber-400 rounded font-black text-xs shadow-xs transition-all disabled:opacity-50 touch-active cursor-pointer"
+              title="Ver y enviar Plan de Acción derivado de esta inspección por correo"
+            >
+              <ClipboardList size={15} className="text-amber-800" />
+              <span>Plan de Acción ({((scoreResult?.noConformes ?? 0) + (scoreResult?.observaciones ?? 0))})</span>
+            </button>
+          )}
           <button
             onClick={() => handleShare("download")}
             disabled={exporting}
@@ -793,6 +806,28 @@ export default function InspectionReport({
             </div>
           )}
 
+          {/* BANNER / LLAMADO A ACCIÓN DE PLAN DE ACCIÓN DERIVADO */}
+          {((scoreResult?.noConformes ?? 0) > 0 || (scoreResult?.observaciones ?? 0) > 0) && (
+            <div style={{ marginBottom: "14px", border: '1.5px solid #f59e0b', borderRadius: '4px', overflow: 'hidden', backgroundColor: '#fffbeb' }}>
+              <div style={{ backgroundColor: '#fef3c7', padding: '6px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #fde68a' }}>
+                <span style={{ fontWeight: 'bold', fontSize: '8.5px', color: '#92400e', textTransform: 'uppercase' }}>
+                  ⚠️ PLAN DE ACCIÓN DERIVADO REQUERIDO ({((scoreResult?.noConformes ?? 0) + (scoreResult?.observaciones ?? 0))} DESVIACIONES REGISTRADAS)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowActionPlanModal(true)}
+                  style={{ fontSize: '8px', fontWeight: 'bold', color: '#ffffff', backgroundColor: '#d97706', padding: '3px 9px', borderRadius: '4px', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                  className="print:hidden hover:bg-amber-700 transition-colors"
+                >
+                  Abrir Plan de Acción y Enviar por Correo ✉️
+                </button>
+              </div>
+              <div style={{ padding: '8px 10px', fontSize: '8px', color: '#78350f', lineHeight: '1.4' }}>
+                Esta inspección registró <strong>{scoreResult?.noConformes ?? 0} No Conformidades (NC)</strong> y <strong>{scoreResult?.observaciones ?? 0} Oportunidades de Mejora (OM)</strong>. Se ha generado la matriz oficial de plan de acción para subsanación perentoria en campo con base legal COVENIN / LOPCYMAT.
+              </div>
+            </div>
+          )}
+
           {/* EVIDENCIA FOTOGRÁFICA Y DETALLES GRÁFICOS */}
           {resolvedPhotosList.length > 0 && (
             <div style={{ marginBottom: "14px", border: '1px solid #cbd5e1', borderRadius: '3px', overflow: 'hidden' }}>
@@ -964,6 +999,18 @@ export default function InspectionReport({
                   }}
                 />
               </div>
+            </div>
+          </div>
+        )}
+        {/* MODAL DE PLAN DE ACCIÓN INSTITUCIONAL */}
+        {showActionPlanModal && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto animate-in fade-in print:p-0 print:bg-white">
+            <div className="w-full max-w-5xl my-auto">
+              <ActionPlanDocument
+                inspeccion={inspection}
+                metadata={metadata}
+                onClose={() => setShowActionPlanModal(false)}
+              />
             </div>
           </div>
         )}

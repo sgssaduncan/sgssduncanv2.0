@@ -199,6 +199,17 @@ export interface PlanAccion {
   fechaLimite: string;
   recomendacion?: string;
   estado: EstadoPlanAccion;
+  aspectoEvaluado?: string;
+  preguntaTexto?: string;
+  aspectoLegal?: string;
+  grupoPilar?: string;
+  areaResponsable?: string;
+  conformidad?: 'NC' | 'OM';
+  fechaEjecucion?: string;
+  fechaVerificacion?: string;
+  recursosNecesarios?: string;
+  observaciones?: string;
+  rondaNo?: number;
   comentariosCierre?: string;
   fotoCierre?: string;
   history?: any[];
