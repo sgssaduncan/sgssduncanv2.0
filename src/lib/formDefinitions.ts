@@ -4,6 +4,7 @@ import {
   LISTAS_MAESTRAS_SGD,
   CriterioEvaluacion
 } from '../data/criteriosOficialesData';
+import { criteriosService } from '../services/criteriosService';
 
 function buildSectionsFromCriteria(criteria: CriterioEvaluacion[]): FormSection[] {
   const sectionsMap = new Map<number, { title: string; items: FormItem[] }>();
@@ -1446,6 +1447,24 @@ export function getFormDefinition(identifier?: string): InspectionFormDef | null
   const raw = identifier.trim();
   const upper = raw.toUpperCase();
   const lower = raw.toLowerCase();
+
+  // Interceptar Distribuidoras (DD) para inyectar criterios en tiempo real administrables
+  if (upper === 'DD' || upper === 'DIST' || upper === 'TI_DD' || upper === 'TI_DIST' || lower.includes('distribuidora')) {
+    const liveCriterios = criteriosService.getCriteriosDistribuidoras();
+    return {
+      ...DD_FORM,
+      sections: buildSectionsFromCriteria(liveCriterios)
+    };
+  }
+
+  // Interceptar Servicentros (SC) para inyectar criterios en tiempo real administrables
+  if (upper === 'SC' || upper === 'SERV' || upper === 'TI_SC' || upper === 'TI_SERV' || lower.includes('servicentro')) {
+    const liveCriterios = criteriosService.getCriteriosServicentros();
+    return {
+      ...SC_FORM,
+      sections: buildSectionsFromCriteria(liveCriterios)
+    };
+  }
 
   // 1. Coincidencia directa por código exacto, mayúsculas o minúsculas
   if (FORM_REGISTRY[upper]) return FORM_REGISTRY[upper];

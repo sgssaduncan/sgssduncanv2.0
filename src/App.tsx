@@ -27,6 +27,7 @@ import UsuariosPage from './pages/UsuariosPage';
 import AjustesPage from './pages/AjustesPage';
 import AuditoriaPage from './pages/AuditoriaPage';
 import TrabajadoresPage from './pages/TrabajadoresPage';
+import CriteriosPage from './pages/CriteriosPage';
 import AuditNavigationTracker from './components/AuditNavigationTracker';
 import LoginPage from './pages/LoginPage';
 
@@ -53,6 +54,7 @@ export default function App() {
               <Route path="inspecciones/nueva" element={<NuevaInspeccionPage />} />
               <Route path="inspecciones/:id" element={<ReportePage />} />
               <Route path="inspecciones/:id/formulario" element={<InspeccionFormPage />} />
+              <Route path="criterios" element={<CriteriosPage />} />
               <Route path="loto" element={<LotoPage />} />
               
               {/* Seguridad en Campo */}

@@ -28,7 +28,8 @@ import {
   LogOut,
   ArrowLeft,
   ChevronRight,
-  Plus
+  Plus,
+  BookOpen
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { isOwnerOrDeveloperEmail } from '../types';
@@ -69,6 +70,7 @@ const NAV_GROUPS: NavGroup[] = [
     category: 'OPERACIONES & CAMPO',
     items: [
       { to: '/inspecciones', icon: ClipboardCheck, label: 'Inspecciones Técnicas', description: 'Evaluar sedes y equipos', color: 'bg-emerald-500' },
+      { to: '/criterios', icon: BookOpen, label: 'Criterios y Frecuencias', badge: 'SSA', description: 'Criterios, frecuencias y ponderaciones', color: 'bg-indigo-600' },
       { to: '/plan-accion', icon: Target, label: 'Planes de Acción', description: 'Solucionar hallazgos NC y OM', color: 'bg-amber-500' },
       { to: '/transporte', icon: Truck, label: 'Transporte y Carga', badge: 'V2', description: 'Revisión de camiones', color: 'bg-sky-500' },
       { to: '/loto', icon: Lock, label: 'Bloqueo LOTO', description: 'Energía Cero y candados', color: 'bg-rose-500' }

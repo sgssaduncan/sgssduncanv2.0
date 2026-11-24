@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   X,
   Search,
@@ -14,36 +15,41 @@ import {
   FileSpreadsheet,
   ChevronRight,
   ShieldCheck,
-  Scale
+  Scale,
+  Edit2
 } from 'lucide-react';
 import {
-  CRITERIOS_DISTRIBUIDORAS_OFICIALES,
-  CRITERIOS_SERVICENTROS_OFICIALES,
-  FRECUENCIAS_INSPECCIONES_OFICIALES,
-  FLOTA_NACIONAL_DUNCAN,
   PESO_ACUMULADORES_DUNCAN,
   CriterioEvaluacion
 } from '../data/criteriosOficialesData';
+import { criteriosService } from '../services/criteriosService';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  defaultTab?: 'distribuidoras' | 'servicentros' | 'frecuencias' | 'flota' | 'baterias';
+  defaultTab?: 'distribuidoras' | 'servicentros' | 'frecuencias' | 'ponderaciones' | 'flota' | 'baterias';
 }
 
 export default function CatalogoCriteriosModal({ isOpen, onClose, defaultTab = 'distribuidoras' }: Props) {
-  const [activeTab, setActiveTab] = useState<'distribuidoras' | 'servicentros' | 'frecuencias' | 'flota' | 'baterias'>(defaultTab);
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'distribuidoras' | 'servicentros' | 'frecuencias' | 'ponderaciones' | 'flota' | 'baterias'>(defaultTab);
   const [search, setSearch] = useState('');
   const [pilarFilter, setPilarFilter] = useState<string>('TODOS');
   const [areaFilter, setAreaFilter] = useState<string>('TODAS');
+
+  const criteriosDist = useMemo(() => criteriosService.getCriteriosDistribuidoras(), [isOpen]);
+  const criteriosServ = useMemo(() => criteriosService.getCriteriosServicentros(), [isOpen]);
+  const frecuencias = useMemo(() => criteriosService.getFrecuencias(), [isOpen]);
+  const flota = useMemo(() => criteriosService.getFlota(), [isOpen]);
+  const ponderaciones = useMemo(() => criteriosService.getPonderaciones(), [isOpen]);
 
   if (!isOpen) return null;
 
   // Filtrado de Criterios Distribuidoras
   const filteredDist = useMemo(() => {
-    return CRITERIOS_DISTRIBUIDORAS_OFICIALES.filter(c => {
+    return criteriosDist.filter(c => {
       const q = search.toLowerCase();
       const matchSearch = !q ||
         c.num.toLowerCase().includes(q) ||
@@ -55,11 +61,11 @@ export default function CatalogoCriteriosModal({ isOpen, onClose, defaultTab = '
       const matchArea = areaFilter === 'TODAS' || c.areaResponsable.includes(areaFilter);
       return matchSearch && matchPilar && matchArea;
     });
-  }, [search, pilarFilter, areaFilter]);
+  }, [criteriosDist, search, pilarFilter, areaFilter]);
 
   // Filtrado de Criterios Servicentros
   const filteredServ = useMemo(() => {
-    return CRITERIOS_SERVICENTROS_OFICIALES.filter(c => {
+    return criteriosServ.filter(c => {
       const q = search.toLowerCase();
       const matchSearch = !q ||
         c.num.toLowerCase().includes(q) ||
@@ -71,11 +77,11 @@ export default function CatalogoCriteriosModal({ isOpen, onClose, defaultTab = '
       const matchArea = areaFilter === 'TODAS' || c.areaResponsable.includes(areaFilter);
       return matchSearch && matchPilar && matchArea;
     });
-  }, [search, pilarFilter, areaFilter]);
+  }, [criteriosServ, search, pilarFilter, areaFilter]);
 
   // Filtrado de Frecuencias
   const filteredFrec = useMemo(() => {
-    return FRECUENCIAS_INSPECCIONES_OFICIALES.filter(f => {
+    return frecuencias.filter(f => {
       const q = search.toLowerCase();
       return !q ||
         f.inspeccion.toLowerCase().includes(q) ||
@@ -84,11 +90,11 @@ export default function CatalogoCriteriosModal({ isOpen, onClose, defaultTab = '
         f.frecuencia.toLowerCase().includes(q) ||
         f.responsables.toLowerCase().includes(q);
     });
-  }, [search]);
+  }, [frecuencias, search]);
 
   // Filtrado de Flota
   const filteredFlota = useMemo(() => {
-    return FLOTA_NACIONAL_DUNCAN.filter(v => {
+    return flota.filter(v => {
       const q = search.toLowerCase();
       return !q ||
         v.placas.toLowerCase().includes(q) ||
@@ -97,7 +103,7 @@ export default function CatalogoCriteriosModal({ isOpen, onClose, defaultTab = '
         v.distribuidora.toLowerCase().includes(q) ||
         v.observaciones.toLowerCase().includes(q);
     });
-  }, [search]);
+  }, [flota, search]);
 
   // Filtrado de Baterías
   const filteredBaterias = useMemo(() => {
@@ -166,8 +172,20 @@ export default function CatalogoCriteriosModal({ isOpen, onClose, defaultTab = '
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={() => {
+                onClose();
+                navigate('/criterios');
+              }}
+              className="bg-blue-600 hover:bg-blue-500 text-white font-black text-xs py-2 px-3 rounded-xl transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+              title="Ir al panel completo de administración, edición y actualización de criterios"
+            >
+              <Edit2 size={14} />
+              <span className="hidden sm:inline">Gestionar / Editar (Admin)</span>
+            </button>
+            <button
+              type="button"
               onClick={handleExportExcel}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2 px-3 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2 px-3 rounded-xl transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
               title="Descargar datos en Excel"
             >
               <FileSpreadsheet size={14} />
@@ -189,6 +207,7 @@ export default function CatalogoCriteriosModal({ isOpen, onClose, defaultTab = '
             { id: 'distribuidoras', label: 'Distribuidoras (173)', icon: Building2 },
             { id: 'servicentros', label: 'Servicentros (117)', icon: Store },
             { id: 'frecuencias', label: 'Frecuencias (24)', icon: Calendar },
+            { id: 'ponderaciones', label: 'Ponderaciones (10 Reg.)', icon: Scale },
             { id: 'flota', label: 'Flota Nacional (65)', icon: Truck },
             { id: 'baterias', label: 'Pesos Baterías (70)', icon: BatteryCharging }
           ].map(tab => {
@@ -258,7 +277,7 @@ export default function CatalogoCriteriosModal({ isOpen, onClose, defaultTab = '
           {activeTab === 'distribuidoras' && (
             <div className="space-y-3">
               <div className="flex items-center justify-between text-xs text-slate-400 pb-1">
-                <span>Mostrando {filteredDist.length} de {CRITERIOS_DISTRIBUIDORAS_OFICIALES.length} criterios</span>
+                <span>Mostrando {filteredDist.length} de {criteriosDist.length} criterios</span>
                 <span>Normativa: LOPCYMAT • INPSASEL • COVENIN • RCHST</span>
               </div>
               <div className="grid grid-cols-1 gap-3">
@@ -311,7 +330,7 @@ export default function CatalogoCriteriosModal({ isOpen, onClose, defaultTab = '
           {activeTab === 'servicentros' && (
             <div className="space-y-3">
               <div className="flex items-center justify-between text-xs text-slate-400 pb-1">
-                <span>Mostrando {filteredServ.length} de {CRITERIOS_SERVICENTROS_OFICIALES.length} criterios</span>
+                <span>Mostrando {filteredServ.length} de {criteriosServ.length} criterios</span>
                 <span>Normativa: LOPCYMAT • INPSASEL • COVENIN • RCHST</span>
               </div>
               <div className="grid grid-cols-1 gap-3">
@@ -405,6 +424,61 @@ export default function CatalogoCriteriosModal({ isOpen, onClose, defaultTab = '
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: PONDERACIONES REGIONALES */}
+          {activeTab === 'ponderaciones' && (
+            <div className="space-y-4">
+              <div className="p-3 bg-amber-400/10 border border-amber-400/20 rounded-2xl text-amber-300 text-xs flex items-center justify-between">
+                <span>Esquema Oficial de Totalización Regional • Ronda 1 2025-2026 (10 Regiones)</span>
+                <button
+                  onClick={() => {
+                    onClose();
+                    navigate('/criterios');
+                  }}
+                  className="px-2.5 py-1 bg-amber-400 text-slate-950 rounded-lg font-black text-[10px] uppercase hover:bg-amber-300"
+                >
+                  Editar Ponderaciones
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {ponderaciones.map((reg) => (
+                  <div key={reg.region} className="bg-slate-950 border border-slate-800 rounded-2xl p-3 space-y-2">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                      <h4 className="font-black text-xs text-white uppercase tracking-wider flex items-center gap-1.5">
+                        <Scale size={13} className="text-amber-400" />
+                        Región {reg.region}
+                      </h4>
+                      <span className="font-mono font-black text-xs text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded">
+                        Prom: {reg.promedioRegion}%
+                      </span>
+                    </div>
+
+                    <table className="w-full text-left text-[11px]">
+                      <thead className="text-[9px] font-black uppercase text-slate-500">
+                        <tr>
+                          <th className="py-1">Establecimiento</th>
+                          <th className="py-1 text-center">% Efic.</th>
+                          <th className="py-1 text-center">Pond.</th>
+                          <th className="py-1 text-center">% Pond.</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/40 text-slate-300">
+                        {reg.items.map((it, idx) => (
+                          <tr key={idx}>
+                            <td className="py-1 pr-1 font-bold truncate max-w-[150px]">{it.nombre}</td>
+                            <td className="py-1 text-center font-mono text-slate-400">{it.eficiencia}%</td>
+                            <td className="py-1 text-center font-mono text-slate-500">{it.ponderacion}</td>
+                            <td className="py-1 text-center font-mono font-bold text-emerald-400">{it.ponderado}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
               </div>
             </div>
           )}
