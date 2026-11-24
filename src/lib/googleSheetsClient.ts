@@ -367,6 +367,11 @@ export const gsApi = {
         if (!rawFecha) rawFecha = rawPunt;
         rawPunt = undefined;
       }
+      let parsedPunt: number | undefined = undefined;
+      if (rawPunt !== undefined && rawPunt !== null && rawPunt !== '') {
+        const num = Number(rawPunt);
+        if (!isNaN(num) && num >= 0) parsedPunt = num;
+      }
 
       // Normalizar nombre de empresa si contiene ID o nombre de formulario
       let empName = (i.empresaNombre || '').trim();
@@ -411,6 +416,10 @@ export const gsApi = {
         }
       }
 
+      const finalPunt = parsedPunt !== undefined ? parsedPunt : (typeof i.puntuacion === 'number' ? i.puntuacion : undefined);
+      const isComp = (i.estado || '').toLowerCase() === 'completada' || (i.estado || '').toLowerCase() === 'completado' || ((i.resultado || finalPunt !== undefined) && Object.keys(respuestasObj).length > 0 && (i.estado || '').toLowerCase() !== 'borrador');
+      const finalEstado = isComp ? 'completada' : (i.estado || 'en_progreso');
+
       return {
         ...i,
         empresaNombre: empName,
@@ -419,7 +428,8 @@ export const gsApi = {
         tipoNombre: tipoName,
         tipoCodigo: tipoCode,
         fecha: rawFecha || i.fecha,
-        puntuacion: typeof rawPunt === 'number' ? rawPunt : (typeof i.puntuacion === 'number' ? i.puntuacion : undefined),
+        estado: finalEstado,
+        puntuacion: finalPunt,
         respuestas: respuestasObj,
         formResponses: typeof i.formResponses === 'string' ? i.formResponses : JSON.stringify(respuestasObj)
       };
@@ -468,21 +478,34 @@ export const gsApi = {
         const remRespCount = rem.respuestas && typeof rem.respuestas === 'object' ? Object.keys(rem.respuestas).length : 0;
         const locRespCount = loc && loc.respuestas && typeof loc.respuestas === 'object' ? Object.keys(loc.respuestas).length : 0;
 
-        if (remRespCount === 0) {
-          if (locRespCount > 0) {
+        if (loc) {
+          if (loc.estado === 'completada' || loc.estado === 'completado') {
+            rem.estado = 'completada';
+          }
+          if (loc.resultado && !rem.resultado) {
+            rem.resultado = loc.resultado;
+          }
+          if (loc.puntuacion !== undefined && (rem.puntuacion === undefined || rem.puntuacion === null || rem.puntuacion === 0)) {
+            rem.puntuacion = loc.puntuacion;
+          }
+          if (locRespCount > 0 && remRespCount === 0) {
             rem.respuestas = loc.respuestas;
             rem.formResponses = loc.formResponses;
-            if (loc.puntuacion !== undefined && (rem.puntuacion === undefined || rem.puntuacion === 0)) {
-              rem.puntuacion = loc.puntuacion;
-            }
-            if (loc.resultado && !rem.resultado) rem.resultado = loc.resultado;
             if (loc.formObservations) rem.formObservations = loc.formObservations;
             if (loc.formAdditional) rem.formAdditional = loc.formAdditional;
             if (loc.formSignatures) rem.formSignatures = loc.formSignatures;
-            if (loc.estado === 'completada' && rem.estado !== 'completada') rem.estado = 'completada';
-          } else if (backupResponses) {
-            rem.respuestas = backupResponses;
-            rem.formResponses = JSON.stringify(backupResponses);
+          }
+        }
+
+        if (remRespCount === 0 && backupResponses) {
+          rem.respuestas = backupResponses;
+          rem.formResponses = JSON.stringify(backupResponses);
+        }
+
+        const finalRespCount = rem.respuestas && typeof rem.respuestas === 'object' ? Object.keys(rem.respuestas).length : 0;
+        if ((rem.resultado || (rem.puntuacion !== undefined && rem.puntuacion !== null)) && finalRespCount > 0) {
+          if ((rem.estado || '').toLowerCase() !== 'borrador') {
+            rem.estado = 'completada';
           }
         }
 
@@ -503,6 +526,29 @@ export const gsApi = {
       });
 
       setLocal(SK.INSPECCIONES, merged);
+
+      // Auto-generar y sincronizar planes de acción canónicos en segundo plano
+      try {
+        const autoPlans = generatePlanesAccionFromInspecciones(merged);
+        if (autoPlans && autoPlans.length > 0) {
+          const currentPlans = getLocal<any>(SK.PLAN_ACCION) || [];
+          const planMap = new Map<string, any>();
+          currentPlans.forEach((p: any) => planMap.set(String(p.id || p._id || `${p.inspeccionId}_${p.item}`), p));
+          autoPlans.forEach(np => {
+            const k = String(np.id || np._id || `${np.inspeccionId}_${np.item}`);
+            if (planMap.has(k)) {
+              const prev = planMap.get(k);
+              planMap.set(k, { ...np, ...prev });
+            } else {
+              planMap.set(k, np);
+            }
+          });
+          setLocal(SK.PLAN_ACCION, Array.from(planMap.values()));
+        }
+      } catch (e) {
+        console.warn('Error auto-generando planes desde merged:', e);
+      }
+
       return merged;
     }
 
@@ -524,13 +570,31 @@ export const gsApi = {
 
     const remote = await fetchGAS('getInspeccion', { id: strId });
     if (remote) {
-      const remSanitized = remote;
+      const remSanitized = { ...remote };
+      if (typeof remSanitized.puntuacion === 'string') {
+        const num = Number(remSanitized.puntuacion);
+        if (!isNaN(num)) remSanitized.puntuacion = num;
+      }
+      if (typeof remSanitized.respuestas === 'string') {
+        try { remSanitized.respuestas = JSON.parse(remSanitized.respuestas); } catch {}
+      }
+      if (!remSanitized.respuestas && remSanitized.formResponses) {
+        try { remSanitized.respuestas = typeof remSanitized.formResponses === 'string' ? JSON.parse(remSanitized.formResponses) : remSanitized.formResponses; } catch {}
+      }
       const remRespCount = remSanitized.respuestas && typeof remSanitized.respuestas === 'object' ? Object.keys(remSanitized.respuestas).length : 0;
       if (remRespCount === 0 && locFound && locFound.respuestas && Object.keys(locFound.respuestas).length > 0) {
         remSanitized.respuestas = locFound.respuestas;
         remSanitized.formResponses = locFound.formResponses;
         if (locFound.puntuacion !== undefined) remSanitized.puntuacion = locFound.puntuacion;
         if (locFound.resultado) remSanitized.resultado = locFound.resultado;
+      }
+      if (locFound && (locFound.estado === 'completada' || locFound.estado === 'completado')) {
+        remSanitized.estado = 'completada';
+      }
+      if ((remSanitized.resultado || remSanitized.puntuacion !== undefined) && (remRespCount > 0 || (remSanitized.respuestas && Object.keys(remSanitized.respuestas).length > 0))) {
+        if ((remSanitized.estado || '').toLowerCase() !== 'borrador') {
+          remSanitized.estado = 'completada';
+        }
       }
       return remSanitized;
     }

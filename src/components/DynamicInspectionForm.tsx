@@ -15,6 +15,13 @@ interface Props {
     signatures: Record<string, string>;
     score: ReturnType<typeof calculateScore>;
   }) => void;
+  onComplete?: (data: {
+    responses: Record<string, string>;
+    observations: Record<string, string>;
+    additional: Record<string, string>;
+    signatures: Record<string, string>;
+    score: ReturnType<typeof calculateScore>;
+  }) => void;
   readOnly?: boolean;
   inspeccionId?: string;
 }
@@ -243,7 +250,7 @@ function SectionCard({
   );
 }
 
-export function DynamicInspectionForm({ formDef, initialResponses, initialObservations, initialAdditional, onSave, readOnly, inspeccionId }: Props) {
+export function DynamicInspectionForm({ formDef, initialResponses, initialObservations, initialAdditional, onSave, onComplete, readOnly, inspeccionId }: Props) {
   const [responses, setResponses] = useState<Record<string, string>>(() => {
     if (initialResponses && Object.keys(initialResponses).length > 0) return initialResponses;
     if (typeof window !== "undefined") {
@@ -305,6 +312,14 @@ export function DynamicInspectionForm({ formDef, initialResponses, initialObserv
     onSave({ responses, observations, additional, signatures, score });
   };
 
+  const handleComplete = () => {
+    if (onComplete) {
+      onComplete({ responses, observations, additional, signatures, score });
+    } else {
+      onSave({ responses, observations, additional, signatures, score });
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Score card - sticky at top */}
@@ -352,17 +367,30 @@ export function DynamicInspectionForm({ formDef, initialResponses, initialObserv
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-32 h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div className="w-24 sm:w-32 h-2 bg-slate-100 rounded-full overflow-hidden">
               <div className={`h-full rounded-full transition-all ${completionPct === 100 ? "bg-emerald-500" : "bg-blue-500"}`} style={{ width: `${completionPct}%` }} />
             </div>
             {!readOnly && (
-              <button
-                onClick={handleSave}
-                className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors shadow-sm"
-              >
-                <Save className="h-4 w-4" />
-                Guardar
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg text-xs transition-colors shadow-xs"
+                  title="Guardar borrador"
+                >
+                  <Save className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Guardar</span> Borrador
+                </button>
+                <button
+                  type="button"
+                  onClick={handleComplete}
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg text-xs transition-colors shadow-xs"
+                  title="Finalizar inspección"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Finalizar
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -460,15 +488,24 @@ export function DynamicInspectionForm({ formDef, initialResponses, initialObserv
         </div>
       )}
 
-      {/* Save button at bottom */}
+      {/* Save & Complete buttons at bottom */}
       {!readOnly && (
-        <div className="flex justify-end gap-3">
+        <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-slate-200">
           <button
+            type="button"
             onClick={handleSave}
-            className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl transition-colors shadow-sm"
+            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-xl transition-colors shadow-xs text-sm"
           >
-            <Save className="h-5 w-5" />
-            Guardar Inspección
+            <Save className="h-4 w-4" />
+            Guardar Borrador
+          </button>
+          <button
+            type="button"
+            onClick={handleComplete}
+            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl transition-colors shadow-sm text-sm"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            Finalizar Inspección
           </button>
         </div>
       )}

@@ -1000,47 +1000,104 @@ function handleSaveTableBatch(payload, session) {
   });
 }
 
+function findInspeccionRow(data, headers, payload) {
+  var id = String(payload._id || payload.id || payload.inspeccionId || '').trim();
+  var correl = String(payload.correlativo || '').trim();
+  var ref = String(payload.referencia || '').trim();
+
+  var cleanId = id.replace(/^INSP-|^insp_|^INS-/, '');
+  var cleanCorrel = correl.replace(/^INSP-|^insp_|^INS-/, '');
+  var cleanRef = ref.replace(/^INSP-|^insp_|^INS-/, '');
+
+  var colId = 0;
+  var colCorrel = headers.indexOf('correlativo');
+
+  for (var i = 1; i < data.length; i++) {
+    var rowId = String(data[i][colId] || '').trim();
+    var rowCorrel = colCorrel >= 0 ? String(data[i][colCorrel] || '').trim() : '';
+
+    var cleanRowId = rowId.replace(/^INSP-|^insp_|^INS-/, '');
+    var cleanRowCorrel = rowCorrel.replace(/^INSP-|^insp_|^INS-/, '');
+
+    // Coincidencia exacta o normalizada por _id, correlativo o referencia
+    if (id && (rowId === id || cleanRowId === id || rowId === cleanId || cleanRowId === cleanId)) return i + 1;
+    if (correl && (rowCorrel === correl || cleanRowCorrel === correl || rowCorrel === cleanCorrel || cleanRowCorrel === cleanCorrel)) return i + 1;
+    if (id && rowCorrel && (rowCorrel === id || cleanRowCorrel === id || rowCorrel === cleanId || cleanRowCorrel === cleanId)) return i + 1;
+    if (correl && rowId && (rowId === correl || cleanRowId === correl || rowId === cleanCorrel || cleanRowId === cleanCorrel)) return i + 1;
+    if (ref && (rowId === ref || rowCorrel === ref || cleanRowId === cleanRef || cleanRowCorrel === cleanRef)) return i + 1;
+  }
+  return -1;
+}
+
 function handleCreateInspeccion(payload, session) {
   return withScriptLock(15000, function() {
     var ss = getSpreadsheet();
     var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
 
-    var newId = sanitizeCell(payload._id || ('insp_' + Date.now()));
-    var correlativo = sanitizeCell(payload.correlativo || ('INS-' + Utilities.formatDate(new Date(), 'America/Caracas', 'yyyyMMdd-HHmmss')));
+    var data = sheet.getDataRange().getValues();
+    var headers = data[0];
 
-    var row = [
-      newId,
-      correlativo,
-      sanitizeCell(payload.tipoId || ''),
-      sanitizeCell(payload.tipoNombre || ''),
-      sanitizeCell(payload.tipoCodigo || ''),
-      sanitizeCell(payload.empresaId || ''),
-      sanitizeCell(payload.empresaNombre || ''),
-      sanitizeCell(payload.localidadId || ''),
-      sanitizeCell(payload.localidadNombre || ''),
-      sanitizeCell(payload.establecimientoId || ''),
-      sanitizeCell(payload.establecimientoNombre || ''),
-      sanitizeCell(payload.area || ''),
-      sanitizeCell(payload.inspector || (session ? session.nombre : '')),
-      sanitizeCell(payload.inspectorCargo || ''),
-      sanitizeCell(payload.acompanante || ''),
-      sanitizeCell(payload.fecha || Utilities.formatDate(new Date(), 'America/Caracas', "yyyy-MM-dd'T'HH:mm:ss'Z'")),
-      sanitizeCell(payload.horaInicio || ''),
-      sanitizeCell(payload.horaFin || ''),
-      'borrador',
-      '',
-      '',
-      '{}',
-      '[]',
-      '',
-      '[]',
-      Utilities.formatDate(new Date(), 'America/Caracas', "yyyy-MM-dd'T'HH:mm:ss'Z'")
-    ];
+    // Evitar crear filas duplicadas si ya existe por ID o correlativo
+    var existingRow = findInspeccionRow(data, headers, payload);
+    if (existingRow !== -1) {
+      return handleSaveFormData(payload, session);
+    }
+
+    var newId = sanitizeCell(payload._id || payload.id || ('insp_' + Date.now()));
+    var correlativo = sanitizeCell(payload.correlativo || ('INS-' + Utilities.formatDate(new Date(), 'America/Caracas', 'yyyyMMdd-HHmmss')));
+    var nowStr = Utilities.formatDate(new Date(), 'America/Caracas', "yyyy-MM-dd'T'HH:mm:ss'Z'");
+
+    var row = [];
+    for (var j = 0; j < headers.length; j++) {
+      var h = headers[j];
+      var val = '';
+      if (h === '_id') val = newId;
+      else if (h === 'correlativo') val = correlativo;
+      else if (h === 'tipoInspeccionId' || h === 'tipoId') val = sanitizeCell(payload.tipoInspeccionId || payload.tipoId || '');
+      else if (h === 'tipoNombre') val = sanitizeCell(payload.tipoNombre || '');
+      else if (h === 'tipoCodigo') val = sanitizeCell(payload.tipoCodigo || 'GEN');
+      else if (h === 'empresaId') val = sanitizeCell(payload.empresaId || '');
+      else if (h === 'empresaNombre') val = sanitizeCell(payload.empresaNombre || 'Distribuidora Duncan, C.A.');
+      else if (h === 'localidadId') val = sanitizeCell(payload.localidadId || '');
+      else if (h === 'localidadNombre') val = sanitizeCell(payload.localidadNombre || 'Valencia');
+      else if (h === 'establecimientoId') val = sanitizeCell(payload.establecimientoId || '');
+      else if (h === 'establecimientoNombre') val = sanitizeCell(payload.establecimientoNombre || 'Distribuidora Duncan Valencia');
+      else if (h === 'area') val = sanitizeCell(payload.area || '');
+      else if (h === 'inspector') val = sanitizeCell(payload.inspector || (session ? session.nombre : 'Supervisor SST Duncan'));
+      else if (h === 'inspectorCargo') val = sanitizeCell(payload.inspectorCargo || '');
+      else if (h === 'acompanante') val = sanitizeCell(payload.acompanante || '');
+      else if (h === 'fecha') val = sanitizeCell(payload.fecha || nowStr);
+      else if (h === 'horaInicio') val = sanitizeCell(payload.horaInicio || '');
+      else if (h === 'horaFin') val = sanitizeCell(payload.horaFin || '');
+      else if (h === 'estado') val = sanitizeCell(payload.estado || 'en_progreso');
+      else if (h === 'resultado') val = sanitizeCell(payload.resultado || '');
+      else if (h === 'puntuacion' || h === 'puntos') val = payload.puntuacion !== undefined ? payload.puntuacion : (payload.puntos !== undefined ? payload.puntos : '');
+      else if (h === 'formResponses' || h === 'respuestas') {
+        var r = payload.formResponses || payload.responses || payload.respuestas || '{}';
+        val = typeof r === 'string' ? r : JSON.stringify(sanitizeObject(r));
+      }
+      else if (h === 'formObservations' || h === 'observacionesGenerales' || h === 'observaciones') {
+        var obs = payload.formObservations || payload.observacionesGenerales || payload.observaciones || payload.observations || '';
+        val = typeof obs === 'string' ? obs : JSON.stringify(sanitizeObject(obs));
+      }
+      else if (h === 'formAdditional' || h === 'additional') {
+        var add = payload.formAdditional || payload.additional || '';
+        val = typeof add === 'string' ? add : JSON.stringify(sanitizeObject(add));
+      }
+      else if (h === 'formSignatures' || h === 'firmas' || h === 'firmaInspector') {
+        var sig = payload.formSignatures || payload.firmas || payload.signatures || payload.firmaInspector || '';
+        val = typeof sig === 'string' ? sig : JSON.stringify(sanitizeObject(sig));
+      }
+      else if (h === 'actualizadoEn') val = nowStr;
+      else if (payload[h] !== undefined) val = sanitizeCell(payload[h]);
+      
+      row.push(val);
+    }
 
     sheet.appendRow(row);
     SpreadsheetApp.flush();
 
-    return { _id: newId, correlativo: correlativo };
+    return { _id: newId, correlativo: correlativo, success: true };
   });
 }
 
@@ -1049,42 +1106,69 @@ function handleSaveFormData(payload, session) {
     var ss = getSpreadsheet();
     var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
 
-    var id = payload._id || payload.id;
     var data = sheet.getDataRange().getValues();
     var headers = data[0];
-    var rowIndex = -1;
-
-    for (var i = 1; i < data.length; i++) {
-      if (String(data[i][0]) === String(id)) {
-        rowIndex = i + 1;
-        break;
-      }
-    }
+    var rowIndex = findInspeccionRow(data, headers, payload);
 
     if (rowIndex === -1) {
       return handleCreateInspeccion(payload, session);
     }
 
-    var colRespuestas = headers.indexOf('respuestas') + 1;
-    var colFotos = headers.indexOf('fotos') + 1;
-    var colPuntos = headers.indexOf('puntos') + 1;
-    var colActualizado = headers.indexOf('actualizadoEn') + 1;
+    var nowStr = Utilities.formatDate(new Date(), 'America/Caracas', "yyyy-MM-dd'T'HH:mm:ss'Z'");
 
-    if (colRespuestas > 0 && payload.respuestas) {
-      sheet.getRange(rowIndex, colRespuestas).setValue(JSON.stringify(sanitizeObject(payload.respuestas)));
+    var setCol = function(nameList, value) {
+      for (var k = 0; k < nameList.length; k++) {
+        var col = headers.indexOf(nameList[k]) + 1;
+        if (col > 0) {
+          sheet.getRange(rowIndex, col).setValue(value);
+          return true;
+        }
+      }
+      return false;
+    };
+
+    var rawResp = payload.formResponses || payload.responses || payload.respuestas;
+    if (rawResp) {
+      var respStr = typeof rawResp === 'string' ? rawResp : JSON.stringify(sanitizeObject(rawResp));
+      setCol(['formResponses', 'respuestas'], respStr);
     }
-    if (colFotos > 0 && payload.fotos) {
-      sheet.getRange(rowIndex, colFotos).setValue(JSON.stringify(sanitizeObject(payload.fotos)));
+
+    var scoreVal = payload.puntuacion !== undefined ? payload.puntuacion : payload.puntos;
+    if (scoreVal !== undefined && scoreVal !== null && scoreVal !== '') {
+      setCol(['puntuacion', 'puntos'], scoreVal);
     }
-    if (colPuntos > 0 && payload.puntos) {
-      sheet.getRange(rowIndex, colPuntos).setValue(JSON.stringify(sanitizeObject(payload.puntos)));
+
+    if (payload.resultado) {
+      setCol(['resultado'], sanitizeCell(payload.resultado));
     }
-    if (colActualizado > 0) {
-      sheet.getRange(rowIndex, colActualizado).setValue(Utilities.formatDate(new Date(), 'America/Caracas', "yyyy-MM-dd'T'HH:mm:ss'Z'"));
+
+    if (payload.estado) {
+      setCol(['estado'], sanitizeCell(payload.estado));
     }
+
+    var rawObs = payload.formObservations || payload.observacionesGenerales || payload.observaciones || payload.observations;
+    if (rawObs) {
+      var obsStr = typeof rawObs === 'string' ? rawObs : JSON.stringify(sanitizeObject(rawObs));
+      setCol(['formObservations', 'observacionesGenerales', 'observaciones'], obsStr);
+    }
+
+    var rawAdd = payload.formAdditional || payload.additional;
+    if (rawAdd) {
+      var addStr = typeof rawAdd === 'string' ? rawAdd : JSON.stringify(sanitizeObject(rawAdd));
+      setCol(['formAdditional', 'additional'], addStr);
+    }
+
+    var rawSig = payload.formSignatures || payload.firmas || payload.signatures;
+    if (rawSig) {
+      var sigStr = typeof rawSig === 'string' ? rawSig : JSON.stringify(sanitizeObject(rawSig));
+      setCol(['formSignatures', 'firmas', 'firmaInspector'], sigStr);
+    }
+
+    setCol(['actualizadoEn'], nowStr);
 
     SpreadsheetApp.flush();
-    return { success: true, _id: id };
+    var foundId = data[rowIndex - 1][0];
+    return { success: true, _id: foundId };
   });
 }
 
@@ -1093,46 +1177,62 @@ function handleCompleteInspeccion(payload, session) {
     var ss = getSpreadsheet();
     var sheet = getOrCreateSheet(ss, SHEETS.INSPECCIONES);
 
-    var id = payload._id || payload.id;
     var data = sheet.getDataRange().getValues();
     var headers = data[0];
-    var rowIndex = -1;
-
-    for (var i = 1; i < data.length; i++) {
-      if (String(data[i][0]) === String(id)) {
-        rowIndex = i + 1;
-        break;
-      }
-    }
+    var rowIndex = findInspeccionRow(data, headers, payload);
 
     if (rowIndex === -1) {
-      return { success: false, message: 'Inspección no encontrada' };
+      payload.estado = 'completada';
+      return handleCreateInspeccion(payload, session);
     }
 
-    var updates = {
-      estado: 'completada',
-      resultado: sanitizeCell(payload.resultado || ''),
-      observacionesGenerales: sanitizeCell(payload.observacionesGenerales || ''),
-      horaFin: sanitizeCell(payload.horaFin || Utilities.formatDate(new Date(), 'America/Caracas', 'HH:mm')),
-      firmaInspector: payload.firmaInspector ? JSON.stringify(sanitizeObject(payload.firmaInspector)) : '',
-      firmaResponsable: payload.firmaResponsable ? JSON.stringify(sanitizeObject(payload.firmaResponsable)) : '',
-      actualizadoEn: Utilities.formatDate(new Date(), 'America/Caracas', "yyyy-MM-dd'T'HH:mm:ss'Z'")
+    var nowStr = Utilities.formatDate(new Date(), 'America/Caracas', "yyyy-MM-dd'T'HH:mm:ss'Z'");
+
+    var setCol = function(nameList, value) {
+      for (var k = 0; k < nameList.length; k++) {
+        var col = headers.indexOf(nameList[k]) + 1;
+        if (col > 0) {
+          sheet.getRange(rowIndex, col).setValue(value);
+          return true;
+        }
+      }
+      return false;
     };
 
-    if (payload.respuestas) updates.respuestas = JSON.stringify(sanitizeObject(payload.respuestas));
-    if (payload.fotos) updates.fotos = JSON.stringify(sanitizeObject(payload.fotos));
-    if (payload.puntos) updates.puntos = JSON.stringify(sanitizeObject(payload.puntos));
+    setCol(['estado'], 'completada');
+    if (payload.resultado) setCol(['resultado'], sanitizeCell(payload.resultado));
 
-    for (var key in updates) {
-      var col = headers.indexOf(key) + 1;
-      if (col > 0) {
-        sheet.getRange(rowIndex, col).setValue(updates[key]);
-      }
+    var scoreVal = payload.puntuacion !== undefined ? payload.puntuacion : payload.puntos;
+    if (scoreVal !== undefined && scoreVal !== null && scoreVal !== '') {
+      setCol(['puntuacion', 'puntos'], scoreVal);
     }
 
+    var rawResp = payload.formResponses || payload.responses || payload.respuestas;
+    if (rawResp) {
+      var respStr = typeof rawResp === 'string' ? rawResp : JSON.stringify(sanitizeObject(rawResp));
+      setCol(['formResponses', 'respuestas'], respStr);
+    }
+
+    var rawObs = payload.formObservations || payload.observacionesGenerales || payload.observaciones || payload.observations;
+    if (rawObs) {
+      var obsStr = typeof rawObs === 'string' ? rawObs : JSON.stringify(sanitizeObject(rawObs));
+      setCol(['formObservations', 'observacionesGenerales', 'observaciones'], obsStr);
+    }
+
+    var rawSig = payload.formSignatures || payload.firmas || payload.signatures || payload.firmaInspector;
+    if (rawSig) {
+      var sigStr = typeof rawSig === 'string' ? rawSig : JSON.stringify(sanitizeObject(rawSig));
+      setCol(['formSignatures', 'firmas', 'firmaInspector'], sigStr);
+    }
+
+    setCol(['horaFin'], sanitizeCell(payload.horaFin || Utilities.formatDate(new Date(), 'America/Caracas', 'HH:mm')));
+    setCol(['actualizadoEn'], nowStr);
+
     SpreadsheetApp.flush();
-    return { success: true, _id: id, estado: 'completada' };
+    var foundId = data[rowIndex - 1][0];
+    return { success: true, _id: foundId, estado: 'completada' };
   });
+}
 }
 
 function handleDeleteInspeccion(payload, session) {

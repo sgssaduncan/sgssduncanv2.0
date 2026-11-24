@@ -12,6 +12,24 @@ import toast from 'react-hot-toast';
 const ESTADOS = ['Todos', 'en_progreso', 'completada', 'borrador'];
 const RESULTADOS = ['Todos', 'C', 'NC', 'OM'];
 
+function isInspectionComplete(insp: any): boolean {
+  if (!insp) return false;
+  const st = String(insp.estado || '').toLowerCase().trim();
+  if (st === 'completada' || st === 'completado') return true;
+  if (insp.resultado && ['C', 'NC', 'OM', 'NA'].includes(String(insp.resultado).toUpperCase())) {
+    return true;
+  }
+  if (insp.puntuacion !== undefined && insp.puntuacion !== null && insp.puntuacion !== '' && !isNaN(Number(insp.puntuacion))) {
+    try {
+      const resp = insp.respuestas || (typeof insp.formResponses === 'string' && insp.formResponses ? JSON.parse(insp.formResponses) : insp.formResponses);
+      if (resp && typeof resp === 'object' && Object.keys(resp).length > 0) {
+        return true;
+      }
+    } catch {}
+  }
+  return false;
+}
+
 export default function InspeccionesPage() {
   const { inspecciones, tiposInspeccion, establecimientos, deleteInspeccion } = useSGD();
   const navigate = useNavigate();
@@ -22,12 +40,14 @@ export default function InspeccionesPage() {
   const [showCriteriosModal, setShowCriteriosModal] = useState(false);
 
   const filtered = inspecciones.filter(insp => {
+    const isCompleted = isInspectionComplete(insp);
+    const effectiveEstado = isCompleted ? 'completada' : (insp.estado || 'en_progreso');
     const matchSearch = !search ||
       insp.establecimientoNombre?.toLowerCase().includes(search.toLowerCase()) ||
       insp.tipoNombre?.toLowerCase().includes(search.toLowerCase()) ||
       insp.inspector?.toLowerCase().includes(search.toLowerCase()) ||
       String(insp.correlativo).includes(search);
-    const matchEstado = filterEstado === 'Todos' || insp.estado === filterEstado;
+    const matchEstado = filterEstado === 'Todos' || effectiveEstado === filterEstado || insp.estado === filterEstado;
     const matchResultado = filterResultado === 'Todos' || insp.resultado === filterResultado;
     const matchTipo = filterTipo === 'Todos' || insp.tipoInspeccionId === filterTipo;
     return matchSearch && matchEstado && matchResultado && matchTipo;
@@ -121,84 +141,102 @@ export default function InspeccionesPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filtered.map(insp => (
-                    <tr key={insp._id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3 text-slate-500 font-mono text-xs">{insp.correlativo || '—'}</td>
-                      <td className="px-4 py-3">
-                        <div>
-                          <p className="font-medium text-slate-900">{insp.establecimientoNombre}</p>
-                          <p className="text-xs text-slate-500">{insp.localidadNombre}</p>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-slate-700">{insp.tipoNombre}</td>
-                      <td className="px-4 py-3 text-slate-600">{formatDate(insp.fecha)}</td>
-                      <td className="px-4 py-3 text-slate-600">{insp.inspector}</td>
-                      <td className="px-4 py-3">
-                        <span className={cn(getEstadoBadgeClass(insp.estado))}>
-                          {insp.estado === 'en_progreso' ? 'En Progreso' : insp.estado === 'completada' ? 'Completada' : 'Borrador'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {insp.resultado ? (
-                          <span className={cn(getResultadoBadgeClass(insp.resultado))}>{insp.resultado}</span>
-                        ) : <span className="text-slate-300">—</span>}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1">
-                          <Link to={`/inspecciones/${insp._id}`}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Ver">
-                            <Eye className="h-4 w-4" />
-                          </Link>
-                          {insp.estado !== 'completada' && (
-                            <Link to={`/inspecciones/${insp._id}/formulario`}
-                              className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors" title="Completar">
-                              <FileText className="h-4 w-4" />
+                  {filtered.map(insp => {
+                    const isCompleted = isInspectionComplete(insp);
+                    const estadoLabel = isCompleted ? 'Completada' : insp.estado === 'en_progreso' ? 'En Progreso' : 'Borrador';
+                    const estadoClass = isCompleted ? 'completada' : (insp.estado || 'en_progreso');
+
+                    return (
+                      <tr key={insp._id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-3 text-slate-500 font-mono text-xs">{insp.correlativo || '—'}</td>
+                        <td className="px-4 py-3">
+                          <div>
+                            <p className="font-medium text-slate-900">{insp.establecimientoNombre}</p>
+                            <p className="text-xs text-slate-500">{insp.localidadNombre}</p>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">{insp.tipoNombre}</td>
+                        <td className="px-4 py-3 text-slate-600">{formatDate(insp.fecha)}</td>
+                        <td className="px-4 py-3 text-slate-600">{insp.inspector}</td>
+                        <td className="px-4 py-3">
+                          <span className={cn(getEstadoBadgeClass(estadoClass))}>
+                            {estadoLabel}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {insp.resultado ? (
+                            <span className={cn(getResultadoBadgeClass(insp.resultado))}>{insp.resultado}</span>
+                          ) : <span className="text-slate-300">—</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            <Link to={`/inspecciones/${insp._id}`}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title={isCompleted ? "Ver Reporte" : "Ver"}>
+                              <Eye className="h-4 w-4" />
                             </Link>
-                          )}
-                          <button onClick={() => handleDelete(insp._id, insp.establecimientoNombre)}
-                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar">
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                            {!isCompleted && (
+                              <Link to={`/inspecciones/${insp._id}/formulario`}
+                                className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors" title="Completar">
+                                <FileText className="h-4 w-4" />
+                              </Link>
+                            )}
+                            <button onClick={() => handleDelete(insp._id, insp.establecimientoNombre)}
+                              className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
             {/* Mobile cards */}
             <div className="md:hidden divide-y divide-slate-100">
-              {filtered.map(insp => (
-                <div key={insp._id} className="p-4">
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-slate-900 truncate">{insp.establecimientoNombre}</p>
-                      <p className="text-xs text-slate-500">{insp.tipoNombre} · {formatDate(insp.fecha)}</p>
+              {filtered.map(insp => {
+                const isCompleted = isInspectionComplete(insp);
+                const estadoLabel = isCompleted ? 'Completada' : insp.estado === 'en_progreso' ? 'En Progreso' : 'Borrador';
+                const estadoClass = isCompleted ? 'completada' : (insp.estado || 'en_progreso');
+
+                return (
+                  <div key={insp._id} className="p-4">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-slate-900 truncate">{insp.establecimientoNombre}</p>
+                        <p className="text-xs text-slate-500">{insp.tipoNombre} · {formatDate(insp.fecha)}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className={cn('text-xs', getEstadoBadgeClass(estadoClass))}>
+                          {estadoLabel}
+                        </span>
+                        {insp.resultado && <span className={cn('text-xs', getResultadoBadgeClass(insp.resultado))}>{insp.resultado}</span>}
+                      </div>
                     </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <span className={cn('text-xs', getEstadoBadgeClass(insp.estado))}>
-                        {insp.estado === 'en_progreso' ? 'En Progreso' : insp.estado === 'completada' ? 'Completada' : 'Borrador'}
-                      </span>
-                      {insp.resultado && <span className={cn('text-xs', getResultadoBadgeClass(insp.resultado))}>{insp.resultado}</span>}
-                    </div>
-                  </div>
-                  <p className="text-xs text-slate-500 mb-3">Inspector: {insp.inspector}</p>
-                  <div className="flex gap-2">
-                    <Link to={`/inspecciones/${insp._id}`} className="btn-secondary flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs">
-                      <Eye className="h-3.5 w-3.5" /> Ver
-                    </Link>
-                    {insp.estado !== 'completada' && (
-                      <Link to={`/inspecciones/${insp._id}/formulario`} className="btn-secondary flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs">
-                        <FileText className="h-3.5 w-3.5" /> Completar
+                    <p className="text-xs text-slate-500 mb-3">Inspector: {insp.inspector}</p>
+                    <div className="flex gap-2">
+                      <Link
+                        to={`/inspecciones/${insp._id}`}
+                        className={cn("flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs rounded-lg font-medium transition-colors", isCompleted ? "btn-primary" : "btn-secondary")}
+                      >
+                        <Eye className="h-3.5 w-3.5" /> {isCompleted ? 'Ver Reporte' : 'Ver'}
                       </Link>
-                    )}
-                    <button onClick={() => handleDelete(insp._id, insp.establecimientoNombre)} className="btn-danger py-1.5 px-3">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                      {!isCompleted && (
+                        <Link
+                          to={`/inspecciones/${insp._id}/formulario`}
+                          className="btn-secondary flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs"
+                        >
+                          <FileText className="h-3.5 w-3.5" /> Completar
+                        </Link>
+                      )}
+                      <button onClick={() => handleDelete(insp._id, insp.establecimientoNombre)} className="btn-danger py-1.5 px-3">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}

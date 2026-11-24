@@ -267,6 +267,7 @@ export default function InspeccionFormPage() {
         initialObservations={initialObservations}
         initialAdditional={initialAdditional}
         onSave={handleSave}
+        onComplete={handleComplete}
         inspeccionId={inspeccion._id || inspeccion.id || String(inspeccion.correlativo) || id}
       />
     </div>
