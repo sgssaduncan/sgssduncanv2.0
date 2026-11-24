@@ -1506,6 +1506,7 @@ export function getTotalItems(form: InspectionFormDef): number {
 export interface ScoreResult {
   puntuacion: number;
   resultado: "C" | "NC" | "OM" | "NA";
+  nivelCumplimiento?: "ALTO" | "MEDIO" | "BAJO";
   conformes: number;
   noConformes: number;
   observaciones: number; // Oportunidades de Mejora (OM)
@@ -1636,16 +1637,40 @@ export function calculateScore(
     ? Math.round((noAplica / totalGeneral) * 1000) / 10 
     : 0;
 
-  // Calificación oficial según umbrales de la norma
+  // REGLA FUNDAMENTAL DE SEGURIDAD INDUSTRIAL DUNCAN:
+  // Si existen No Conformidades (NC > 0), el dictamen oficial de la inspección es NO CONFORME (NC).
+  // Si no hay NC pero hay Oportunidades de Mejora (OM > 0), el dictamen es OPORTUNIDAD DE MEJORA (OM).
+  // Solo se dictamina CONFORME (C) si se cumple el umbral Y no hay No Conformidades.
   const confThresh = form.scoring?.conformeThreshold ?? 80;
   const omThresh = form.scoring?.omThreshold ?? 70;
-  const resultado: "C" | "NC" | "OM" | "NA" = 
-    puntuacion >= confThresh ? "C" : 
-    puntuacion >= omThresh ? "OM" : "NC";
+  let resultado: "C" | "NC" | "OM" | "NA";
+  if (totalEvaluados === 0) {
+    resultado = "NA";
+  } else if (noConformes > 0) {
+    resultado = "NC";
+  } else if (observaciones > 0 || puntuacion < confThresh) {
+    resultado = (puntuacion < omThresh) ? "NC" : "OM";
+  } else {
+    resultado = "C";
+  }
+
+  // Nivel de cumplimiento técnico (ALTO / MEDIO / BAJO)
+  let nivelCumplimiento: "ALTO" | "MEDIO" | "BAJO";
+  if (noConformes > 0) {
+    // Si hay NCs, NUNCA puede ser ALTO
+    nivelCumplimiento = (noConformes >= 3 || puntuacion < 70) ? "BAJO" : "MEDIO";
+  } else if (observaciones > 3 || puntuacion < 85) {
+    nivelCumplimiento = "MEDIO";
+  } else if (puntuacion >= 90) {
+    nivelCumplimiento = "ALTO";
+  } else {
+    nivelCumplimiento = "MEDIO";
+  }
 
   return {
     puntuacion,
     resultado,
+    nivelCumplimiento,
     conformes,
     noConformes,
     observaciones,

@@ -25,6 +25,8 @@ import {
   exportActionPlanToPDF,
   downloadActionPlanCSV, 
   generateActionPlanEmailData,
+  computeRealisticScore,
+  getNivelConformidad,
   ActionPlanExportMeta 
 } from '../lib/actionPlanExport';
 import { formatDate, getReportHeaderTitle } from '../lib/utils';
@@ -63,8 +65,9 @@ export default function ActionPlanDocument({ inspeccion, metadata, onClose, embe
   const tipoCod = metadata?.tipo?.codigo || inspeccion.tipoCodigo || 'DD';
   const correlStr = String(inspeccion.correlativo || (inspeccion.referencia ? inspeccion.referencia.replace(/^REF-|^INSP-/, '') : '14'));
   const headerTipo = getReportHeaderTitle(tipoNom, tipoCod);
-  const puntuacionVal = typeof inspeccion.puntuacion === 'number' ? inspeccion.puntuacion : 92.3;
-  const nivelConf = puntuacionVal >= 85 ? 'ALTO' : puntuacionVal >= 70 ? 'MEDIO' : 'BAJO';
+  const scoreInfo = computeRealisticScore(inspeccion, items);
+  const puntuacionVal = scoreInfo.puntuacion;
+  const nivelConf = scoreInfo.nivelConf;
   const fechaInsp = inspeccion.fecha ? String(inspeccion.fecha).split('T')[0] : '2026-04-22';
   const dClose = new Date(fechaInsp);
   const fechaCierre = isNaN(dClose.getTime()) 

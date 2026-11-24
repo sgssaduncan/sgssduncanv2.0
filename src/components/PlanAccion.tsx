@@ -34,7 +34,13 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, formatDate, formatDateTime } from '../lib/utils';
 import { exportActionPlansToExcel, exportActionPlansToCSV } from '../lib/exportUtils';
-import { exportActionPlanToExcel as exportOfficialActionPlanExcel, exportActionPlanToPDF, generateActionPlanEmailData } from '../lib/actionPlanExport';
+import { 
+  exportActionPlanToExcel as exportOfficialActionPlanExcel, 
+  exportActionPlanToPDF, 
+  generateActionPlanEmailData,
+  computeRealisticScore,
+  getNivelConformidad
+} from '../lib/actionPlanExport';
 import { generatePlanesAccionFromInspeccion } from '../lib/planAccionGenerator';
 import type { PlanAccion, EstadoPlanAccion, PrioridadPlanAccion, Empleado, Inspeccion } from '../types';
 import toast from 'react-hot-toast';
@@ -438,7 +444,9 @@ export default function PlanAccionList() {
       });
 
       const matchingInsp = est.inspection || inspecciones.find(i => (i.establecimientoNombre || '').toLowerCase() === est.nombre.toLowerCase());
-      const puntuacion = matchingInsp && typeof matchingInsp.puntuacion === 'number' ? matchingInsp.puntuacion : 92.3;
+      const scoreInfo = computeRealisticScore(matchingInsp || ({} as any), relatedPlanes);
+      const puntuacion = scoreInfo.puntuacion;
+      const nivelConf = scoreInfo.nivelConf;
       const fecha = matchingInsp?.fecha || (relatedPlanes[0]?.createdAt);
 
       return {
@@ -453,6 +461,8 @@ export default function PlanAccionList() {
         cerrados,
         vencidos,
         puntuacion,
+        nivelConf,
+        resultado: scoreInfo.resultado,
         ultimaFecha: fecha,
         inspection: matchingInsp
       };
@@ -638,8 +648,16 @@ export default function PlanAccionList() {
                       {typeof est.puntuacion === 'number' && (
                         <div className="text-right shrink-0">
                           <span className="text-[9px] uppercase font-bold text-slate-400 block">Cumplimiento</span>
-                          <span className="text-xs font-black text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200">
-                            {est.puntuacion}%
+                          <span className={cn(
+                            "text-xs font-black px-2 py-0.5 rounded-lg border inline-flex items-center gap-1",
+                            (est as any).nivelConf === 'ALTO'
+                              ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+                              : (est as any).nivelConf === 'MEDIO'
+                              ? "text-amber-700 bg-amber-50 border-amber-200"
+                              : "text-rose-700 bg-rose-50 border-rose-200"
+                          )}>
+                            <span>{est.puntuacion}%</span>
+                            <span className="text-[8.5px] uppercase font-extrabold">({(est as any).nivelConf || 'BAJO'})</span>
                           </span>
                         </div>
                       )}
@@ -1079,8 +1097,10 @@ export default function PlanAccionList() {
                   </div>
                 ) : (
                   filteredInspectionsForSelector.map(({ inspection: insp, totalPlanes, ncCount, omCount }) => {
-                    const puntuacion = typeof insp.puntuacion === 'number' ? insp.puntuacion : 92.3;
-                    const nivel = puntuacion >= 85 ? 'ALTO' : puntuacion >= 70 ? 'MEDIO' : 'BAJO';
+                    const puntuacion = typeof insp.puntuacion === 'number' && !(insp.puntuacion === 100 && (ncCount > 0 || omCount > 0))
+                      ? insp.puntuacion 
+                      : (totalPlanes > 0 ? Math.max(0, Math.round(((Math.max(totalPlanes, 100) - (ncCount * 1.0 + omCount * 0.5)) / Math.max(totalPlanes, 100)) * 100)) : 100);
+                    const nivel = getNivelConformidad(puntuacion, ncCount, omCount);
 
                     return (
                       <div

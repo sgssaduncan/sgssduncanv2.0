@@ -700,9 +700,17 @@ export default function InspectionReport({
                 <td style={{ padding: '4px 8px', fontWeight: 'bold', color: (scoreResult?.resultado || inspection.resultado) === 'C' ? '#166534' : (scoreResult?.resultado || inspection.resultado) === 'NC' ? '#b91c1c' : '#c2410c', borderRight: '1px solid #cbd5e1' }}>
                   {(scoreResult?.resultado || inspection.resultado || 'C') === 'C' ? 'CONFORME (C)' : (scoreResult?.resultado || inspection.resultado) === 'OM' ? 'OPORTUNIDAD DE MEJORA (OM)' : 'NO CONFORME (NC)'}
                 </td>
-                <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#475569', borderRight: '1px solid #cbd5e1' }}>Puntuación</td>
-                <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#1e40af', fontSize: '9px' }}>
-                  {scoreResult ? scoreResult.puntuacion : (typeof inspection.puntuacion === 'number' ? inspection.puntuacion : 100)}%
+                <td style={{ padding: '4px 8px', fontWeight: 'bold', color: '#475569', borderRight: '1px solid #cbd5e1' }}>Puntuación / Nivel</td>
+                <td style={{ padding: '4px 8px', fontWeight: 'bold', fontSize: '9px' }}>
+                  {scoreResult ? (
+                    <span style={{ color: scoreResult.nivelCumplimiento === 'ALTO' ? '#166534' : scoreResult.nivelCumplimiento === 'MEDIO' ? '#c2410c' : '#b91c1c' }}>
+                      {scoreResult.puntuacion}% ({scoreResult.nivelCumplimiento || 'MEDIO'})
+                    </span>
+                  ) : (
+                    <span style={{ color: '#1e40af' }}>
+                      {typeof inspection.puntuacion === 'number' ? inspection.puntuacion : 100}%
+                    </span>
+                  )}
                 </td>
               </tr>
               <tr>

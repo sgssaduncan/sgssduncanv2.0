@@ -39,11 +39,75 @@ export function getMesAno(dateStr?: string): string {
   }
 }
 
-export function getNivelConformidad(puntuacion?: number): string {
-  const p = typeof puntuacion === 'number' ? puntuacion : 100;
-  if (p >= 85) return 'ALTO';
-  if (p >= 70) return 'MEDIO';
+/**
+ * Determina el Nivel de Conformidad según las reglas oficiales de Seguridad y Salud en el Trabajo:
+ * - Si existen No Conformidades (NC > 0): NUNCA puede ser 'ALTO'.
+ *   Una NC es una violación legal o riesgo no mitigado.
+ *   - Si NC >= 3 o puntuación < 70%: Nivel 'BAJO' (Crítico).
+ *   - Si NC entre 1 y 2: Nivel 'MEDIO' (Subsanación perentoria).
+ * - Si no hay NC pero hay Oportunidades de Mejora (OM > 3 o puntuación < 85%): Nivel 'MEDIO'.
+ * - Nivel 'ALTO': Solo se otorga si NC == 0, OM <= 2 y puntuación >= 90%.
+ */
+export function getNivelConformidad(puntuacion?: number, ncCount = 0, omCount = 0): 'ALTO' | 'MEDIO' | 'BAJO' {
+  if (ncCount > 0) {
+    if (ncCount >= 3 || (puntuacion !== undefined && puntuacion < 70)) {
+      return 'BAJO';
+    }
+    return 'MEDIO';
+  }
+  if (omCount > 3 || (puntuacion !== undefined && puntuacion < 85)) {
+    return 'MEDIO';
+  }
+  const p = typeof puntuacion === 'number' ? puntuacion : 0;
+  if (p >= 90 && omCount === 0) return 'ALTO';
+  if (p >= 75) return 'MEDIO';
   return 'BAJO';
+}
+
+/**
+ * Calcula el puntaje de cumplimiento y nivel real deduciendo proporcionalmente
+ * el impacto de las No Conformidades y Oportunidades de Mejora.
+ */
+export function computeRealisticScore(inspeccion: Inspeccion, items: PlanAccion[]): {
+  puntuacion: number;
+  nivelConf: 'ALTO' | 'MEDIO' | 'BAJO';
+  resultado: 'C' | 'NC' | 'OM' | 'NA';
+  ncCount: number;
+  omCount: number;
+} {
+  const safeItems = items || [];
+  const ncCount = safeItems.filter(i => 
+    (i.conformidad || '').toUpperCase() === 'NC' || 
+    i.prioridad === 'Critica' || 
+    i.prioridad === 'Inmediato' || 
+    (i.hallazgo || '').includes('NO CONFORME') || 
+    (i.hallazgo || '').includes('NC')
+  ).length;
+
+  const omCount = safeItems.filter(i => 
+    (i.conformidad || '').toUpperCase() === 'OM' || 
+    i.prioridad === 'Media' || 
+    i.prioridad === 'Medio Plazo' || 
+    (i.hallazgo || '').includes('OPORTUNIDAD DE MEJORA') || 
+    (i.hallazgo || '').includes('OM')
+  ).length;
+
+  let puntuacion: number;
+  if (typeof inspeccion.puntuacion === 'number' && !(inspeccion.puntuacion === 100 && (ncCount > 0 || omCount > 0))) {
+    puntuacion = inspeccion.puntuacion;
+  } else if (safeItems.length > 0) {
+    // Si la inspección marcaba 100% pero tiene desviaciones, calcular puntuación real ponderada
+    const totalEval = Math.max(safeItems.length, 100);
+    const puntosPerdidos = (ncCount * 1.0) + (omCount * 0.5);
+    puntuacion = Math.max(0, Math.round(((totalEval - puntosPerdidos) / totalEval) * 1000) / 10);
+  } else {
+    puntuacion = 100;
+  }
+
+  const nivelConf = getNivelConformidad(puntuacion, ncCount, omCount);
+  const resultado: 'C' | 'NC' | 'OM' | 'NA' = ncCount > 0 ? 'NC' : omCount > 0 ? 'OM' : 'C';
+
+  return { puntuacion, nivelConf, resultado, ncCount, omCount };
 }
 
 // Estilos de bordes y colores corporativos estándar Duncan
@@ -81,8 +145,9 @@ export async function exportActionPlanToExcel(
   const correlStr = String(inspeccion.correlativo || (inspeccion.referencia ? inspeccion.referencia.replace(/^REF-|^INSP-/, '') : '14'));
   const headerTipo = getReportHeaderTitle(tipoNom, tipoCod);
 
-  const puntuacionVal = typeof inspeccion.puntuacion === 'number' ? inspeccion.puntuacion : 92.3;
-  const nivelConf = getNivelConformidad(puntuacionVal);
+  const scoreInfo = computeRealisticScore(inspeccion, items);
+  const puntuacionVal = scoreInfo.puntuacion;
+  const nivelConf = scoreInfo.nivelConf;
   const fechaInsp = inspeccion.fecha ? String(inspeccion.fecha).split('T')[0] : '2026-04-22';
   const dClose = new Date(fechaInsp);
   const fechaCierre = isNaN(dClose.getTime()) 
@@ -529,8 +594,9 @@ export function exportActionPlanToPDF(
   const correlStr = String(inspeccion.correlativo || (inspeccion.referencia ? inspeccion.referencia.replace(/^REF-|^INSP-/, '') : '14'));
   const headerTipo = getReportHeaderTitle(tipoNom, tipoCod);
 
-  const puntuacionVal = typeof inspeccion.puntuacion === 'number' ? inspeccion.puntuacion : 92.3;
-  const nivelConf = getNivelConformidad(puntuacionVal);
+  const scoreInfo = computeRealisticScore(inspeccion, items);
+  const puntuacionVal = scoreInfo.puntuacion;
+  const nivelConf = scoreInfo.nivelConf;
   const fechaInsp = inspeccion.fecha ? String(inspeccion.fecha).split('T')[0] : '2026-04-22';
   const dClose = new Date(fechaInsp);
   const fechaCierre = isNaN(dClose.getTime()) 
@@ -909,8 +975,9 @@ export function generateActionPlanCSV(
   const correlStr = String(inspeccion.correlativo || (inspeccion.referencia ? inspeccion.referencia.replace(/^REF-|^INSP-/, '') : '14'));
   const headerTipo = getReportHeaderTitle(tipoNom, tipoCod);
 
-  const puntuacionVal = typeof inspeccion.puntuacion === 'number' ? inspeccion.puntuacion : 92.3;
-  const nivelConf = getNivelConformidad(puntuacionVal);
+  const scoreInfo = computeRealisticScore(inspeccion, items);
+  const puntuacionVal = scoreInfo.puntuacion;
+  const nivelConf = scoreInfo.nivelConf;
   const puntDecimal = (puntuacionVal / 100).toFixed(4);
 
   const fechaInsp = inspeccion.fecha ? String(inspeccion.fecha).split('T')[0] : '2026-04-22';
