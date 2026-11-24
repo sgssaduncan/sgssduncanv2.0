@@ -103,6 +103,28 @@ export function SGDProvider({ children }: { children: React.ReactNode }) {
       setInspecciones(insps);
       const plans = await gsApi.listPlanAccion();
       setPlanAccion(plans);
+
+      // Calcular estadísticas canónicas de planes de acción
+      let pPendientes = 0;
+      let pEjecucion = 0;
+      let pCerradas = 0;
+      let pVencidas = 0;
+      plans.forEach(p => {
+        const s = (p.estado || '').toLowerCase().trim();
+        const isOverdue = s !== 'cerrado' && s !== 'cerrada' && p.fechaLimite && new Date(p.fechaLimite) < new Date();
+        if (s === 'pendiente') pPendientes++;
+        else if (s === 'en ejecución' || s === 'en_ejecucion' || s === 'en ejecucion') pEjecucion++;
+        else if (s === 'cerrado' || s === 'cerrada') pCerradas++;
+
+        if (s === 'vencido' || s === 'vencida' || isOverdue) pVencidas++;
+      });
+      setPlanStats({
+        total: plans.length,
+        pendientes: pPendientes,
+        enEjecucion: pEjecucion,
+        cerradas: pCerradas,
+        vencidas: pVencidas
+      });
       const emps = await gsApi.listEmpleados();
       setEmpleados(emps);
       const usrs = await gsApi.listUsuarios();

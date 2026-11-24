@@ -173,8 +173,13 @@ export interface PlanAccion {
   id?: string;
   _id?: string;
   inspeccionId: string;
+  inspeccionCorrelativo?: string;
+  empresaId?: string;
   empresaNombre?: string;
+  establecimientoId?: string;
   establecimientoNombre?: string;
+  localidadId?: string;
+  localidadNombre?: string;
   tipoInspeccionCodigo?: string;
   tipoInspeccionNombre?: string;
   item?: string;

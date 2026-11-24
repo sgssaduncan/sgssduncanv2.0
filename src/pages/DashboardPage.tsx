@@ -12,7 +12,11 @@ export default function DashboardPage() {
   const { stats, planStats, inspecciones, planAccion, isOnline, sheetsUrl, isSyncing, syncNow, pendingSyncCount } = useSGD();
 
   const recentInsps = inspecciones.slice(-5).reverse();
-  const urgentActions = planAccion.filter(p => p.estado === 'pendiente' || p.estado === 'vencida').slice(0, 5);
+  const urgentActions = planAccion.filter(p => {
+    const s = (p.estado || '').toLowerCase().trim();
+    const isOverdue = s !== 'cerrado' && s !== 'cerrada' && p.fechaLimite && new Date(p.fechaLimite) < new Date();
+    return s === 'pendiente' || s === 'vencido' || s === 'vencida' || isOverdue;
+  }).slice(0, 5);
   
   // Conteo oficial de C, OM, NC y cálculo de tasa ponderada con OM = 0.5 puntos
   const cCount = inspecciones.filter(i => i.resultado === 'C').length || stats.conformes;

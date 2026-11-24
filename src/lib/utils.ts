@@ -34,24 +34,37 @@ export function getResultadoBadgeClass(resultado?: string): string {
 }
 
 export function getEstadoBadgeClass(estado?: string): string {
-  switch (estado) {
-    case 'completada':   return 'badge bg-emerald-100 text-emerald-800';
-    case 'en_progreso':  return 'badge bg-blue-100 text-blue-800';
+  const norm = (estado || '').toLowerCase().trim();
+  switch (norm) {
+    case 'completada':
+    case 'completado':   return 'badge bg-emerald-100 text-emerald-800';
+    case 'en_progreso':
+    case 'en progreso':  return 'badge bg-blue-100 text-blue-800';
     case 'borrador':     return 'badge bg-slate-100 text-slate-600';
     case 'pendiente':    return 'badge bg-amber-100 text-amber-800';
-    case 'en_ejecucion': return 'badge bg-blue-100 text-blue-800';
-    case 'cerrada':      return 'badge bg-emerald-100 text-emerald-800';
-    case 'vencida':      return 'badge bg-red-100 text-red-800';
+    case 'en_ejecucion':
+    case 'en ejecución':
+    case 'en ejecucion': return 'badge bg-blue-100 text-blue-800';
+    case 'cerrada':
+    case 'cerrado':      return 'badge bg-emerald-100 text-emerald-800';
+    case 'vencida':
+    case 'vencido':      return 'badge bg-red-100 text-red-800';
     default:             return 'badge bg-slate-100 text-slate-500';
   }
 }
 
 export function getPrioridadColor(prioridad?: string): string {
-  switch (prioridad) {
-    case 'Critica': return 'text-red-700 bg-red-100';
-    case 'Alta':    return 'text-orange-700 bg-orange-100';
-    case 'Media':   return 'text-amber-700 bg-amber-100';
-    case 'Baja':    return 'text-blue-700 bg-blue-100';
+  const norm = (prioridad || '').toLowerCase().trim();
+  switch (norm) {
+    case 'critica':
+    case 'crítica':
+    case 'inmediato': return 'text-red-700 bg-red-100';
+    case 'alta':
+    case 'corto plazo': return 'text-orange-700 bg-orange-100';
+    case 'media':
+    case 'medio plazo': return 'text-amber-700 bg-amber-100';
+    case 'baja':
+    case 'largo plazo': return 'text-blue-700 bg-blue-100';
     default:        return 'text-slate-600 bg-slate-100';
   }
 }

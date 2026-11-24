@@ -21,7 +21,11 @@ import {
   ArrowRight,
   FileSpreadsheet,
   FileText,
-  Download
+  Download,
+  Building2,
+  Factory,
+  Layers,
+  AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, formatDate, formatDateTime } from '../lib/utils';
@@ -37,6 +41,9 @@ export default function PlanAccionList() {
   const [loading, setLoading] = React.useState(true);
   const [activeTab, setActiveTab] = React.useState<EstadoPlanAccion | 'Todos'>('Todos');
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [selectedEstablecimiento, setSelectedEstablecimiento] = React.useState('Todos');
+  const [selectedEmpresa, setSelectedEmpresa] = React.useState('Todos');
+  const [selectedTipo, setSelectedTipo] = React.useState<'Todos' | 'NC' | 'OM'>('Todos');
   const [selectedPlan, setSelectedPlan] = React.useState<PlanAccion | null>(null);
   const [showExportModal, setShowExportModal] = React.useState(false);
   const [exportScope, setExportScope] = React.useState<'filtered' | 'all'>('filtered');
@@ -60,8 +67,24 @@ export default function PlanAccionList() {
     loadData();
   }, []);
 
+  const uniqueEstablecimientos = React.useMemo(() => {
+    const set = new Set<string>();
+    planes.forEach(p => {
+      if (p.establecimientoNombre) set.add(p.establecimientoNombre);
+    });
+    return Array.from(set).sort();
+  }, [planes]);
+
+  const uniqueEmpresas = React.useMemo(() => {
+    const set = new Set<string>();
+    planes.forEach(p => {
+      if (p.empresaNombre) set.add(p.empresaNombre);
+    });
+    return Array.from(set).sort();
+  }, [planes]);
+
   const handleUpdate = async (id: string, data: Partial<PlanAccion>) => {
-    const oldPlan = planes.find(p => p.id === id);
+    const oldPlan = planes.find(p => p.id === id || p._id === id);
     if (!oldPlan) return;
 
     // Track history if status changes
@@ -79,34 +102,74 @@ export default function PlanAccionList() {
     await dbService.updatePlanAccion(id, data);
     toast.success('Plan de acción actualizado');
     loadData();
-    if (selectedPlan?.id === id) {
+    if (selectedPlan?.id === id || (selectedPlan as any)?._id === id) {
       const updated = await dbService.getPlanesAccion();
-      setSelectedPlan(updated.find(p => p.id === id) || null);
+      setSelectedPlan(updated.find(p => p.id === id || p._id === id) || null);
     }
   };
 
   const filtered = React.useMemo(() => {
     return planes.filter(p => {
-      const isOverdue = p.estado !== 'Cerrado' && p.fechaLimite && new Date(p.fechaLimite) < new Date();
-      const matchesTab =
-        activeTab === 'Todos' ||
-        p.estado === activeTab ||
-        (activeTab === 'Vencido' && isOverdue);
+      const pEstadoNorm = (p.estado || '').toLowerCase().trim();
+      const isOverdue = pEstadoNorm !== 'cerrado' && pEstadoNorm !== 'cerrada' && p.fechaLimite && new Date(p.fechaLimite) < new Date();
+      
+      let matchesTab = false;
+      if (activeTab === 'Todos') {
+        matchesTab = true;
+      } else if (activeTab === 'Pendiente') {
+        matchesTab = pEstadoNorm === 'pendiente';
+      } else if (activeTab === 'Aprobado') {
+        matchesTab = pEstadoNorm === 'aprobado';
+      } else if (activeTab === 'En ejecución') {
+        matchesTab = pEstadoNorm === 'en ejecución' || pEstadoNorm === 'en_ejecucion' || pEstadoNorm === 'en ejecucion';
+      } else if (activeTab === 'Cerrado') {
+        matchesTab = pEstadoNorm === 'cerrado' || pEstadoNorm === 'cerrada';
+      } else if (activeTab === 'Vencido') {
+        matchesTab = pEstadoNorm === 'vencido' || pEstadoNorm === 'vencida' || isOverdue;
+      }
 
       if (!matchesTab) return false;
+
+      // Filtro por Establecimiento
+      if (selectedEstablecimiento !== 'Todos') {
+        if ((p.establecimientoNombre || '').toLowerCase() !== selectedEstablecimiento.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // Filtro por Empresa
+      if (selectedEmpresa !== 'Todos') {
+        if ((p.empresaNombre || '').toLowerCase() !== selectedEmpresa.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // Filtro por Tipo de Hallazgo (NC vs OM)
+      if (selectedTipo === 'NC') {
+        const isNC = p.prioridad === 'Critica' || p.prioridad === 'Inmediato' || (p.hallazgo || '').includes('NO CONFORME') || (p.hallazgo || '').includes('NC');
+        if (!isNC) return false;
+      } else if (selectedTipo === 'OM') {
+        const isOM = p.prioridad === 'Media' || p.prioridad === 'Medio Plazo' || (p.hallazgo || '').includes('OPORTUNIDAD DE MEJORA') || (p.hallazgo || '').includes('OM');
+        if (!isOM) return false;
+      }
+
       if (!searchQuery.trim()) return true;
 
       const q = searchQuery.toLowerCase();
       const resp = empleados.find(e => e.id === p.responsableId);
       return (
-        p.hallazgo.toLowerCase().includes(q) ||
+        (p.hallazgo || '').toLowerCase().includes(q) ||
         (p.descripcion || '').toLowerCase().includes(q) ||
+        (p.establecimientoNombre || '').toLowerCase().includes(q) ||
+        (p.empresaNombre || '').toLowerCase().includes(q) ||
         (p.departamento || '').toLowerCase().includes(q) ||
-        p.prioridad.toLowerCase().includes(q) ||
+        (p.item || '').toLowerCase().includes(q) ||
+        (p.seccion || '').toLowerCase().includes(q) ||
+        (p.prioridad || '').toLowerCase().includes(q) ||
         (resp?.nombre || '').toLowerCase().includes(q)
       );
     });
-  }, [planes, activeTab, searchQuery, empleados]);
+  }, [planes, activeTab, searchQuery, empleados, selectedEstablecimiento, selectedEmpresa, selectedTipo]);
 
   const handleQuickExport = (format: 'excel' | 'csv', scope: 'filtered' | 'all' = 'filtered') => {
     const targetList = scope === 'filtered' ? filtered : planes;
@@ -140,12 +203,38 @@ export default function PlanAccionList() {
     }
   };
 
-  const stats = {
-    total: planes.length,
-    pendientes: planes.filter(p => p.estado === 'Pendiente').length,
-    vencidos: planes.filter(p => p.estado === 'Vencido' || (p.estado !== 'Cerrado' && p.fechaLimite && new Date(p.fechaLimite) < new Date())).length,
-    completados: planes.filter(p => p.estado === 'Cerrado').length
-  };
+  const stats = React.useMemo(() => {
+    let pendientes = 0;
+    let enEjecucion = 0;
+    let vencidos = 0;
+    let cerrados = 0;
+    let ncs = 0;
+    let oms = 0;
+
+    planes.forEach(p => {
+      const s = (p.estado || '').toLowerCase().trim();
+      const isOverdue = s !== 'cerrado' && s !== 'cerrada' && p.fechaLimite && new Date(p.fechaLimite) < new Date();
+      if (s === 'pendiente') pendientes++;
+      else if (s === 'en ejecución' || s === 'en_ejecucion' || s === 'en ejecucion') enEjecucion++;
+      else if (s === 'cerrado' || s === 'cerrada') cerrados++;
+
+      if (s === 'vencido' || s === 'vencida' || isOverdue) vencidos++;
+
+      const isNC = p.prioridad === 'Critica' || p.prioridad === 'Inmediato' || (p.hallazgo || '').includes('NO CONFORME') || (p.hallazgo || '').includes('NC');
+      if (isNC) ncs++;
+      else oms++;
+    });
+
+    return {
+      total: planes.length,
+      pendientes,
+      enEjecucion,
+      vencidos,
+      completados: cerrados,
+      ncs,
+      oms
+    };
+  }, [planes]);
 
   return (
     <div className="space-y-8">
@@ -155,7 +244,7 @@ export default function PlanAccionList() {
             <Shield className="text-blue-600" />
             Planes de Acción
           </h1>
-          <p className="text-sm font-medium text-slate-500 italic">Gestión integral de desviaciones y mejora continua.</p>
+          <p className="text-sm font-medium text-slate-500 italic">Gestión integral de desviaciones y mejora continua por establecimiento.</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
@@ -190,27 +279,30 @@ export default function PlanAccionList() {
 
       {/* Summary Chips & Search Filter */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-2.5">
           {[
-            { label: 'Total', value: stats.total, color: 'bg-white text-slate-600 border-slate-200' },
-            { label: 'Pendientes', value: stats.pendientes, color: 'bg-orange-50 text-orange-600 border-orange-100' },
-            { label: 'Vencidos', value: stats.vencidos, color: 'bg-rose-50 text-rose-600 border-rose-100' },
-            { label: 'Cerrados', value: stats.completados, color: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+            { label: 'Total', value: stats.total, color: 'bg-white text-slate-700 border-slate-200' },
+            { label: 'Pendientes', value: stats.pendientes, color: 'bg-orange-50 text-orange-700 border-orange-200' },
+            { label: 'En Ejecución', value: stats.enEjecucion, color: 'bg-blue-50 text-blue-700 border-blue-200' },
+            { label: 'Vencidos', value: stats.vencidos, color: 'bg-rose-50 text-rose-700 border-rose-200' },
+            { label: 'Cerrados', value: stats.completados, color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+            { label: 'NC (Críticas)', value: stats.ncs, color: 'bg-red-100 text-red-800 border-red-300 font-black' },
+            { label: 'OM (Mejoras)', value: stats.oms, color: 'bg-amber-100 text-amber-800 border-amber-300 font-black' },
           ].map(chip => (
-            <div key={chip.label} className={cn("px-4 py-2 rounded-xl border flex items-center gap-3 font-bold text-xs uppercase tracking-wider shadow-sm", chip.color)}>
-              <span className="opacity-70">{chip.label}</span>
-              <span>{chip.value}</span>
+            <div key={chip.label} className={cn("px-3.5 py-1.5 rounded-xl border flex items-center gap-2 font-bold text-xs uppercase tracking-wider shadow-sm", chip.color)}>
+              <span className="opacity-75">{chip.label}</span>
+              <span className="font-extrabold">{chip.value}</span>
             </div>
           ))}
         </div>
 
-        <div className="relative w-full lg:w-80">
+        <div className="relative w-full lg:w-72">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Filtrar hallazgo, responsable, prioridad..."
+            placeholder="Buscar criterio, sede, hallazgo..."
             className="w-full pl-10 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-blue-100"
           />
           {searchQuery && (
@@ -221,6 +313,59 @@ export default function PlanAccionList() {
               <X size={14} />
             </button>
           )}
+        </div>
+      </div>
+
+      {/* Establishment, Company & Type Filters Toolbar */}
+      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+            <Building2 size={13} className="text-blue-600" />
+            Establecimiento / Sede Específica
+          </label>
+          <select
+            value={selectedEstablecimiento}
+            onChange={(e) => setSelectedEstablecimiento(e.target.value)}
+            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-blue-100 transition-all cursor-pointer"
+          >
+            <option value="Todos">Todos los Establecimientos ({uniqueEstablecimientos.length})</option>
+            {uniqueEstablecimientos.map(est => (
+              <option key={est} value={est}>{est}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+            <Factory size={13} className="text-indigo-600" />
+            Empresa del Grupo Duncan
+          </label>
+          <select
+            value={selectedEmpresa}
+            onChange={(e) => setSelectedEmpresa(e.target.value)}
+            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-blue-100 transition-all cursor-pointer"
+          >
+            <option value="Todos">Todas las Empresas ({uniqueEmpresas.length})</option>
+            {uniqueEmpresas.map(emp => (
+              <option key={emp} value={emp}>{emp}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+            <Filter size={13} className="text-orange-500" />
+            Clasificación del Hallazgo
+          </label>
+          <select
+            value={selectedTipo}
+            onChange={(e) => setSelectedTipo(e.target.value as any)}
+            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-blue-100 transition-all cursor-pointer"
+          >
+            <option value="Todos">Todos (NC y Oportunidades de Mejora)</option>
+            <option value="NC">Sólo No Conformidades (NC — Crítica / 15 días)</option>
+            <option value="OM">Sólo Oportunidades de Mejora (OM — Media / 30 días)</option>
+          </select>
         </div>
       </div>
 
@@ -377,23 +522,31 @@ export default function PlanAccionList() {
 }
 
 function PlanCard({ plan, onClick, responsable }: { plan: PlanAccion, onClick: () => void, responsable?: Empleado, key?: any, id?: any }) {
-  const getPriorityStyle = (p: PrioridadPlanAccion) => {
+  const getPriorityStyle = (p: PrioridadPlanAccion | string) => {
     switch (p) {
-      case 'Inmediato': return 'text-rose-600 bg-rose-50 border-rose-100';
-      case 'Corto Plazo': return 'text-orange-600 bg-orange-50 border-orange-100';
-      case 'Medio Plazo': return 'text-amber-600 bg-amber-50 border-amber-100';
-      case 'Largo Plazo': return 'text-blue-600 bg-blue-50 border-blue-100';
+      case 'Critica':
+      case 'Inmediato':
+      case 'Alta': return 'text-rose-700 bg-rose-50 border-rose-200';
+      case 'Corto Plazo': return 'text-orange-700 bg-orange-50 border-orange-200';
+      case 'Media':
+      case 'Medio Plazo': return 'text-amber-700 bg-amber-50 border-amber-200';
+      case 'Baja':
+      case 'Largo Plazo': return 'text-blue-700 bg-blue-50 border-blue-200';
+      default: return 'text-slate-700 bg-slate-50 border-slate-200';
     }
   };
 
-  const getStatusIcon = (s: EstadoPlanAccion) => {
-    switch (s) {
-      case 'Pendiente': return <Clock size={16} />;
-      case 'Cerrado': return <CheckCircle2 size={16} />;
-      case 'Vencido': return <AlertCircle size={16} />;
-      default: return <Clock size={16} />;
-    }
+  const getStatusIcon = (s: EstadoPlanAccion | string) => {
+    const sNorm = (s || '').toLowerCase();
+    if (sNorm === 'cerrado' || sNorm === 'cerrada') return <CheckCircle2 size={16} />;
+    if (sNorm === 'vencido' || sNorm === 'vencida') return <AlertCircle size={16} />;
+    return <Clock size={16} />;
   };
+
+  const pEstadoNorm = (plan.estado || '').toLowerCase();
+  const isCerrado = pEstadoNorm === 'cerrado' || pEstadoNorm === 'cerrada';
+  const isOverdue = !isCerrado && plan.fechaLimite && new Date(plan.fechaLimite) < new Date();
+  const displayStatus = isCerrado ? 'Cerrado' : (isOverdue ? 'Vencido' : (plan.estado || 'Pendiente'));
 
   return (
     <motion.div 
@@ -401,52 +554,91 @@ function PlanCard({ plan, onClick, responsable }: { plan: PlanAccion, onClick: (
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       onClick={onClick}
-      className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-100 transition-all flex flex-col group h-full cursor-pointer relative overflow-hidden"
+      className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all flex flex-col group h-full cursor-pointer relative overflow-hidden"
     >
-      <div className="flex justify-between items-start mb-4">
-        <span className={cn("px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.1em] border", getPriorityStyle(plan.prioridad))}>
-          {plan.prioridad}
-        </span>
+      <div className="flex justify-between items-start mb-3">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className={cn("px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.1em] border", getPriorityStyle(plan.prioridad))}>
+            {plan.prioridad === 'Critica' ? 'NC • Crítica (15d)' : plan.prioridad === 'Media' ? 'OM • Mejora (30d)' : plan.prioridad}
+          </span>
+          {plan.item && (
+            <span className="px-2 py-0.5 rounded text-[9px] font-black bg-slate-100 text-slate-700 border border-slate-200">
+              Criterio {plan.item}
+            </span>
+          )}
+        </div>
         <div className={cn(
           "flex items-center gap-1.5 font-black text-[9px] uppercase tracking-widest",
-          plan.estado === 'Cerrado' ? "text-emerald-500" : (new Date(plan.fechaLimite) < new Date() ? "text-rose-600" : (plan.estado === 'Vencido' ? "text-rose-500" : "text-orange-400"))
+          isCerrado ? "text-emerald-600" : (isOverdue ? "text-rose-600 font-extrabold" : (pEstadoNorm === 'en ejecución' || pEstadoNorm === 'en_ejecucion' ? "text-blue-600" : "text-orange-500"))
         )}>
-          {getStatusIcon(plan.estado === 'Cerrado' ? 'Cerrado' : (new Date(plan.fechaLimite) < new Date() ? 'Vencido' : plan.estado))}
-          {plan.estado === 'Cerrado' ? 'Cerrado' : (new Date(plan.fechaLimite) < new Date() ? 'Vencido' : plan.estado)}
+          {getStatusIcon(displayStatus)}
+          {displayStatus}
+        </div>
+      </div>
+
+      {/* Sede / Establecimiento y Empresa badges */}
+      <div className="flex flex-col gap-0.5 mb-2.5 bg-slate-50/80 p-2.5 rounded-xl border border-slate-100">
+        <div className="flex items-center gap-1.5 text-[11px] font-black text-slate-800">
+          <Building2 size={13} className="text-blue-600 shrink-0" />
+          <span className="truncate">{plan.establecimientoNombre || 'Distribuidora Duncan Valencia'}</span>
+        </div>
+        <div className="flex items-center gap-2 text-[10px] text-slate-500 font-medium">
+          <span className="truncate">{plan.empresaNombre || 'Distribuidora Duncan, S.A.'}</span>
+          {(plan as any).inspeccionCorrelativo && (
+            <>
+              <span className="text-slate-300">•</span>
+              <span className="font-mono text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded text-[9px] font-bold">
+                INSP-{(plan as any).inspeccionCorrelativo}
+              </span>
+            </>
+          )}
         </div>
       </div>
       
-      <h3 className="font-bold text-slate-800 mb-3 group-hover:text-blue-600 transition-colors leading-tight line-clamp-2">
+      <h3 className="font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors leading-snug line-clamp-2 text-sm">
         {plan.hallazgo}
       </h3>
-      <p className="text-xs text-slate-400 mb-6 flex-1 line-clamp-3 font-medium italic">
-        "{plan.descripcion}"
-      </p>
+      {plan.descripcion && (
+        <p className="text-xs text-slate-500 mb-3 flex-1 line-clamp-2 font-medium italic">
+          "{plan.descripcion}"
+        </p>
+      )}
 
-      <div className="space-y-4 pt-4 border-t border-slate-50">
+      {plan.recomendacion && (
+        <div className="text-[10px] text-blue-900 bg-blue-50/70 p-2 rounded-lg border border-blue-100/70 mb-4 line-clamp-2 leading-relaxed">
+          <strong className="font-black text-blue-700">Acción Requerida:</strong> {plan.recomendacion}
+        </div>
+      )}
+
+      <div className="space-y-4 pt-3 border-t border-slate-100 mt-auto">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[10px] font-black text-slate-500 uppercase shadow-sm">
-              {responsable ? responsable.nombre[0] : '?'}
+            <div className="w-8 h-8 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[10px] font-black text-slate-600 uppercase shadow-sm">
+              {responsable ? responsable.nombre[0] : (plan.responsable ? plan.responsable[0] : '?')}
             </div>
             <div className="flex flex-col">
               <span className="text-[10px] font-black text-slate-700 uppercase tracking-tighter truncate w-32">
-                {responsable?.nombre || 'Sin asignar'}
+                {responsable?.nombre || plan.responsable || 'Supervisor SST'}
               </span>
-              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Responsable</span>
+              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{plan.departamento || 'SSA Duncan'}</span>
             </div>
           </div>
           <div className="flex flex-col items-end">
-            <span className="text-[10px] font-black text-slate-800 flex items-center gap-1">
-              <Calendar size={12} className="text-blue-500" />
+            <span className={cn(
+              "text-[10px] font-black flex items-center gap-1",
+              isOverdue ? "text-rose-600 font-extrabold" : "text-slate-800"
+            )}>
+              <Calendar size={12} className={isOverdue ? "text-rose-600" : "text-blue-500"} />
               {formatDate(plan.fechaLimite)}
             </span>
-            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Límite</span>
+            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
+              {isOverdue ? 'Vencido' : 'Límite'}
+            </span>
           </div>
         </div>
       </div>
 
-      <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50/20 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-150 duration-500"></div>
+      <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50/20 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-150 duration-500 pointer-events-none"></div>
     </motion.div>
   );
 }
@@ -468,7 +660,7 @@ function PlanDetailModal({ plan, empleados, onClose, onUpdate }: ModalProps) {
       setIsClosing(true);
       return;
     }
-    await onUpdate(plan.id, { estado: newStatus, tempComment: comment } as any);
+    await onUpdate(plan.id || (plan as any)._id, { estado: newStatus, tempComment: comment } as any);
     setComment('');
   };
 
@@ -477,7 +669,7 @@ function PlanDetailModal({ plan, empleados, onClose, onUpdate }: ModalProps) {
       toast.error('Agregue un comentario de cierre');
       return;
     }
-    await onUpdate(plan.id, { 
+    await onUpdate(plan.id || (plan as any)._id, { 
       estado: 'Cerrado', 
       comentariosCierre: comment,
       fotoCierre: fotoEvidencia || undefined,
@@ -501,10 +693,10 @@ function PlanDetailModal({ plan, empleados, onClose, onUpdate }: ModalProps) {
         className="bg-white w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col md:flex-row h-[90vh] md:h-auto max-h-[850px]"
       >
         {/* Left Aspect: Details & Actions */}
-        <div className="flex-1 p-8 md:p-10 overflow-y-auto no-scrollbar space-y-8">
+        <div className="flex-1 p-8 md:p-10 overflow-y-auto no-scrollbar space-y-6">
           <div className="flex items-center justify-between mb-2">
             <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-100">
-               ID: {(plan.id || (plan as any)._id || '001').substring(0, 8)}
+               ID: {(plan.id || (plan as any)._id || '001').substring(0, 16)}
             </span>
             <button onClick={onClose} className="p-2 hover:bg-slate-50 rounded-full transition-colors text-slate-400">
               <X size={24} />
@@ -512,28 +704,76 @@ function PlanDetailModal({ plan, empleados, onClose, onUpdate }: ModalProps) {
           </div>
 
           <div>
-             <h2 className="text-2xl font-black text-slate-900 leading-tight mb-4">{plan.hallazgo}</h2>
-             <div className="flex flex-wrap gap-3">
+             <h2 className="text-xl md:text-2xl font-black text-slate-900 leading-tight mb-3">{plan.hallazgo}</h2>
+             <div className="flex flex-wrap gap-2.5">
                 <span className={cn(
                   "px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border",
-                  plan.prioridad === 'Inmediato' ? "bg-rose-50 text-rose-600 border-rose-100" : "bg-blue-50 text-blue-600 border-blue-100"
+                  plan.prioridad === 'Critica' || plan.prioridad === 'Inmediato' ? "bg-rose-50 text-rose-600 border-rose-100" : "bg-blue-50 text-blue-600 border-blue-100"
                 )}>
-                  P: {plan.prioridad}
+                  Prioridad: {plan.prioridad}
                 </span>
-                <span className="px-3 py-1 bg-slate-50 text-slate-500 rounded-lg text-[9px] font-black uppercase tracking-widest border border-slate-100">
-                  {plan.estado}
+                <span className="px-3 py-1 bg-slate-50 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-widest border border-slate-200">
+                  Estado: {plan.estado}
                 </span>
              </div>
           </div>
 
+          {/* Sede, Empresa, Inspección y Criterio */}
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/70 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">Establecimiento / Sede</span>
+              <span className="font-bold text-slate-800 flex items-center gap-1 mt-0.5">
+                <Building2 size={13} className="text-blue-600" />
+                {plan.establecimientoNombre || 'Distribuidora Duncan Valencia'}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">Empresa del Grupo Duncan</span>
+              <span className="font-bold text-slate-800 flex items-center gap-1 mt-0.5">
+                <Factory size={13} className="text-indigo-600" />
+                {plan.empresaNombre || 'Distribuidora Duncan, S.A.'}
+              </span>
+            </div>
+            {plan.item && (
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Criterio Normativo</span>
+                <span className="font-bold text-slate-800">Criterio {plan.item} {plan.seccion ? `(${plan.seccion})` : ''}</span>
+              </div>
+            )}
+            {(plan as any).inspeccionCorrelativo && (
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Inspección de Origen</span>
+                <span className="font-bold text-blue-600 font-mono">INSP-{(plan as any).inspeccionCorrelativo}</span>
+              </div>
+            )}
+          </div>
+
+          {plan.descripcion && (
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Descripción del Criterio Auditado</label>
+              <p className="text-xs text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-100 font-medium leading-relaxed">
+                {plan.descripcion}
+              </p>
+            </div>
+          )}
+
+          {plan.recomendacion && (
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Acción Técnica y Base Legal Sugerida</label>
+              <p className="text-xs text-blue-900 bg-blue-50/70 p-3 rounded-xl border border-blue-100 font-medium leading-relaxed">
+                {plan.recomendacion}
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
+            <div className="space-y-3">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Responsable Asignado</label>
               <div className="relative group">
                 <select 
-                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 outline-none appearance-none focus:ring-2 ring-blue-100 transition-all"
+                  className="w-full p-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-700 outline-none appearance-none focus:ring-2 ring-blue-100 transition-all cursor-pointer"
                   value={plan.responsableId}
-                  onChange={(e) => onUpdate(plan.id, { responsableId: e.target.value })}
+                  onChange={(e) => onUpdate(plan.id || (plan as any)._id, { responsableId: e.target.value })}
                 >
                   <option value="">Seleccionar Responsable</option>
                   {empleados.map(e => (
@@ -544,14 +784,18 @@ function PlanDetailModal({ plan, empleados, onClose, onUpdate }: ModalProps) {
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Prioridad del Plan</label>
               <div className="relative">
                 <select 
-                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 outline-none appearance-none focus:ring-2 ring-blue-100 transition-all"
+                  className="w-full p-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-700 outline-none appearance-none focus:ring-2 ring-blue-100 transition-all cursor-pointer"
                   value={plan.prioridad}
-                  onChange={(e) => onUpdate(plan.id, { prioridad: e.target.value as any })}
+                  onChange={(e) => onUpdate(plan.id || (plan as any)._id, { prioridad: e.target.value as any })}
                 >
+                  <option value="Critica">NC • Crítica (15 días)</option>
+                  <option value="Media">OM • Media (30 días)</option>
+                  <option value="Alta">Alta</option>
+                  <option value="Baja">Baja</option>
                   <option value="Inmediato">Inmediato</option>
                   <option value="Corto Plazo">Corto Plazo</option>
                   <option value="Medio Plazo">Medio Plazo</option>

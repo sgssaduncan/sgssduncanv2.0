@@ -21,6 +21,65 @@ import {
   INITIAL_EVALUACIONES_MEDICAS,
 } from '../data/seedData';
 import type { Usuario, Role, Rol, Empleado } from '../types';
+import {
+  generatePlanesAccionFromInspeccion,
+  generatePlanesAccionFromInspecciones
+} from './planAccionGenerator';
+
+/**
+ * Sincroniza y autogenera de forma canónica los planes de acción derivados
+ * de una inspección con puntuaciones NC (No Conforme) u OM (Oportunidad de Mejora).
+ */
+export async function syncPlanesAccionForInspeccion(inspeccion: any): Promise<any[]> {
+  if (!inspeccion) return [];
+  try {
+    const newPlanes = generatePlanesAccionFromInspeccion(inspeccion);
+    if (!newPlanes || newPlanes.length === 0) return [];
+
+    const existingPlanes = getLocal<any>(SK.PLAN_ACCION) || [];
+    const existingMap = new Map<string, any>();
+
+    existingPlanes.forEach((p: any) => {
+      const key = String(p.id || p._id || `${p.inspeccionId}_${p.item}`);
+      existingMap.set(key, p);
+    });
+
+    newPlanes.forEach(np => {
+      const key = String(np.id || np._id || `${np.inspeccionId}_${np.item}`);
+      if (existingMap.has(key)) {
+        const prev = existingMap.get(key);
+        existingMap.set(key, {
+          ...np,
+          ...prev,
+          empresaNombre: np.empresaNombre || prev.empresaNombre,
+          establecimientoNombre: np.establecimientoNombre || prev.establecimientoNombre,
+          item: np.item || prev.item,
+          seccion: np.seccion || prev.seccion,
+          hallazgo: np.hallazgo || prev.hallazgo,
+          descripcion: np.descripcion || prev.descripcion,
+          recomendacion: np.recomendacion || prev.recomendacion,
+          prioridad: prev.prioridad || np.prioridad,
+          estado: prev.estado || np.estado || 'Pendiente'
+        });
+      } else {
+        existingMap.set(key, np);
+      }
+    });
+
+    const merged = Array.from(existingMap.values());
+    setLocal(SK.PLAN_ACCION, merged);
+
+    // Enviar a Google Apps Script en segundo plano sin bloquear la UI
+    newPlanes.forEach(p => {
+      postGAS('updatePlanAccion', p).catch(() => {});
+    });
+
+    return merged;
+  } catch (err) {
+    console.error('Error sincronizando planes para inspección:', err);
+    return [];
+  }
+}
 
 // ============================================================
 // CLAVES DE ALMACENAMIENTO LOCAL Y SESIÓN (ZERO TRUST)
@@ -568,6 +627,9 @@ export const gsApi = {
     }
     setLocal(SK.INSPECCIONES, list);
 
+    const savedItem = idx !== -1 ? list[idx] : list[list.length - 1];
+    syncPlanesAccionForInspeccion(savedItem).catch(e => console.warn('Error auto-syncing action plans:', e));
+
     // Respaldo redundante inmutable en localStorage para blindaje total contra desincronización
     try {
       const keys = [
@@ -639,42 +701,8 @@ export const gsApi = {
       if (payload.respuestas) list[idx].respuestas = payload.respuestas;
       if (payload.responses) list[idx].formResponses = payload.responses;
       setLocal(SK.INSPECCIONES, list);
-      // Auto-generar plan de acción por NC/OM
-      try {
-        let responses = list[idx].respuestas;
-        if (!responses && list[idx].formResponses) {
-          responses = JSON.parse(list[idx].formResponses || '{}');
-        }
-        if (responses && typeof responses === 'object') {
-          const plans = getLocal<any>(SK.PLAN_ACCION) || [];
-          const hoy = new Date().toISOString().split('T')[0];
-          const limite = new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0];
-          for (const [key, val] of Object.entries(responses)) {
-            if (val === 'NC' || val === 'OM') {
-              plans.push({
-                _id: genId('plan'),
-                inspeccionId: list[idx]._id || targetId,
-                empresaNombre: list[idx].empresaNombre,
-                establecimientoNombre: list[idx].establecimientoNombre,
-                tipoInspeccionCodigo: list[idx].tipoCodigo,
-                tipoInspeccionNombre: list[idx].tipoNombre,
-                item: key,
-                seccion: 'Hallazgo en campo',
-                hallazgo: `${val} en ítem: ${key}`,
-                descripcion: `Subsanar no conformidad en inspección ${list[idx].tipoNombre}.`,
-                responsable: list[idx].inspector || 'Supervisor de Sede',
-                departamento: 'Operaciones',
-                fechaDeteccion: hoy,
-                fechaLimite: limite,
-                prioridad: val === 'NC' ? 'Critica' : 'Media',
-                estado: 'pendiente',
-                notas: `Auto-generado desde ${list[idx].establecimientoNombre}`,
-              });
-            }
-          }
-          setLocal(SK.PLAN_ACCION, plans);
-        }
-      } catch (e) { console.error('Error generando plan local:', e); }
+      // Auto-generar y sincronizar planes de acción canónicos para NC/OM
+      syncPlanesAccionForInspeccion(list[idx]).catch(e => console.warn('Error auto-syncing action plans on complete:', e));
     }
 
     const currentItem = idx !== -1 ? list[idx] : null;
@@ -705,15 +733,90 @@ export const gsApi = {
 
   // ── PLAN DE ACCIÓN ────────────────────────────────────────
   async listPlanAccion() {
-    const remote = await fetchGAS('getPlanAccion');
-    if (remote && Array.isArray(remote)) { setLocal(SK.PLAN_ACCION, remote); return remote; }
-    return getLocal<any>(SK.PLAN_ACCION);
+    // 1. Obtener datos locales actuales
+    const localPlans = getLocal<any>(SK.PLAN_ACCION) || [];
+    const localInsps = getLocal<any>(SK.INSPECCIONES) || [];
+
+    // 2. Autogenerar planes desde todas las inspecciones locales (retroactivo y proactivo)
+    const generatedFromInsps = generatePlanesAccionFromInspecciones(localInsps);
+
+    // 3. Obtener planes remotos de GAS
+    let remotePlans: any[] = [];
+    try {
+      const remote = await fetchGAS('getPlanAccion');
+      if (remote && Array.isArray(remote)) {
+        remotePlans = remote;
+      }
+    } catch (err) {
+      console.warn('No se pudo obtener planes remotos desde GAS:', err);
+    }
+
+    // 4. Smart Merge consolidado: Generated -> Local -> Remote
+    const planMap = new Map<string, any>();
+
+    // Primero: cargar los derivados directamente de las inspecciones
+    generatedFromInsps.forEach(p => {
+      const key = String(p.id || p._id || `${p.inspeccionId}_${p.item}`);
+      planMap.set(key, p);
+    });
+
+    // Segundo: superponer datos locales (respetar ediciones del usuario)
+    localPlans.forEach(p => {
+      const key = String(p.id || p._id || `${p.inspeccionId}_${p.item}`);
+      if (planMap.has(key)) {
+        const gen = planMap.get(key);
+        planMap.set(key, { ...gen, ...p });
+      } else {
+        planMap.set(key, p);
+      }
+    });
+
+    // Tercero: superponer datos remotos si existen
+    remotePlans.forEach(p => {
+      const normalizedRemote = {
+        ...p,
+        id: p.id || p._id,
+        _id: p._id || p.id,
+        item: p.item || p.puntoId,
+        descripcion: p.descripcion || p.puntoTexto,
+        recomendacion: p.recomendacion || p.accion,
+        responsable: p.responsable || p.responsableNombre,
+        estado: p.estado || 'Pendiente'
+      };
+      const key = String(p.id || p._id || `${p.inspeccionId}_${p.puntoId || p.item}`);
+      if (planMap.has(key)) {
+        const existing = planMap.get(key);
+        planMap.set(key, { ...existing, ...normalizedRemote });
+      } else {
+        planMap.set(key, normalizedRemote);
+      }
+    });
+
+    const consolidated = Array.from(planMap.values());
+    setLocal(SK.PLAN_ACCION, consolidated);
+
+    // Si GAS no tiene todos los planes consolidados, sincronizar los faltantes en background
+    if (remotePlans.length < consolidated.length) {
+      consolidated.forEach(p => {
+        postGAS('updatePlanAccion', p).catch(() => {});
+      });
+    }
+
+    return consolidated;
   },
 
-  async updatePlanAccion(payload: { id: string; estado: string; notas?: string }) {
-    const list = getLocal<any>(SK.PLAN_ACCION);
-    const idx  = list.findIndex((p: any) => String(p._id) === String(payload.id));
-    if (idx !== -1) { list[idx].estado = payload.estado; if (payload.notas) list[idx].notas = payload.notas; setLocal(SK.PLAN_ACCION, list); }
+  async updatePlanAccion(payload: { id: string; estado: string; notas?: string; [key: string]: any }) {
+    const list = getLocal<any>(SK.PLAN_ACCION) || [];
+    const targetId = String(payload.id || payload._id || '');
+    const idx = list.findIndex((p: any) => String(p._id || p.id) === targetId);
+    if (idx !== -1) {
+      list[idx] = {
+        ...list[idx],
+        ...payload,
+        updatedAt: new Date().toISOString()
+      };
+      setLocal(SK.PLAN_ACCION, list);
+    }
     await postGAS('updatePlanAccion', payload);
     return true;
   },

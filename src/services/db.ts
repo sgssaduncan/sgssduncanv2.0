@@ -460,9 +460,14 @@ export const dbService = {
   // PLAN DE ACCIÓN
   // ============================================================
   async getPlanesAccion(inspeccionId?: string): Promise<PlanAccion[]> {
-    const list = getLocal<PlanAccion>(SK.PLAN_ACCION);
+    let list: PlanAccion[] = [];
+    try {
+      list = await gsApi.listPlanAccion();
+    } catch {
+      list = getLocal<PlanAccion>(SK.PLAN_ACCION) || [];
+    }
     if (inspeccionId) {
-      return list.filter(p => p.inspeccionId === inspeccionId);
+      return list.filter(p => p.inspeccionId === inspeccionId || String((p as any).inspeccionCorrelativo) === String(inspeccionId));
     }
     return list;
   },
