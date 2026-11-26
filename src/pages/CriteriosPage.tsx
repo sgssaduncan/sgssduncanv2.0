@@ -68,6 +68,24 @@ export default function CriteriosPage() {
 
   const [editingPonderacion, setEditingPonderacion] = useState<{ region: string; itemIdx: number; item: PonderacionItem } | null>(null);
 
+  // Modales de Edición de Listas Maestras (Empresas, Distribuidoras, Servicentros, Simple Items)
+  const [editingEmpresa, setEditingEmpresa] = useState<{ index: number; item: { nombre: string; abrev: string; rif: string } } | null>(null);
+  const [isNewEmpresa, setIsNewEmpresa] = useState(false);
+
+  const [editingDistribuidora, setEditingDistribuidora] = useState<{ index: number; item: { nombre: string; tblNombre: string } } | null>(null);
+  const [isNewDistribuidora, setIsNewDistribuidora] = useState(false);
+
+  const [editingServicentro, setEditingServicentro] = useState<{ index: number; item: { localidad: string; nombre: string; abrev: string } } | null>(null);
+  const [isNewServicentro, setIsNewServicentro] = useState(false);
+
+  const [editingSimpleList, setEditingSimpleList] = useState<{
+    key: 'agentesExtinguidores' | 'capacidadesExtintores' | 'accionesRequeridas' | 'condiciones' | 'operatividades';
+    title: string;
+    index: number;
+    value: string;
+    isNew: boolean;
+  } | null>(null);
+
   const loadAll = () => {
     setCriteriosDist(criteriosService.getCriteriosDistribuidoras());
     setCriteriosServ(criteriosService.getCriteriosServicentros());
@@ -264,6 +282,111 @@ export default function CriteriosPage() {
 
     toast.success('Ponderación actualizada');
     setEditingPonderacion(null);
+    loadAll();
+  };
+
+  // -------------------------------------------------------------------------
+  // HANDLERS LISTAS MAESTRAS (EMPRESAS, DISTRIBUIDORAS, SERVICENTROS, ITEMS)
+  // -------------------------------------------------------------------------
+  const handleSaveEmpresa = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEmpresa) return;
+    const userEmail = profile?.email || 'admin@duncan.com.ve';
+    if (isNewEmpresa) {
+      criteriosService.addEmpresa(editingEmpresa.item, userEmail);
+      toast.success('Empresa agregada');
+    } else {
+      criteriosService.updateEmpresa(editingEmpresa.index, editingEmpresa.item, userEmail);
+      toast.success('Empresa actualizada');
+    }
+    setEditingEmpresa(null);
+    setIsNewEmpresa(false);
+    loadAll();
+  };
+
+  const handleDeleteEmpresa = (index: number, nombre: string) => {
+    if (!confirm(`¿Eliminar la empresa "${nombre}"?`)) return;
+    const userEmail = profile?.email || 'admin@duncan.com.ve';
+    criteriosService.deleteEmpresa(index, userEmail);
+    toast.success('Empresa eliminada');
+    loadAll();
+  };
+
+  const handleSaveDistribuidora = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingDistribuidora) return;
+    const userEmail = profile?.email || 'admin@duncan.com.ve';
+    if (isNewDistribuidora) {
+      criteriosService.addDistribuidora(editingDistribuidora.item, userEmail);
+      toast.success('Distribuidora agregada');
+    } else {
+      criteriosService.updateDistribuidora(editingDistribuidora.index, editingDistribuidora.item, userEmail);
+      toast.success('Distribuidora actualizada');
+    }
+    setEditingDistribuidora(null);
+    setIsNewDistribuidora(false);
+    loadAll();
+  };
+
+  const handleDeleteDistribuidora = (index: number, nombre: string) => {
+    if (!confirm(`¿Eliminar la distribuidora "${nombre}"?`)) return;
+    const userEmail = profile?.email || 'admin@duncan.com.ve';
+    criteriosService.deleteDistribuidora(index, userEmail);
+    toast.success('Distribuidora eliminada');
+    loadAll();
+  };
+
+  const handleSaveServicentro = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingServicentro) return;
+    const userEmail = profile?.email || 'admin@duncan.com.ve';
+    if (isNewServicentro) {
+      criteriosService.addServicentro(editingServicentro.item, userEmail);
+      toast.success('Servicentro agregado');
+    } else {
+      criteriosService.updateServicentro(editingServicentro.index, editingServicentro.item, userEmail);
+      toast.success('Servicentro actualizado');
+    }
+    setEditingServicentro(null);
+    setIsNewServicentro(false);
+    loadAll();
+  };
+
+  const handleDeleteServicentro = (index: number, nombre: string) => {
+    if (!confirm(`¿Eliminar el servicentro "${nombre}"?`)) return;
+    const userEmail = profile?.email || 'admin@duncan.com.ve';
+    criteriosService.deleteServicentro(index, userEmail);
+    toast.success('Servicentro eliminado');
+    loadAll();
+  };
+
+  const handleSaveSimpleItem = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSimpleList) return;
+    const userEmail = profile?.email || 'admin@duncan.com.ve';
+    const val = editingSimpleList.value.trim();
+    if (!val) return;
+
+    if (editingSimpleList.isNew) {
+      criteriosService.addSimpleItem(editingSimpleList.key, val, userEmail);
+    } else {
+      const list = criteriosService.getListas();
+      const arr = list[editingSimpleList.key];
+      if (Array.isArray(arr) && editingSimpleList.index >= 0 && editingSimpleList.index < arr.length) {
+        arr[editingSimpleList.index] = val;
+        criteriosService.saveListas(list, userEmail);
+      }
+    }
+    toast.success(`Ítem guardado en ${editingSimpleList.title}`);
+    setEditingSimpleList(null);
+    loadAll();
+  };
+
+  const handleDeleteSimpleItem = (key: 'agentesExtinguidores' | 'capacidadesExtintores' | 'accionesRequeridas' | 'condiciones' | 'operatividades', index: number, value: string) => {
+    if (!confirm(`¿Eliminar "${value}" de la lista?`)) return;
+    const userEmail = profile?.email || 'admin@duncan.com.ve';
+    criteriosService.deleteSimpleItem(key, index, userEmail);
+    toast.success('Ítem eliminado');
     loadAll();
   };
 
@@ -642,6 +765,26 @@ export default function CriteriosPage() {
                   <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-200/80 text-amber-950 border border-amber-300">
                     Formulario Oficial SSA Servicentros (117 Criterios)
                   </span>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsNewServicentro(true);
+                        setEditingServicentro({
+                          index: -1,
+                          item: {
+                            localidad: scLocalidadFilter !== 'TODAS' ? scLocalidadFilter : 'CARACAS',
+                            nombre: '',
+                            abrev: ''
+                          }
+                        });
+                      }}
+                      className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black rounded-xl transition-all flex items-center gap-1 shadow-xs cursor-pointer"
+                    >
+                      <Plus size={14} />
+                      <span>Nuevo Servicentro</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -705,14 +848,46 @@ export default function CriteriosPage() {
                             </span>
                           </td>
                           <td className="px-3 py-3 text-center">
-                            <button
-                              type="button"
-                              onClick={() => setScSubTab('criterios')}
-                              className="px-2.5 py-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                              title="Ver los 117 criterios de evaluación de servicentros"
-                            >
-                              Ver Criterios
-                            </button>
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => setScSubTab('criterios')}
+                                className="px-2 py-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                                title="Ver los 117 criterios de evaluación de servicentros"
+                              >
+                                Criterios
+                              </button>
+                              {isAdmin && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const originalIndex = listas?.servicentros?.findIndex(s => s.nombre === sc.nombre && s.localidad === sc.localidad) ?? idx;
+                                      setIsNewServicentro(false);
+                                      setEditingServicentro({
+                                        index: originalIndex,
+                                        item: { ...sc }
+                                      });
+                                    }}
+                                    className="p-1 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                                    title="Editar servicentro"
+                                  >
+                                    <Edit2 size={13} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const originalIndex = listas?.servicentros?.findIndex(s => s.nombre === sc.nombre && s.localidad === sc.localidad) ?? idx;
+                                      handleDeleteServicentro(originalIndex, sc.nombre);
+                                    }}
+                                    className="p-1 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                    title="Eliminar servicentro"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -1072,51 +1247,163 @@ export default function CriteriosPage() {
       {/* 6. LISTAS MAESTRAS */}
       {activeTab === 'listas' && listas && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
-            <h4 className="font-black text-xs uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-              <Building2 size={14} className="text-blue-600" /> Empresas del Grupo
-            </h4>
-            <div className="space-y-1.5">
+          {/* CARD 1: EMPRESAS DEL GRUPO */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2 flex flex-col">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h4 className="font-black text-xs uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                <Building2 size={14} className="text-blue-600" /> Empresas ({listas.empresas.length})
+              </h4>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsNewEmpresa(true);
+                    setEditingEmpresa({ index: -1, item: { nombre: '', abrev: '', rif: '' } });
+                  }}
+                  className="px-2 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-[10px] font-black flex items-center gap-1 transition-colors cursor-pointer"
+                  title="Registrar nueva empresa"
+                >
+                  <Plus size={12} />
+                  <span>Agregar</span>
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-1.5 flex-1 max-h-72 overflow-y-auto pr-1">
               {listas.empresas.map((emp, i) => (
-                <div key={i} className="p-2.5 bg-slate-50 rounded-xl text-xs font-bold text-slate-700 flex justify-between">
-                  <span>{emp.nombre}</span>
-                  <span className="font-mono text-[10px] text-slate-400">{emp.rif}</span>
+                <div key={i} className="p-2.5 bg-slate-50 hover:bg-slate-100/70 rounded-xl text-xs font-bold text-slate-700 flex items-center justify-between transition-colors">
+                  <div className="truncate pr-2">
+                    <span className="text-slate-900 block truncate">{emp.nombre}</span>
+                    <span className="font-mono text-[10px] text-slate-400 font-normal">{emp.rif} · {emp.abrev}</span>
+                  </div>
+                  {isAdmin && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsNewEmpresa(false);
+                          setEditingEmpresa({ index: i, item: { ...emp } });
+                        }}
+                        className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                        title="Editar empresa"
+                      >
+                        <Edit2 size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteEmpresa(i, emp.nombre)}
+                        className="p-1 text-rose-500 hover:bg-rose-50 rounded"
+                        title="Eliminar empresa"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
-            <h4 className="font-black text-xs uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-              <Store size={14} className="text-amber-600" /> Agentes de Extinción y Capacidades
-            </h4>
-            <div className="space-y-2 text-xs">
+          {/* CARD 2: AGENTES Y CAPACIDADES */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-3 flex flex-col">
+            <div className="pb-2 border-b border-slate-100">
+              <h4 className="font-black text-xs uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                <Store size={14} className="text-amber-600" /> Extinción & Acciones
+              </h4>
+            </div>
+
+            <div className="space-y-3 text-xs flex-1 max-h-72 overflow-y-auto pr-1">
               <div>
-                <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Agentes</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[10px] uppercase font-bold text-slate-400">Agentes Extinguidores</label>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingSimpleList({ key: 'agentesExtinguidores', title: 'Agente Extinguidor', index: -1, value: '', isNew: true })}
+                      className="text-[10px] font-bold text-blue-600 hover:underline flex items-center gap-0.5 cursor-pointer"
+                    >
+                      <Plus size={10} /> Agregar
+                    </button>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-1.5">
                   {listas.agentesExtinguidores.map((ag, i) => (
-                    <span key={i} className="px-2 py-1 bg-red-50 text-red-700 border border-red-200 rounded-lg font-bold text-[10px]">
-                      {ag}
+                    <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-700 border border-red-200 rounded-lg font-bold text-[10px]">
+                      <span>{ag}</span>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSimpleItem('agentesExtinguidores', i, ag)}
+                          className="hover:text-red-900 cursor-pointer ml-0.5"
+                          title="Eliminar agente"
+                        >
+                          <X size={10} />
+                        </button>
+                      )}
                     </span>
                   ))}
                 </div>
               </div>
+
               <div>
-                <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Capacidades</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[10px] uppercase font-bold text-slate-400">Capacidades Oficiales</label>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingSimpleList({ key: 'capacidadesExtintores', title: 'Capacidad de Extintor', index: -1, value: '', isNew: true })}
+                      className="text-[10px] font-bold text-blue-600 hover:underline flex items-center gap-0.5 cursor-pointer"
+                    >
+                      <Plus size={10} /> Agregar
+                    </button>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-1.5">
                   {listas.capacidadesExtintores.map((cap, i) => (
-                    <span key={i} className="px-2 py-1 bg-slate-100 text-slate-700 rounded-lg font-bold text-[10px]">
-                      {cap}
+                    <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-lg font-bold text-[10px]">
+                      <span>{cap}</span>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSimpleItem('capacidadesExtintores', i, cap)}
+                          className="hover:text-slate-900 cursor-pointer ml-0.5"
+                          title="Eliminar capacidad"
+                        >
+                          <X size={10} />
+                        </button>
+                      )}
                     </span>
                   ))}
                 </div>
               </div>
+
               <div>
-                <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Acciones Requeridas</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[10px] uppercase font-bold text-slate-400">Acciones Requeridas</label>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingSimpleList({ key: 'accionesRequeridas', title: 'Acción Requerida', index: -1, value: '', isNew: true })}
+                      className="text-[10px] font-bold text-blue-600 hover:underline flex items-center gap-0.5 cursor-pointer"
+                    >
+                      <Plus size={10} /> Agregar
+                    </button>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-1.5">
                   {listas.accionesRequeridas.map((acc, i) => (
-                    <span key={i} className="px-2 py-1 bg-blue-50 text-blue-700 rounded-lg font-bold text-[10px]">
-                      {acc}
+                    <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg font-bold text-[10px]">
+                      <span>{acc}</span>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSimpleItem('accionesRequeridas', i, acc)}
+                          className="hover:text-blue-900 cursor-pointer ml-0.5"
+                          title="Eliminar acción"
+                        >
+                          <X size={10} />
+                        </button>
+                      )}
                     </span>
                   ))}
                 </div>
@@ -1124,37 +1411,115 @@ export default function CriteriosPage() {
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
-            <h4 className="font-black text-xs uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-              <Layers size={14} className="text-purple-600" /> Sedes Distribuidoras ({listas.distribuidoras.length})
-            </h4>
-            <div className="max-h-64 overflow-y-auto space-y-1 pr-1">
+          {/* CARD 3: SEDES DISTRIBUIDORAS */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2 flex flex-col">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h4 className="font-black text-xs uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                <Layers size={14} className="text-purple-600" /> Distribuidoras ({listas.distribuidoras.length})
+              </h4>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsNewDistribuidora(true);
+                    setEditingDistribuidora({ index: -1, item: { nombre: '', tblNombre: '' } });
+                  }}
+                  className="px-2 py-1 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-lg text-[10px] font-black flex items-center gap-1 transition-colors cursor-pointer"
+                  title="Registrar nueva distribuidora"
+                >
+                  <Plus size={12} />
+                  <span>Agregar</span>
+                </button>
+              )}
+            </div>
+
+            <div className="max-h-72 overflow-y-auto space-y-1.5 pr-1 flex-1">
               {listas.distribuidoras.map((d, i) => (
-                <div key={i} className="p-2 bg-slate-50 rounded-lg text-xs font-bold text-slate-700 flex justify-between">
-                  <span>{d.nombre}</span>
-                  <span className="font-mono text-[10px] text-slate-400">{d.tblNombre}</span>
+                <div key={i} className="p-2.5 bg-slate-50 hover:bg-purple-50/40 rounded-xl text-xs font-bold text-slate-700 flex items-center justify-between transition-colors">
+                  <div className="truncate pr-2">
+                    <span className="text-slate-900 block truncate">{d.nombre}</span>
+                    <span className="font-mono text-[10px] text-slate-400 block">{d.tblNombre}</span>
+                  </div>
+                  {isAdmin && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsNewDistribuidora(false);
+                          setEditingDistribuidora({ index: i, item: { ...d } });
+                        }}
+                        className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                        title="Editar distribuidora"
+                      >
+                        <Edit2 size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteDistribuidora(i, d.nombre)}
+                        className="p-1 text-rose-500 hover:bg-rose-50 rounded"
+                        title="Eliminar distribuidora"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
-            <h4 className="font-black text-xs uppercase tracking-wider text-slate-800 flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <Store size={14} className="text-amber-600" /> Sedes Servicentros ({listas.servicentros.filter(s => s.nombre !== 'Consolidado').length})
-              </span>
-              <span className="font-mono text-[10px] text-slate-400">INV1286</span>
-            </h4>
-            <div className="max-h-64 overflow-y-auto space-y-1 pr-1">
+          {/* CARD 4: SEDES SERVICENTROS */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2 flex flex-col">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h4 className="font-black text-xs uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                <Store size={14} className="text-amber-600" /> Servicentros ({listas.servicentros.filter(s => s.nombre !== 'Consolidado').length})
+              </h4>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsNewServicentro(true);
+                    setEditingServicentro({ index: -1, item: { localidad: 'CARACAS', nombre: '', abrev: '' } });
+                  }}
+                  className="px-2 py-1 bg-amber-50 text-amber-800 hover:bg-amber-100 rounded-lg text-[10px] font-black flex items-center gap-1 transition-colors cursor-pointer"
+                  title="Registrar nuevo servicentro"
+                >
+                  <Plus size={12} />
+                  <span>Agregar</span>
+                </button>
+              )}
+            </div>
+
+            <div className="max-h-72 overflow-y-auto space-y-1.5 pr-1 flex-1">
               {listas.servicentros.filter(s => s.nombre !== 'Consolidado').map((sc, i) => (
-                <div key={i} className="p-2 bg-slate-50 hover:bg-amber-50/40 rounded-lg text-xs font-bold text-slate-700 flex items-center justify-between transition-colors">
+                <div key={i} className="p-2.5 bg-slate-50 hover:bg-amber-50/40 rounded-xl text-xs font-bold text-slate-700 flex items-center justify-between transition-colors">
                   <div className="truncate pr-2">
                     <span className="text-slate-900 block truncate">{sc.nombre}</span>
-                    <span className="text-[10px] text-slate-400 font-medium block">{sc.localidad}</span>
+                    <span className="text-[10px] text-slate-400 font-medium block">{sc.localidad} · {sc.abrev || 'S/C'}</span>
                   </div>
-                  <span className="font-mono text-[10px] px-1.5 py-0.5 bg-slate-200/70 text-slate-700 rounded shrink-0">
-                    {sc.abrev || 'S/C'}
-                  </span>
+                  {isAdmin && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsNewServicentro(false);
+                          setEditingServicentro({ index: i, item: { ...sc } });
+                        }}
+                        className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                        title="Editar servicentro"
+                      >
+                        <Edit2 size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteServicentro(i, sc.nombre)}
+                        className="p-1 text-rose-500 hover:bg-rose-50 rounded"
+                        title="Eliminar servicentro"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -1514,6 +1879,315 @@ export default function CriteriosPage() {
                 >
                   <Save size={14} />
                   <span>Actualizar</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL DE EDICIÓN / CREACIÓN DE EMPRESA                        */}
+      {/* ------------------------------------------------------------- */}
+      {editingEmpresa && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-100">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
+                <Building2 className="text-blue-600" size={18} />
+                {isNewEmpresa ? 'Nueva Empresa' : 'Editar Empresa'}
+              </h3>
+              <button
+                onClick={() => setEditingEmpresa(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEmpresa} className="space-y-4 text-xs font-bold">
+              <div>
+                <label className="text-[10px] uppercase text-slate-500 block mb-1">Razón Social Completa</label>
+                <input
+                  type="text"
+                  required
+                  value={editingEmpresa.item.nombre}
+                  onChange={e => setEditingEmpresa({
+                    ...editingEmpresa,
+                    item: { ...editingEmpresa.item, nombre: e.target.value }
+                  })}
+                  placeholder="ACUMULADORES DUNCAN, C.A."
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 ring-blue-100"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] uppercase text-slate-500 block mb-1">RIF</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingEmpresa.item.rif}
+                    onChange={e => setEditingEmpresa({
+                      ...editingEmpresa,
+                      item: { ...editingEmpresa.item, rif: e.target.value }
+                    })}
+                    placeholder="J-00000000-0"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 ring-blue-100 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase text-slate-500 block mb-1">Abreviatura / Código</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingEmpresa.item.abrev}
+                    onChange={e => setEditingEmpresa({
+                      ...editingEmpresa,
+                      item: { ...editingEmpresa.item, abrev: e.target.value.toUpperCase() }
+                    })}
+                    placeholder="ADCA, DDCA, etc."
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 ring-blue-100 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingEmpresa(null)}
+                  className="px-4 py-2 text-slate-500 hover:text-slate-800 rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-blue-200"
+                >
+                  <Save size={14} />
+                  <span>Guardar</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL DE EDICIÓN / CREACIÓN DE DISTRIBUIDORA                  */}
+      {/* ------------------------------------------------------------- */}
+      {editingDistribuidora && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-100">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
+                <Layers className="text-purple-600" size={18} />
+                {isNewDistribuidora ? 'Nueva Sede Distribuidora' : 'Editar Distribuidora'}
+              </h3>
+              <button
+                onClick={() => setEditingDistribuidora(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveDistribuidora} className="space-y-4 text-xs font-bold">
+              <div>
+                <label className="text-[10px] uppercase text-slate-500 block mb-1">Nombre de la Sede Distribuidora</label>
+                <input
+                  type="text"
+                  required
+                  value={editingDistribuidora.item.nombre}
+                  onChange={e => setEditingDistribuidora({
+                    ...editingDistribuidora,
+                    item: {
+                      ...editingDistribuidora.item,
+                      nombre: e.target.value.toUpperCase().replace(/^DD\s+/i, '')
+                    }
+                  })}
+                  placeholder="BARCELONA, VALENCIA, CARACAS..."
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 ring-purple-100"
+                />
+                <span className="text-[10px] text-slate-400 font-normal mt-1 block">El prefijo 'DD' se omite automáticamente.</span>
+              </div>
+
+              <div>
+                <label className="text-[10px] uppercase text-slate-500 block mb-1">Identificador de Tabla / Sistema</label>
+                <input
+                  type="text"
+                  required
+                  value={editingDistribuidora.item.tblNombre}
+                  onChange={e => setEditingDistribuidora({
+                    ...editingDistribuidora,
+                    item: { ...editingDistribuidora.item, tblNombre: e.target.value.replace(/^DD/i, '') }
+                  })}
+                  placeholder="Barcelona, Valencia, Caracas..."
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 ring-purple-100 font-mono"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingDistribuidora(null)}
+                  className="px-4 py-2 text-slate-500 hover:text-slate-800 rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-purple-200"
+                >
+                  <Save size={14} />
+                  <span>Guardar</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL DE EDICIÓN / CREACIÓN DE SERVICENTRO                    */}
+      {/* ------------------------------------------------------------- */}
+      {editingServicentro && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-100">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
+                <Store className="text-amber-600" size={18} />
+                {isNewServicentro ? 'Nuevo Servicentro' : 'Editar Servicentro'}
+              </h3>
+              <button
+                onClick={() => setEditingServicentro(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveServicentro} className="space-y-4 text-xs font-bold">
+              <div>
+                <label className="text-[10px] uppercase text-slate-500 block mb-1">Región / Localidad Adscrita</label>
+                <input
+                  type="text"
+                  required
+                  list="sc-localidades-list"
+                  value={editingServicentro.item.localidad}
+                  onChange={e => setEditingServicentro({
+                    ...editingServicentro,
+                    item: { ...editingServicentro.item, localidad: e.target.value.toUpperCase() }
+                  })}
+                  placeholder="CARACAS, MARACAIBO, VALENCIA..."
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 ring-amber-100 uppercase"
+                />
+                <datalist id="sc-localidades-list">
+                  {scLocalidades.map(loc => (
+                    <option key={loc} value={loc} />
+                  ))}
+                </datalist>
+              </div>
+
+              <div>
+                <label className="text-[10px] uppercase text-slate-500 block mb-1">Nombre Oficial del Servicentro</label>
+                <input
+                  type="text"
+                  required
+                  value={editingServicentro.item.nombre}
+                  onChange={e => setEditingServicentro({
+                    ...editingServicentro,
+                    item: { ...editingServicentro.item, nombre: e.target.value }
+                  })}
+                  placeholder="LOS RUICES, CABIMAS, LA QUIZANDA..."
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 ring-amber-100"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] uppercase text-slate-500 block mb-1">Código Interno / Abreviatura</label>
+                <input
+                  type="text"
+                  required
+                  value={editingServicentro.item.abrev}
+                  onChange={e => setEditingServicentro({
+                    ...editingServicentro,
+                    item: { ...editingServicentro.item, abrev: e.target.value.toUpperCase() }
+                  })}
+                  placeholder="SCLRC, SCCABIMAS, SCLMCHLN..."
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 ring-amber-100 font-mono"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingServicentro(null)}
+                  className="px-4 py-2 text-slate-500 hover:text-slate-800 rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-amber-200"
+                >
+                  <Save size={14} />
+                  <span>Guardar</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL DE EDICIÓN / CREACIÓN DE ÍTEM SIMPLE (AGENTES/CAP/ACC)   */}
+      {/* ------------------------------------------------------------- */}
+      {editingSimpleList && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full shadow-2xl border border-slate-100">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
+                <Plus className="text-blue-600" size={18} />
+                {editingSimpleList.isNew ? `Agregar a ${editingSimpleList.title}` : `Editar ${editingSimpleList.title}`}
+              </h3>
+              <button
+                onClick={() => setEditingSimpleList(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSimpleItem} className="space-y-4 text-xs font-bold">
+              <div>
+                <label className="text-[10px] uppercase text-slate-500 block mb-1">Valor / Nombre del Ítem</label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  value={editingSimpleList.value}
+                  onChange={e => setEditingSimpleList({ ...editingSimpleList, value: e.target.value })}
+                  placeholder={`Nombre de ${editingSimpleList.title}...`}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 ring-blue-100"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingSimpleList(null)}
+                  className="px-4 py-2 text-slate-500 hover:text-slate-800 rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-blue-200"
+                >
+                  <Save size={14} />
+                  <span>Guardar</span>
                 </button>
               </div>
             </form>

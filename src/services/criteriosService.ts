@@ -377,6 +377,114 @@ export const criteriosService = {
     notifyUpdate('listas');
   },
 
+  addEmpresa(empresa: { nombre: string; abrev: string; rif: string }, userEmail = 'admin@duncan.com.ve') {
+    const list = this.getListas();
+    list.empresas.push(empresa);
+    this.saveListas(list, userEmail);
+    return list.empresas;
+  },
+
+  updateEmpresa(index: number, empresa: { nombre: string; abrev: string; rif: string }, userEmail = 'admin@duncan.com.ve') {
+    const list = this.getListas();
+    if (index >= 0 && index < list.empresas.length) {
+      list.empresas[index] = empresa;
+      this.saveListas(list, userEmail);
+    }
+    return list.empresas;
+  },
+
+  deleteEmpresa(index: number, userEmail = 'admin@duncan.com.ve') {
+    const list = this.getListas();
+    if (index >= 0 && index < list.empresas.length) {
+      list.empresas.splice(index, 1);
+      this.saveListas(list, userEmail);
+    }
+    return list.empresas;
+  },
+
+  addDistribuidora(dist: { nombre: string; tblNombre: string }, userEmail = 'admin@duncan.com.ve') {
+    const list = this.getListas();
+    list.distribuidoras.push({
+      nombre: dist.nombre.replace(/^DD\s+/i, '').trim(),
+      tblNombre: dist.tblNombre.replace(/^DD/i, '').trim()
+    });
+    this.saveListas(list, userEmail);
+    return list.distribuidoras;
+  },
+
+  updateDistribuidora(index: number, dist: { nombre: string; tblNombre: string }, userEmail = 'admin@duncan.com.ve') {
+    const list = this.getListas();
+    if (index >= 0 && index < list.distribuidoras.length) {
+      list.distribuidoras[index] = {
+        nombre: dist.nombre.replace(/^DD\s+/i, '').trim(),
+        tblNombre: dist.tblNombre.replace(/^DD/i, '').trim()
+      };
+      this.saveListas(list, userEmail);
+    }
+    return list.distribuidoras;
+  },
+
+  deleteDistribuidora(index: number, userEmail = 'admin@duncan.com.ve') {
+    const list = this.getListas();
+    if (index >= 0 && index < list.distribuidoras.length) {
+      list.distribuidoras.splice(index, 1);
+      this.saveListas(list, userEmail);
+    }
+    return list.distribuidoras;
+  },
+
+  addServicentro(sc: { localidad: string; nombre: string; abrev: string }, userEmail = 'admin@duncan.com.ve') {
+    const list = this.getListas();
+    list.servicentros.push({
+      localidad: sc.localidad.trim().toUpperCase(),
+      nombre: sc.nombre.trim(),
+      abrev: sc.abrev.trim().toUpperCase()
+    });
+    this.saveListas(list, userEmail);
+    return list.servicentros;
+  },
+
+  updateServicentro(index: number, sc: { localidad: string; nombre: string; abrev: string }, userEmail = 'admin@duncan.com.ve') {
+    const list = this.getListas();
+    if (index >= 0 && index < list.servicentros.length) {
+      list.servicentros[index] = {
+        localidad: sc.localidad.trim().toUpperCase(),
+        nombre: sc.nombre.trim(),
+        abrev: sc.abrev.trim().toUpperCase()
+      };
+      this.saveListas(list, userEmail);
+    }
+    return list.servicentros;
+  },
+
+  deleteServicentro(index: number, userEmail = 'admin@duncan.com.ve') {
+    const list = this.getListas();
+    if (index >= 0 && index < list.servicentros.length) {
+      list.servicentros.splice(index, 1);
+      this.saveListas(list, userEmail);
+    }
+    return list.servicentros;
+  },
+
+  addSimpleItem(key: 'agentesExtinguidores' | 'capacidadesExtintores' | 'accionesRequeridas' | 'condiciones' | 'operatividades', value: string, userEmail = 'admin@duncan.com.ve') {
+    const list = this.getListas();
+    const val = value.trim();
+    if (val && Array.isArray(list[key]) && !list[key].includes(val)) {
+      list[key].push(val);
+      this.saveListas(list, userEmail);
+    }
+    return list[key];
+  },
+
+  deleteSimpleItem(key: 'agentesExtinguidores' | 'capacidadesExtintores' | 'accionesRequeridas' | 'condiciones' | 'operatividades', itemIndex: number, userEmail = 'admin@duncan.com.ve') {
+    const list = this.getListas();
+    if (Array.isArray(list[key]) && itemIndex >= 0 && itemIndex < list[key].length) {
+      list[key].splice(itemIndex, 1);
+      this.saveListas(list, userEmail);
+    }
+    return list[key];
+  },
+
   // -------------------------------------------------------------
   // RESTABLECIMIENTO A VALORES OFICIALES
   // -------------------------------------------------------------
