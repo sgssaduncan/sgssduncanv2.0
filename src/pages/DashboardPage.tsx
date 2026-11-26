@@ -15,23 +15,25 @@ export default function DashboardPage() {
     isOnline, sheetsUrl, currentUser 
   } = useSGD();
 
-  const recentInsps = inspecciones.slice(-5).reverse();
-  const urgentActions = planAccion.filter(p => {
-    const s = (p.estado || '').toLowerCase().trim();
+  const safeInsps = Array.isArray(inspecciones) ? inspecciones : [];
+  const safePlans = Array.isArray(planAccion) ? planAccion : [];
+  const recentInsps = safeInsps.slice(-5).reverse();
+  const urgentActions = safePlans.filter(p => {
+    const s = String(p?.estado || '').toLowerCase().trim();
     const isOverdue = s !== 'cerrado' && s !== 'cerrada' && p.fechaLimite && new Date(p.fechaLimite) < new Date();
     return s === 'pendiente' || s === 'vencido' || s === 'vencida' || isOverdue;
   }).slice(0, 5);
   
   // Conteo oficial de C, OM, NC y cálculo de tasa ponderada
-  const cCount = inspecciones.filter(i => i.resultado === 'C').length || stats.conformes;
-  const omCount = inspecciones.filter(i => i.resultado === 'OM').length || ((stats as any).observaciones ?? 0);
-  const ncCount = inspecciones.filter(i => i.resultado === 'NC').length || stats.noConformes;
-  const totalInsps = inspecciones.length || stats.totalInspecciones;
+  const cCount = safeInsps.filter(i => i.resultado === 'C').length || stats.conformes;
+  const omCount = safeInsps.filter(i => i.resultado === 'OM').length || ((stats as any).observaciones ?? 0);
+  const ncCount = safeInsps.filter(i => i.resultado === 'NC').length || stats.noConformes;
+  const totalInsps = safeInsps.length || stats.totalInspecciones;
   const conformePct = totalInsps > 0
     ? Math.round(((cCount + (omCount * 0.5)) / totalInsps) * 100)
     : 0;
 
-  const firstName = currentUser?.nombre?.split(' ')[0] || 'Inspector';
+  const firstName = String(currentUser?.nombre || 'Inspector').split(' ')[0] || 'Inspector';
 
   return (
     <div className="space-y-5 fade-in max-w-6xl mx-auto">

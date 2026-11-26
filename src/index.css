@@ -1,13 +1,36 @@
 @import "tailwindcss";
 
+@theme {
+  --color-duncan-blue: #1e40af;
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+  --color-brand-800: #1e40af;
+  --color-brand-900: #1e3a8a;
+}
+
 @layer base {
   * { box-sizing: border-box; }
-  html { -webkit-tap-highlight-color: transparent; scroll-behavior: smooth; }
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
   body {
     background-color: #f8fafc;
     color: #0f172a;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     overscroll-behavior-y: contain;
+    overflow-x: hidden;
+  }
+  button, a, select, input, textarea, [role="button"] {
+    touch-action: manipulation;
+  }
+  .overflow-y-auto, .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
   }
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background-color: #f1f5f9; }
@@ -142,6 +165,14 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes slideUpSheet {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-in.slide-in-from-bottom {
+  animation: slideUpSheet 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 /* WhatsApp / Telegram Tactile Mobile Feel */
 .touch-active {
   transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.12s ease;
@@ -152,6 +183,14 @@
 
 .bottom-nav-safe {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0.5rem));
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
 
 .filter-chip {

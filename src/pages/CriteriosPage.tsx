@@ -288,7 +288,7 @@ export default function CriteriosPage() {
           )}
 
           <button
-            onClick={() => criteriosService.exportAllCatalogsToExcel()}
+            onClick={() => void criteriosService.exportAllCatalogsToExcel()}
             className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
             title="Exportar catálogo completo con todas las tablas a Excel (.xlsx)"
           >

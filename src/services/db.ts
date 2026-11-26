@@ -12,8 +12,8 @@ import {
   INITIAL_LOCALIDADES, 
   INITIAL_ESTABLECIMIENTOS, 
   INITIAL_TIPOS_INSPECCION,
-  INITIAL_EMPLEADOS,
-  INITIAL_USUARIOS 
+  INITIAL_USUARIOS,
+  loadInitialEmpleados
 } from '../data/seedData';
 import { TIPOS_INSPECCION_SEED } from '../constants/inspections';
 import type { 
@@ -100,7 +100,9 @@ const SK = {
 function getLocal<T>(key: string, defaultVal: T[] = []): T[] {
   try {
     const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : defaultVal;
+    if (!raw) return defaultVal;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : defaultVal;
   } catch (e) {
     console.error(`Error reading ${key} from localStorage:`, e);
     return defaultVal;
@@ -273,16 +275,22 @@ export const dbService = {
   },
 
   async getEmpleados(): Promise<Empleado[]> {
-    let list = getLocal<Empleado>(SK.EMPLEADOS);
-    if (!list || list.length < 500) {
-      list = INITIAL_EMPLEADOS.map(e => ({ ...e, id: e._id }));
-      setLocal(SK.EMPLEADOS, list);
+    const stored = getLocal<Empleado>(SK.EMPLEADOS);
+    if (stored && stored.length >= 500) {
+      return stored;
     }
-    return list;
+    const initial = (await loadInitialEmpleados()).map(e => ({ ...e, id: e._id }));
+    if (stored.length === 0) {
+      return initial;
+    }
+    const mergedMap = new Map<string, Empleado>();
+    initial.forEach(e => mergedMap.set(String(e._id || e.id || e.cedula), e));
+    stored.forEach(e => mergedMap.set(String(e._id || e.id || e.cedula), e));
+    return Array.from(mergedMap.values());
   },
 
   async saveEmpleado(data: Omit<Empleado, 'id' | '_id'>): Promise<string> {
-    const list = getLocal<any>(SK.EMPLEADOS);
+    const list = await this.getEmpleados();
     const id = genId('emp');
     const newEmp: Empleado = {
       ...data,
@@ -298,7 +306,7 @@ export const dbService = {
   },
 
   async updateEmpleado(id: string, data: Partial<Empleado>): Promise<void> {
-    const list = getLocal<any>(SK.EMPLEADOS);
+    const list = await this.getEmpleados();
     const idx = list.findIndex((e: any) => e.id === id || e._id === id);
     if (idx !== -1) {
       list[idx] = { 
@@ -312,7 +320,7 @@ export const dbService = {
   },
 
   async deleteEmpleado(id: string): Promise<void> {
-    const list = getLocal<any>(SK.EMPLEADOS);
+    const list = await this.getEmpleados();
     const emp = list.find((e: any) => e.id === id || e._id === id);
     const filtered = list.filter((e: any) => e.id !== id && e._id !== id);
     setLocal(SK.EMPLEADOS, filtered);
@@ -323,7 +331,7 @@ export const dbService = {
     nuevos: Partial<Empleado>[],
     replaceExisting = true
   ): Promise<{ added: number; updated: number; total: number }> {
-    const list = getLocal<any>(SK.EMPLEADOS);
+    const list = await this.getEmpleados();
     let added = 0;
     let updated = 0;
 
@@ -380,7 +388,7 @@ export const dbService = {
       _id: `ti_${t.codigo.toLowerCase()}`,
       ...t
     })) as TipoInspeccion[];
-    const empleados = INITIAL_EMPLEADOS.map(e => ({ ...e, id: e._id }));
+    const empleados = (await loadInitialEmpleados()).map(e => ({ ...e, id: e._id }));
 
     setLocal(SK.EMPRESAS, empresas);
     setLocal(SK.LOCALIDADES, localidades);

@@ -10,12 +10,162 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="SGD Duncan" />
     <meta name="description" content="Sistema de Gestión Digital de Inspecciones SSA para el Grupo Duncan. PWA con soporte offline." />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; frame-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://script.google.com https://script.googleusercontent.com https://lh3.googleusercontent.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://sheets.googleapis.com; object-src 'none'; base-uri 'self';" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; frame-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://script.google.com https://script.googleusercontent.com https://lh3.googleusercontent.com; connect-src 'self' data: blob: https://script.google.com https://script.googleusercontent.com https://sheets.googleapis.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self';" />
     <link rel="apple-touch-icon" href="/duncan-logo-color.png" />
     <title>SGD Duncan 2.0</title>
+    <style>
+      html, body { margin: 0; padding: 0; background-color: #0f172a; }
+      #sgd-boot-splash {
+        min-height: 100vh;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: #0f172a;
+        color: #f8fafc;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        box-sizing: border-box;
+      }
+      .sgd-boot-spinner {
+        width: 36px;
+        height: 36px;
+        border: 3px solid rgba(245, 158, 11, 0.25);
+        border-top-color: #f59e0b;
+        border-radius: 50%;
+        animation: sgd-spin 0.8s linear infinite;
+        margin-bottom: 14px;
+      }
+      @keyframes sgd-spin { to { transform: rotate(360deg); } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="sgd-boot-splash">
+        <div class="sgd-boot-spinner"></div>
+        <div style="font-weight:800;font-size:15px;letter-spacing:0.04em;color:#f8fafc;">SGD DUNCAN 2.0</div>
+        <div style="font-size:12px;color:#94a3b8;margin-top:4px;">Iniciando plataforma SSA...</div>
+      </div>
+    </div>
+    <script>
+      (function () {
+        window.__SGD_MOUNTED__ = false;
+        var bootErrorMsg = '';
+        var recoveryShown = false;
+
+        function cleanSwAndCaches() {
+          var tasks = [];
+          try {
+            if ('serviceWorker' in navigator && navigator.serviceWorker.getRegistrations) {
+              tasks.push(
+                navigator.serviceWorker.getRegistrations().then(function (regs) {
+                  return Promise.all(regs.map(function (r) { return r.unregister(); }));
+                }).catch(function () {})
+              );
+            }
+          } catch (e) {}
+          try {
+            if ('caches' in window && caches.keys) {
+              tasks.push(
+                caches.keys().then(function (names) {
+                  return Promise.all(names.map(function (n) { return caches.delete(n); }));
+                }).catch(function () {})
+              );
+            }
+          } catch (e) {}
+          return Promise.all(tasks);
+        }
+
+        window.__SGD_CLEAR_AND_RELOAD__ = function (fullReset) {
+          try {
+            if (fullReset) {
+              localStorage.clear();
+            } else {
+              var keys = Object.keys(localStorage);
+              for (var i = 0; i < keys.length; i++) {
+                var k = keys[i];
+                if (
+                  k.indexOf('sgd_draft_') === 0 ||
+                  k.indexOf('sgd_inspection_responses_') === 0 ||
+                  k.indexOf('sgd_inspection_photos_') === 0 ||
+                  k === 'sgd_empleados' ||
+                  k === 'sgd_audit_trail_v2'
+                ) {
+                  localStorage.removeItem(k);
+                }
+              }
+            }
+          } catch (e) {}
+          cleanSwAndCaches().then(function () {
+            var sep = location.search ? '&' : '?';
+            location.replace(location.pathname + location.search + sep + '_r=' + Date.now());
+          });
+        };
+
+        function showBootRecovery(reason) {
+          if (window.__SGD_MOUNTED__ || recoveryShown) return;
+          recoveryShown = true;
+          var root = document.getElementById('root');
+          if (!root) return;
+          var safeReason = String(reason || 'Tiempo de espera excedido o archivo en caché desactualizado.')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          root.innerHTML =
+            '<div style="min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:20px;background:#0f172a;color:#f8fafc;font-family:system-ui,-apple-system,sans-serif;box-sizing:border-box;">' +
+              '<div style="max-width:420px;width:100%;background:#1e293b;border:1px solid #334155;border-radius:16px;padding:24px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,0.4);">' +
+                '<div style="display:inline-block;padding:4px 10px;border-radius:999px;background:rgba(245,158,11,0.15);color:#fbbf24;font-size:11px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;">Recuperación Móvil SGD 2.0</div>' +
+                '<h2 style="margin:0 0 8px;font-size:18px;font-weight:800;color:#ffffff;">La aplicación tardó en responder</h2>' +
+                '<p style="margin:0 0 14px;font-size:13px;line-height:1.5;color:#cbd5e1;">Esto suele ocurrir por caché desactualizada del navegador o conexión lenta.</p>' +
+                '<div style="background:#0f172a;border:1px solid #334155;border-radius:10px;padding:10px;font-size:11px;font-family:monospace;color:#fda4af;margin-bottom:16px;word-break:break-word;text-align:left;">' + safeReason + '</div>' +
+                '<button type="button" onclick="location.reload()" style="width:100%;padding:12px;border:none;border-radius:10px;background:#f59e0b;color:#0f172a;font-weight:800;font-size:14px;cursor:pointer;margin-bottom:10px;">Reintentar Carga</button>' +
+                '<button type="button" onclick="window.__SGD_CLEAR_AND_RELOAD__(false)" style="width:100%;padding:11px;border:1px solid #475569;border-radius:10px;background:#0f172a;color:#e2e8f0;font-weight:700;font-size:13px;cursor:pointer;">Limpiar Caché SW y Reparar</button>' +
+              '</div>' +
+            '</div>';
+        }
+
+        function tryAutoHealOnce(reason) {
+          bootErrorMsg = reason || bootErrorMsg;
+          try {
+            if (!sessionStorage.getItem('sgd_boot_healed_v1')) {
+              sessionStorage.setItem('sgd_boot_healed_v1', '1');
+              cleanSwAndCaches().then(function () {
+                location.reload();
+              });
+              return;
+            }
+          } catch (e) {}
+          showBootRecovery(bootErrorMsg);
+        }
+
+        window.addEventListener('error', function (ev) {
+          if (window.__SGD_MOUNTED__) return;
+          var target = ev && ev.target;
+          if (target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK')) {
+            tryAutoHealOnce('Error cargando recurso: ' + (target.src || target.href || 'asset'));
+          } else if (ev && ev.message) {
+            bootErrorMsg = ev.message;
+            showBootRecovery(ev.message);
+          }
+        }, true);
+
+        window.addEventListener('unhandledrejection', function (ev) {
+          if (window.__SGD_MOUNTED__) return;
+          var msg = (ev && ev.reason && (ev.reason.message || String(ev.reason))) || 'Error asíncrono al iniciar';
+          if (/dynamically imported module|ChunkLoadError|Importing a module script failed/i.test(msg)) {
+            tryAutoHealOnce(msg);
+          } else {
+            bootErrorMsg = msg;
+          }
+        });
+
+        setTimeout(function () {
+          if (!window.__SGD_MOUNTED__) {
+            showBootRecovery(bootErrorMsg || 'Tiempo de espera agotado al inicializar la aplicación.');
+          }
+        }, 12000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

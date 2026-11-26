@@ -33,7 +33,8 @@ export default function LoginPage() {
     requestRecoveryCode
   } = useSGD();
 
-  const from = (location.state as any)?.from?.pathname || '/';
+  const rawFrom = (location.state as any)?.from?.pathname;
+  const from = rawFrom && rawFrom !== '/login' ? rawFrom : '/';
 
   const [activeTab, setActiveTab] = useState<'login' | 'register' | 'recover'>('login');
 
@@ -216,7 +217,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black flex flex-col justify-center items-center py-10 px-4 sm:px-6 font-sans selection:bg-[#f59e0b] selection:text-slate-950">
+    <div className="min-h-screen supports-[min-height:100dvh]:min-h-dvh bg-black flex flex-col justify-center items-center py-8 sm:py-10 px-3 sm:px-6 font-sans selection:bg-[#f59e0b] selection:text-slate-950">
       <div className="w-full max-w-md sm:max-w-lg">
         {/* Encabezado: Logo Duncan en caja oscura */}
         <div className="text-center space-y-3 flex flex-col items-center">
@@ -229,7 +230,7 @@ export default function LoginPage() {
           </div>
 
           {/* Pastilla: SISTEMA DE GESTIÓN DUNCAN 2.0 */}
-          <div className="inline-flex items-center gap-2 bg-[#091124] border border-blue-900/60 px-5 py-1.5 rounded-lg shadow-sm">
+          <div className="inline-flex items-center gap-2 bg-[#091124] border border-blue-900/60 px-4 sm:px-5 py-1.5 rounded-lg shadow-sm">
             <span className="text-white font-black text-xs sm:text-sm tracking-wide uppercase">
               SISTEMA DE GESTIÓN DUNCAN
             </span>
@@ -242,59 +243,60 @@ export default function LoginPage() {
         {/* Tarjeta Principal */}
         <div className="mt-5 bg-[#0f172a] border border-slate-700/60 rounded-2xl shadow-2xl p-2 sm:p-2.5 overflow-hidden">
           {/* Barra Superior de Pestañas: Iniciar Sesión | Registrarse | Recuperar Acceso */}
-          <div className="grid grid-cols-3 gap-1.5 p-1">
+          <div className="grid grid-cols-3 gap-1 sm:gap-1.5 p-1">
             <button
               type="button"
               onClick={() => setActiveTab('login')}
-              className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs sm:text-sm font-black transition-all ${
+              className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 py-2 sm:py-2.5 px-1.5 sm:px-2 rounded-xl text-[11px] sm:text-sm font-black leading-tight text-center transition-all ${
                 activeTab === 'login'
                   ? 'bg-[#f59e0b] text-slate-950 shadow-md scale-[1.01]'
                   : 'bg-transparent text-slate-300 hover:text-white hover:bg-slate-800/60'
               }`}
             >
-              <LogIn size={15} />
-              <span className="truncate">Iniciar Sesión</span>
+              <LogIn size={15} className="shrink-0" />
+              <span>Iniciar Sesión</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('register')}
-              className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs sm:text-sm font-black transition-all ${
+              className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 py-2 sm:py-2.5 px-1.5 sm:px-2 rounded-xl text-[11px] sm:text-sm font-black leading-tight text-center transition-all ${
                 activeTab === 'register'
                   ? 'bg-[#f59e0b] text-slate-950 shadow-md scale-[1.01]'
                   : 'bg-transparent text-slate-300 hover:text-white hover:bg-slate-800/60'
               }`}
             >
-              <UserPlus size={15} />
-              <span className="truncate">Registrarse</span>
+              <UserPlus size={15} className="shrink-0" />
+              <span>Registrarse</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('recover')}
-              className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs sm:text-sm font-black transition-all ${
+              className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 py-2 sm:py-2.5 px-1.5 sm:px-2 rounded-xl text-[11px] sm:text-sm font-black leading-tight text-center transition-all ${
                 activeTab === 'recover'
                   ? 'bg-[#f59e0b] text-slate-950 shadow-md scale-[1.01]'
                   : 'bg-transparent text-slate-300 hover:text-white hover:bg-slate-800/60'
               }`}
             >
-              <KeyRound size={15} />
-              <span className="truncate">Recuperar Acceso</span>
+              <KeyRound size={15} className="shrink-0" />
+              <span>Recuperar</span>
             </button>
           </div>
 
           {/* Tarjeta Blanca de Contenido */}
-          <div className="bg-white rounded-xl p-6 sm:p-7 mt-2 space-y-4">
+          <div className="bg-white rounded-xl p-5 sm:p-7 mt-2 space-y-4">
             {/* Aviso si ya existe sesión activa */}
-            {currentUser && (
-              <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-3 flex items-center justify-between text-xs text-emerald-950">
-                <div className="flex items-center gap-2">
+            {currentUser && !isLoggingIn && !isRegistering && (
+              <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-3 flex items-center justify-between gap-2 text-xs text-emerald-950">
+                <div className="flex items-center gap-2 min-w-0">
                   <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
-                  <div>
+                  <div className="truncate">
                     <span className="font-bold">Sesión activa:</span> {currentUser.nombre} ({currentUser.email})
                   </div>
                 </div>
                 <button
-                  onClick={() => navigate('/')}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-2.5 py-1 rounded-lg text-xs transition-colors"
+                  type="button"
+                  onClick={() => navigate(from, { replace: true })}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-colors shrink-0"
                 >
                   Entrar →
                 </button>
@@ -314,11 +316,16 @@ export default function LoginPage() {
                     </div>
                     <input
                       type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck={false}
                       value={loginEmail}
                       onChange={e => setLoginEmail(e.target.value)}
                       required
                       placeholder="ejemplo@duncan.com.ve"
-                      className="block w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] focus:ring-2 focus:ring-amber-400/20 rounded-xl text-slate-900 font-medium text-sm placeholder-slate-400 transition-all focus:outline-none"
+                      className="block w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] focus:ring-2 focus:ring-amber-400/20 rounded-xl text-slate-900 font-medium text-base sm:text-sm placeholder-slate-400 transition-all focus:outline-none"
                     />
                   </div>
                 </div>
@@ -333,11 +340,12 @@ export default function LoginPage() {
                     </div>
                     <input
                       type={showLoginPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
                       value={loginPassword}
                       onChange={e => setLoginPassword(e.target.value)}
                       required
                       placeholder="Ingrese su contraseña..."
-                      className="block w-full pl-10 pr-10 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] focus:ring-2 focus:ring-amber-400/20 rounded-xl text-slate-900 font-medium text-sm placeholder-slate-400 transition-all focus:outline-none"
+                      className="block w-full pl-10 pr-11 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] focus:ring-2 focus:ring-amber-400/20 rounded-xl text-slate-900 font-medium text-base sm:text-sm placeholder-slate-400 transition-all focus:outline-none"
                     />
                     <button
                       type="button"
@@ -394,11 +402,12 @@ export default function LoginPage() {
                     </div>
                     <input
                       type="text"
+                      autoComplete="name"
                       value={regNombre}
                       onChange={e => setRegNombre(e.target.value)}
                       required
                       placeholder="Ej: Pedro Pérez"
-                      className="block w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] rounded-xl text-slate-900 font-medium text-sm placeholder-slate-400 focus:outline-none"
+                      className="block w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] rounded-xl text-slate-900 font-medium text-base sm:text-sm placeholder-slate-400 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -413,11 +422,16 @@ export default function LoginPage() {
                     </div>
                     <input
                       type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck={false}
                       value={regEmail}
                       onChange={e => setRegEmail(e.target.value)}
                       required
                       placeholder="usuario@duncan.com.ve"
-                      className="block w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] rounded-xl text-slate-900 font-medium text-sm placeholder-slate-400 focus:outline-none"
+                      className="block w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] rounded-xl text-slate-900 font-medium text-base sm:text-sm placeholder-slate-400 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -436,7 +450,7 @@ export default function LoginPage() {
                         value={regCargo}
                         onChange={e => setRegCargo(e.target.value)}
                         placeholder="Inspector SSA"
-                        className="block w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] rounded-xl text-slate-900 font-medium text-sm placeholder-slate-400 focus:outline-none"
+                        className="block w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] rounded-xl text-slate-900 font-medium text-base sm:text-sm placeholder-slate-400 focus:outline-none"
                       />
                     </div>
                   </div>
@@ -452,7 +466,7 @@ export default function LoginPage() {
                       <select
                         value={regSede}
                         onChange={e => setRegSede(e.target.value)}
-                        className="block w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] rounded-xl text-slate-900 font-medium text-sm focus:outline-none"
+                        className="block w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] rounded-xl text-slate-900 font-medium text-base sm:text-sm focus:outline-none"
                       >
                         <option value="Planta Principal Los Ruices">Planta Principal Los Ruices</option>
                         <option value="Distribuidora Valencia">Distribuidora Valencia</option>
@@ -477,12 +491,13 @@ export default function LoginPage() {
                       </div>
                       <input
                         type={showRegPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
                         value={regPassword}
                         onChange={e => setRegPassword(e.target.value)}
                         required
                         minLength={8}
                         placeholder="Mín. 8 caracteres"
-                        className="block w-full pl-10 pr-9 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] rounded-xl text-slate-900 font-medium text-sm placeholder-slate-400 focus:outline-none"
+                        className="block w-full pl-10 pr-9 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] rounded-xl text-slate-900 font-medium text-base sm:text-sm placeholder-slate-400 focus:outline-none"
                       />
                       <button
                         type="button"
@@ -504,12 +519,13 @@ export default function LoginPage() {
                       </div>
                       <input
                         type={showRegPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
                         value={regConfirmPassword}
                         onChange={e => setRegConfirmPassword(e.target.value)}
                         required
                         minLength={8}
                         placeholder="Repita contraseña"
-                        className="block w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] rounded-xl text-slate-900 font-medium text-sm placeholder-slate-400 focus:outline-none"
+                        className="block w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] rounded-xl text-slate-900 font-medium text-base sm:text-sm placeholder-slate-400 focus:outline-none"
                       />
                     </div>
                   </div>
@@ -552,11 +568,16 @@ export default function LoginPage() {
                         </div>
                         <input
                           type="email"
+                          inputMode="email"
+                          autoComplete="email"
+                          autoCapitalize="none"
+                          autoCorrect="off"
+                          spellCheck={false}
                           value={recEmail}
                           onChange={e => setRecEmail(e.target.value)}
                           required
                           placeholder="ejemplo@duncan.com.ve"
-                          className="block w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] rounded-xl text-slate-900 font-medium text-sm placeholder-slate-400 focus:outline-none"
+                          className="block w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 focus:border-[#f59e0b] rounded-xl text-slate-900 font-medium text-base sm:text-sm placeholder-slate-400 focus:outline-none"
                         />
                       </div>
                     </div>
@@ -596,6 +617,8 @@ export default function LoginPage() {
                       </label>
                       <input
                         type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
                         value={recOtpCode}
                         onChange={e => setRecOtpCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
                         required
@@ -615,12 +638,13 @@ export default function LoginPage() {
                         </div>
                         <input
                           type={showRecPassword ? 'text' : 'password'}
+                          autoComplete="new-password"
                           value={recNewPassword}
                           onChange={e => setRecNewPassword(e.target.value)}
                           required
                           minLength={8}
                           placeholder="Nueva contraseña..."
-                          className="block w-full pl-10 pr-9 py-2.5 bg-white border border-slate-300 focus:border-amber-500 rounded-xl text-slate-900 font-medium text-sm placeholder-slate-400 focus:outline-none"
+                          className="block w-full pl-10 pr-9 py-2.5 bg-white border border-slate-300 focus:border-amber-500 rounded-xl text-slate-900 font-medium text-base sm:text-sm placeholder-slate-400 focus:outline-none"
                         />
                         <button
                           type="button"
@@ -642,12 +666,13 @@ export default function LoginPage() {
                         </div>
                         <input
                           type={showRecPassword ? 'text' : 'password'}
+                          autoComplete="new-password"
                           value={recConfirmNewPassword}
                           onChange={e => setRecConfirmNewPassword(e.target.value)}
                           required
                           minLength={8}
                           placeholder="Repita la nueva contraseña..."
-                          className="block w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 focus:border-amber-500 rounded-xl text-slate-900 font-medium text-sm placeholder-slate-400 focus:outline-none"
+                          className="block w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 focus:border-amber-500 rounded-xl text-slate-900 font-medium text-base sm:text-sm placeholder-slate-400 focus:outline-none"
                         />
                       </div>
                     </div>

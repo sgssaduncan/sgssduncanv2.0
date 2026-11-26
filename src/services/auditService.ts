@@ -5,14 +5,10 @@ import type {
   AuditSeverity, 
   AuditFilter 
 } from '../types/audit';
-import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import { DUNCAN_LOGO_BW } from '../lib/logos';
-import { formatDate } from '../lib/utils';
+import type { jsPDF } from 'jspdf';
 
 const STORAGE_KEY = 'sgd_audit_trail_v2';
-const MAX_LOGS = 5000;
+const MAX_LOGS = 400;
 
 // Detección de dispositivo y entorno
 function getClientDevice(): { dispositivo: 'Desktop' | 'Mobile' | 'Tablet'; plataforma: string; userAgent: string } {
@@ -261,7 +257,8 @@ class AuditService {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        return JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (e) {
       console.warn('Error leyendo audit trail de localStorage', e);
@@ -272,10 +269,16 @@ class AuditService {
   }
 
   private saveLocalLogs(logs: AuditLogEntry[]): void {
+    const trimmed = logs.slice(0, MAX_LOGS);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(logs.slice(0, MAX_LOGS)));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
     } catch (e) {
-      console.warn('Error guardando audit trail en localStorage', e);
+      try {
+        // Si la cuota móvil está llena, conservar solo los 60 eventos más recientes
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed.slice(0, 60)));
+      } catch {
+        console.warn('Error guardando audit trail en localStorage', e);
+      }
     }
   }
 
@@ -496,7 +499,8 @@ class AuditService {
   /**
    * Exporta la bitácora de auditoría a archivo Excel (.xlsx)
    */
-  exportToExcel(logs: AuditLogEntry[]): void {
+  async exportToExcel(logs: AuditLogEntry[]): Promise<void> {
+    const XLSX = await import('xlsx');
     const data = logs.map(l => ({
       'ID Evento': l.id,
       'Fecha y Hora': l.fechaFormateada,
@@ -526,7 +530,8 @@ class AuditService {
   /**
    * Exporta la bitácora de auditoría a CSV
    */
-  exportToCSV(logs: AuditLogEntry[]): void {
+  async exportToCSV(logs: AuditLogEntry[]): Promise<void> {
+    const XLSX = await import('xlsx');
     const data = logs.map(l => ({
       ID: l.id,
       Fecha: l.fechaFormateada,
@@ -554,7 +559,12 @@ class AuditService {
   /**
    * Genera un informe oficial de auditoría forense en PDF con logo oficial Duncan B&N
    */
-  generateAuditReportPDF(logs: AuditLogEntry[], filtroTexto?: string): jsPDF {
+  async generateAuditReportPDF(logs: AuditLogEntry[], filtroTexto?: string): Promise<jsPDF> {
+    const [{ jsPDF }, { default: autoTable }, { DUNCAN_LOGO_BW }] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+      import('../lib/logos')
+    ]);
     const doc = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
@@ -563,7 +573,6 @@ class AuditService {
 
     const pageWidth = 279.4;
     const pageHeight = 215.9;
-    const marginX = 14;
 
     // Logo Oficial Duncan B&N
     try {

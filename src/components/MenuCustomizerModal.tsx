@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   SlidersHorizontal,
@@ -41,6 +41,12 @@ interface Props {
 export default function MenuCustomizerModal({ isOpen, onClose, userId, allItems }: Props) {
   const [activeTab, setActiveTab] = useState<'bottom_bar' | 'order_favorites'>('bottom_bar');
   const [prefs, setPrefs] = useState<MenuPreferences>(() => menuPreferencesService.getPreferences(userId));
+
+  useEffect(() => {
+    if (isOpen) {
+      setPrefs(menuPreferencesService.getPreferences(userId));
+    }
+  }, [isOpen, userId]);
 
   if (!isOpen) return null;
 
@@ -165,28 +171,30 @@ export default function MenuCustomizerModal({ isOpen, onClose, userId, allItems 
         </div>
 
         {/* Pestañas de configuración */}
-        <div className="flex border-b border-slate-200 bg-white px-4 pt-2 gap-2 shrink-0">
+        <div className="flex border-b border-slate-200 bg-white px-3 sm:px-4 pt-2 gap-1 sm:gap-2 shrink-0 overflow-x-auto">
           <button
+            type="button"
             onClick={() => setActiveTab('bottom_bar')}
-            className={`pb-3 px-4 text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 border-b-2 cursor-pointer ${
+            className={`pb-3 px-2.5 sm:px-4 text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 sm:gap-2 border-b-2 whitespace-nowrap cursor-pointer ${
               activeTab === 'bottom_bar'
                 ? 'border-yellow-500 text-slate-950 font-bold'
                 : 'border-transparent text-slate-400 hover:text-slate-700'
             }`}
           >
-            <Smartphone size={16} />
-            <span>Barra Inferior Móvil ({prefs.bottomTabRoutes.length}/4)</span>
+            <Smartphone size={15} />
+            <span>Barra Móvil ({prefs.bottomTabRoutes.length}/4)</span>
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab('order_favorites')}
-            className={`pb-3 px-4 text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 border-b-2 cursor-pointer ${
+            className={`pb-3 px-2.5 sm:px-4 text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 sm:gap-2 border-b-2 whitespace-nowrap cursor-pointer ${
               activeTab === 'order_favorites'
                 ? 'border-yellow-500 text-slate-950 font-bold'
                 : 'border-transparent text-slate-400 hover:text-slate-700'
             }`}
           >
-            <LayoutGrid size={16} />
+            <LayoutGrid size={15} />
             <span>Orden y Favoritos ⭐</span>
           </button>
         </div>

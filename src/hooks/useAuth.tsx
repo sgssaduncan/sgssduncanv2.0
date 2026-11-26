@@ -20,11 +20,12 @@ export function useAuth(): AuthContextType {
   const [profile, setProfile] = useState<UserProfile | null>(() => {
     const u = gsApi.getCurrentUser();
     if (!u) return null;
+    const emailStr = String(u.email || '');
     return {
       id: u._id || u.id || 'usr_user',
-      email: u.email,
-      displayName: u.nombre || u.displayName || u.email.split('@')[0],
-      role: (u.rol || u.role || 'Inspector') as Role,
+      email: emailStr,
+      displayName: String(u.nombre || u.displayName || emailStr.split('@')[0] || 'Usuario'),
+      role: String(u.rol || u.role || 'Inspector') as Role,
       photoURL: u.fotoUrl || u.photoURL,
     };
   });
@@ -35,11 +36,12 @@ export function useAuth(): AuthContextType {
     const handleAuth = () => {
       const u = gsApi.getCurrentUser();
       if (u) {
+        const emailStr = String(u.email || '');
         setProfile({
           id: u._id || u.id || 'usr_user',
-          email: u.email,
-          displayName: u.nombre || u.displayName || u.email.split('@')[0],
-          role: (u.rol || u.role || 'Inspector') as Role,
+          email: emailStr,
+          displayName: String(u.nombre || u.displayName || emailStr.split('@')[0] || 'Usuario'),
+          role: String(u.rol || u.role || 'Inspector') as Role,
           photoURL: u.fotoUrl || u.photoURL,
         });
       } else {
@@ -91,8 +93,8 @@ export function useAuth(): AuthContextType {
       }
     : null;
 
-  const emailLow = (profile?.email || '').toLowerCase().trim();
-  const role = profile?.role || profile?.rol || '';
+  const emailLow = String(profile?.email || '').toLowerCase().trim();
+  const role = String(profile?.role || profile?.rol || '');
   
   const isOwner = role.includes('Propietario') || isOwnerOrDeveloperEmail(emailLow, role);
   const isSuperAdmin = isOwner || role.includes('Super Admin');

@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { Link, useLocation, Outlet, Navigate, useNavigate } from 'react-router-dom';
 import { useSGD } from '../contexts/SGDContext';
+import ErrorBoundary from './ErrorBoundary';
 import {
   LayoutDashboard, 
   ClipboardCheck, 
@@ -156,13 +157,15 @@ export default function Layout() {
   const [customizerOpen, setCustomizerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileSearch, setMobileSearch] = useState('');
+
+  const userPrefKey = currentUser?.id || currentUser?._id;
   const [menuPrefs, setMenuPrefs] = useState<MenuPreferences>(() =>
-    menuPreferencesService.getPreferences(currentUser?.id)
+    menuPreferencesService.getPreferences(userPrefKey)
   );
 
   useEffect(() => {
     const loadPrefs = () => {
-      setMenuPrefs(menuPreferencesService.getPreferences(currentUser?.id));
+      setMenuPrefs(menuPreferencesService.getPreferences(userPrefKey));
     };
     loadPrefs();
 
@@ -174,28 +177,20 @@ export default function Layout() {
     return () => {
       window.removeEventListener('sgd_menu_prefs_updated', handleUpdate);
     };
-  }, [currentUser?.id]);
+  }, [userPrefKey]);
 
-  // Redirigir al Login si no hay usuario autenticado
-  if (!currentUser) {
-    return <Navigate to="/login" replace state={{ from: location }} />;
-  }
+  useEffect(() => {
+    setSidebarOpen(false);
+    setMoreMenuOpen(false);
+  }, [location.pathname]);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
-
-  const isActive = (to: string, exact?: boolean) =>
-    exact ? location.pathname === to : location.pathname.startsWith(to) && to !== '/';
-
-  const userRole = (currentUser.rol || currentUser.role || '') as Role;
-  const isSuperAdminOrOwner = 
-    userRole === 'Super Admin' || 
+  const userRole = String(currentUser?.rol || currentUser?.role || '') as Role;
+  const isSuperAdminOrOwner =
+    userRole === 'Super Admin' ||
     userRole === 'Propietario / Super Admin' ||
     userRole.includes('Propietario') ||
     userRole.includes('Super Admin') ||
-    isOwnerOrDeveloperEmail(currentUser.email);
+    isOwnerOrDeveloperEmail(typeof currentUser?.email === 'string' ? currentUser.email : '');
 
   const canAccessItem = (item: NavItem) => {
     if (!item.allowedRoles || item.allowedRoles.length === 0) return true;
@@ -203,39 +198,7 @@ export default function Layout() {
     return item.allowedRoles.includes(userRole);
   };
 
-  const canManageUsers = isSuperAdminOrOwner || userRole === 'Admin';
-
-  // Título simplificado para la barra superior
-  const getHeaderInfo = () => {
-    const p = location.pathname;
-    if (p === '/') return { title: 'Inicio', isSubpage: false, backTo: null };
-    if (p === '/inspecciones') return { title: 'Inspecciones', isSubpage: false, backTo: '/' };
-    if (p === '/inspecciones/nueva') return { title: 'Nueva Inspección', isSubpage: true, backTo: '/inspecciones' };
-    if (p.includes('/formulario')) return { title: 'Completar Formulario', isSubpage: true, backTo: '/inspecciones' };
-    if (p.startsWith('/inspecciones/')) return { title: 'Informe de Inspección', isSubpage: true, backTo: '/inspecciones' };
-    if (p.startsWith('/criterios')) return { title: 'Criterios & Frecuencias', isSubpage: false, backTo: '/' };
-    if (p.startsWith('/plan-accion')) return { title: 'Planes de Acción', isSubpage: false, backTo: '/' };
-    if (p.startsWith('/trabajadores')) return { title: 'Personal & Trabajadores', isSubpage: false, backTo: '/' };
-    if (p.startsWith('/dotacion')) return { title: 'Dotación & EPP', isSubpage: false, backTo: '/' };
-    if (p.startsWith('/transporte')) return { title: 'Transporte y Carga', isSubpage: false, backTo: '/' };
-    if (p.startsWith('/loto')) return { title: 'Bloqueo LOTO', isSubpage: false, backTo: '/' };
-    if (p.startsWith('/permisos')) return { title: 'Permisos de Trabajo', isSubpage: false, backTo: '/' };
-    if (p.startsWith('/carga-fuego')) return { title: 'Carga de Fuego', isSubpage: false, backTo: '/' };
-    if (p.startsWith('/medico')) return { title: 'Salud Ocupacional', isSubpage: false, backTo: '/' };
-    if (p.startsWith('/accidentes')) return { title: 'Accidentes', isSubpage: false, backTo: '/' };
-    if (p.startsWith('/formacion')) return { title: 'Formación SSA', isSubpage: false, backTo: '/' };
-    if (p.startsWith('/comites')) return { title: 'Comités de Seguridad', isSubpage: false, backTo: '/' };
-    if (p.startsWith('/consolidador')) return { title: 'Consolidador', isSubpage: false, backTo: '/' };
-    if (p.startsWith('/reportes')) return { title: 'Reportes Ejecutivos', isSubpage: false, backTo: '/' };
-    if (p.startsWith('/usuarios')) return { title: 'Usuarios', isSubpage: false, backTo: '/' };
-    if (p.startsWith('/ajustes')) return { title: 'Ajustes', isSubpage: false, backTo: '/' };
-    if (p.startsWith('/auditoria')) return { title: 'Auditoría', isSubpage: false, backTo: '/' };
-    return { title: 'SGD Duncan 2.0', isSubpage: false, backTo: '/' };
-  };
-
-  const headerInfo = getHeaderInfo();
-
-  // Obtener todos los ítems accesibles para el usuario actual
+  // Obtener todos los ítems accesibles para el usuario actual (Hooks SIEMPRE antes de cualquier return)
   const allNavItems = useMemo(() => {
     return NAV_GROUPS.flatMap(g => g.items).filter(canAccessItem);
   }, [userRole, isSuperAdminOrOwner]);
@@ -298,8 +261,57 @@ export default function Layout() {
     return tabs.slice(0, 4);
   }, [menuPrefs.bottomTabRoutes, itemByRoute, allNavItems, planStats?.pendientes]);
 
+  // Redirigir al Login si no hay usuario autenticado
+  if (!currentUser) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  const displayName = String(currentUser.nombre || currentUser.displayName || currentUser.email || 'Usuario');
+  const initials2 = displayName.slice(0, 2).toUpperCase() || 'US';
+  const initial1 = displayName.charAt(0).toUpperCase() || 'U';
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const isActive = (to: string, exact?: boolean) =>
+    exact ? location.pathname === to : location.pathname.startsWith(to) && to !== '/';
+
+  const canManageUsers = isSuperAdminOrOwner || userRole === 'Admin';
+
+  // Título simplificado para la barra superior
+  const getHeaderInfo = () => {
+    const p = location.pathname;
+    if (p === '/') return { title: 'Inicio', isSubpage: false, backTo: null };
+    if (p === '/inspecciones') return { title: 'Inspecciones', isSubpage: false, backTo: '/' };
+    if (p === '/inspecciones/nueva') return { title: 'Nueva Inspección', isSubpage: true, backTo: '/inspecciones' };
+    if (p.includes('/formulario')) return { title: 'Completar Formulario', isSubpage: true, backTo: '/inspecciones' };
+    if (p.startsWith('/inspecciones/')) return { title: 'Informe de Inspección', isSubpage: true, backTo: '/inspecciones' };
+    if (p.startsWith('/criterios')) return { title: 'Criterios & Frecuencias', isSubpage: false, backTo: '/' };
+    if (p.startsWith('/plan-accion')) return { title: 'Planes de Acción', isSubpage: false, backTo: '/' };
+    if (p.startsWith('/trabajadores')) return { title: 'Personal & Trabajadores', isSubpage: false, backTo: '/' };
+    if (p.startsWith('/dotacion')) return { title: 'Dotación & EPP', isSubpage: false, backTo: '/' };
+    if (p.startsWith('/transporte')) return { title: 'Transporte y Carga', isSubpage: false, backTo: '/' };
+    if (p.startsWith('/loto')) return { title: 'Bloqueo LOTO', isSubpage: false, backTo: '/' };
+    if (p.startsWith('/permisos')) return { title: 'Permisos de Trabajo', isSubpage: false, backTo: '/' };
+    if (p.startsWith('/carga-fuego')) return { title: 'Carga de Fuego', isSubpage: false, backTo: '/' };
+    if (p.startsWith('/medico')) return { title: 'Salud Ocupacional', isSubpage: false, backTo: '/' };
+    if (p.startsWith('/accidentes')) return { title: 'Accidentes', isSubpage: false, backTo: '/' };
+    if (p.startsWith('/formacion')) return { title: 'Formación SSA', isSubpage: false, backTo: '/' };
+    if (p.startsWith('/comites')) return { title: 'Comités de Seguridad', isSubpage: false, backTo: '/' };
+    if (p.startsWith('/consolidador')) return { title: 'Consolidador', isSubpage: false, backTo: '/' };
+    if (p.startsWith('/reportes')) return { title: 'Reportes Ejecutivos', isSubpage: false, backTo: '/' };
+    if (p.startsWith('/usuarios')) return { title: 'Usuarios', isSubpage: false, backTo: '/' };
+    if (p.startsWith('/ajustes')) return { title: 'Ajustes', isSubpage: false, backTo: '/' };
+    if (p.startsWith('/auditoria')) return { title: 'Auditoría', isSubpage: false, backTo: '/' };
+    return { title: 'SGD Duncan 2.0', isSubpage: false, backTo: '/' };
+  };
+
+  const headerInfo = getHeaderInfo();
+
   return (
-    <div className="flex h-screen bg-slate-100 overflow-hidden font-sans select-none sm:select-auto">
+    <div className="flex h-screen supports-[height:100dvh]:h-dvh bg-slate-100 overflow-hidden font-sans">
       {/* Overlay móvil para sidebar o sheet */}
       {(sidebarOpen || moreMenuOpen) && (
         <div
@@ -360,12 +372,12 @@ export default function Layout() {
               <div className={`w-8 h-8 rounded-lg font-black text-xs flex items-center justify-center flex-shrink-0 shadow ${
                 isSuperAdminOrOwner ? 'bg-amber-400 text-slate-950 font-black' : 'bg-blue-600 text-white'
               }`}>
-                {currentUser.nombre?.slice(0, 2).toUpperCase() || 'US'}
+                {initials2}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1">
                   <p className="text-xs font-bold text-white truncate">
-                    {currentUser.nombre}
+                    {displayName}
                   </p>
                   {isSuperAdminOrOwner && <Crown className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />}
                 </div>
@@ -375,6 +387,7 @@ export default function Layout() {
               </div>
             </div>
             <button
+              type="button"
               onClick={handleLogout}
               title="Cerrar sesión"
               className="p-2.5 bg-slate-800/90 hover:bg-rose-950/70 hover:text-rose-400 text-slate-400 border border-slate-700/80 hover:border-rose-800 rounded-xl transition-all flex-shrink-0 active:scale-95"
@@ -553,7 +566,7 @@ export default function Layout() {
       {/* HOJA MODAL "MÁS HERRAMIENTAS" (ESTILO TELEGRAM / WHATSAPP)   */}
       {/* ============================================================ */}
       {moreMenuOpen && (
-        <div className="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-2xl max-h-[85vh] flex flex-col animate-in slide-in-from-bottom duration-250 lg:hidden border-t border-slate-200">
+        <div className="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-2xl max-h-[85vh] supports-[max-height:85dvh]:max-h-[85dvh] flex flex-col animate-in slide-in-from-bottom duration-250 lg:hidden border-t border-slate-200 overscroll-contain">
           {/* Manija de arrastre / Handle */}
           <div className="py-2.5 flex justify-center cursor-pointer" onClick={() => setMoreMenuOpen(false)}>
             <div className="w-12 h-1.5 bg-slate-300 rounded-full" />
@@ -594,7 +607,7 @@ export default function Layout() {
                 value={mobileSearch}
                 onChange={(e) => setMobileSearch(e.target.value)}
                 placeholder="Buscar módulo (ej: extintores, inspección, personal...)"
-                className="w-full pl-10 pr-9 py-2 bg-white border border-slate-200 rounded-2xl text-xs text-slate-800 placeholder-slate-400 shadow-2xs focus:outline-none focus:border-yellow-400 transition-all"
+                className="w-full pl-10 pr-9 py-2 bg-white border border-slate-200 rounded-2xl text-base sm:text-xs text-slate-800 placeholder-slate-400 shadow-2xs focus:outline-none focus:border-yellow-400 transition-all"
               />
               {mobileSearch && (
                 <button
@@ -700,17 +713,18 @@ export default function Layout() {
           </div>
 
           {/* Barra inferior de la hoja modal */}
-          <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+          <div className="p-4 bottom-nav-safe border-t border-slate-100 bg-slate-50 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-yellow-400 text-slate-950 font-bold text-xs flex items-center justify-center">
-                {currentUser.nombre?.charAt(0) || 'U'}
+                {initial1}
               </div>
               <div className="text-xs">
-                <p className="font-bold text-slate-900 truncate max-w-[160px]">{currentUser.nombre}</p>
+                <p className="font-bold text-slate-900 truncate max-w-[160px]">{displayName}</p>
                 <p className="text-[10px] text-slate-500">{currentUser.rol}</p>
               </div>
             </div>
             <button
+              type="button"
               onClick={() => {
                 setMoreMenuOpen(false);
                 handleLogout();
@@ -727,9 +741,9 @@ export default function Layout() {
       {/* ============================================================ */}
       {/* CONTENEDOR PRINCIPAL Y PANTALLA                              */}
       {/* ============================================================ */}
-      <div className="flex-1 flex flex-col overflow-hidden relative">
+      <div className="flex-1 flex flex-col overflow-hidden relative min-w-0">
         {/* Cabecera Superior (Estilo App Moderna / WhatsApp) */}
-        <header className="bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 py-3 flex items-center justify-between z-20 sticky top-0 shadow-2xs">
+        <header className="bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] flex items-center justify-between z-20 sticky top-0 shadow-2xs">
           <div className="flex items-center gap-2.5">
             {headerInfo.isSubpage ? (
               <button
@@ -764,7 +778,7 @@ export default function Layout() {
                 />
               </h1>
               <p className="text-[11px] text-slate-500 hidden sm:block">
-                SG-SSA Grupo Duncan · {currentUser.nombre}
+                SG-SSA Grupo Duncan · {displayName}
               </p>
             </div>
           </div>
@@ -795,11 +809,12 @@ export default function Layout() {
             <div className="flex items-center gap-1.5 pl-1">
               <div 
                 className="w-8 h-8 rounded-full bg-yellow-400 text-slate-950 font-black text-xs flex items-center justify-center shadow-xs ring-2 ring-yellow-400/30"
-                title={`${currentUser.nombre} (${currentUser.rol})`}
+                title={`${displayName} (${currentUser.rol})`}
               >
-                {currentUser?.nombre?.charAt(0) || 'U'}
+                {initial1}
               </div>
               <button
+                type="button"
                 onClick={handleLogout}
                 title="Cerrar sesión"
                 className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors hidden sm:flex active:scale-95"
@@ -811,8 +826,19 @@ export default function Layout() {
         </header>
 
         {/* Contenido de la Página con relleno inferior para la barra móvil */}
-        <main className="flex-1 overflow-y-auto p-3 sm:p-5 md:p-6 lg:p-8 pb-28 lg:pb-8">
-          <Outlet />
+        <main className="flex-1 overflow-y-auto overscroll-y-contain p-3 sm:p-5 md:p-6 lg:p-8 pb-28 lg:pb-8">
+          <ErrorBoundary fallbackTitle="Error al cargar esta sección">
+            <Suspense
+              fallback={
+                <div className="min-h-[260px] flex flex-col items-center justify-center p-6 text-slate-500">
+                  <div className="w-8 h-8 border-3 border-amber-500 border-t-transparent rounded-full animate-spin mb-2.5" />
+                  <p className="text-xs font-bold uppercase tracking-wide">Cargando módulo...</p>
+                </div>
+              }
+            >
+              <Outlet />
+            </Suspense>
+          </ErrorBoundary>
         </main>
 
         {/* ============================================================ */}
@@ -878,7 +904,7 @@ export default function Layout() {
       <MenuCustomizerModal
         isOpen={customizerOpen}
         onClose={() => setCustomizerOpen(false)}
-        userId={currentUser?.id}
+        userId={userPrefKey}
         allItems={allNavItems.map(it => ({
           to: it.to,
           label: it.label,

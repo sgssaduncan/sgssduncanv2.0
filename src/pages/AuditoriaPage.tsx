@@ -115,9 +115,9 @@ export default function AuditoriaPage() {
   const totalDescargas = logs.filter(l => l.accion === 'DESCARGAR_PDF' || l.accion === 'EXPORTAR_EXCEL' || l.accion === 'EXPORTAR_CSV').length;
   const usuariosUnicos = Array.from(new Set(logs.map(l => l.usuarioId))).length;
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     try {
-      auditService.exportToExcel(filtrados);
+      await auditService.exportToExcel(filtrados);
       toast.success('Bitácora de auditoría exportada a Excel');
     } catch (e) {
       console.error(e);
@@ -125,9 +125,9 @@ export default function AuditoriaPage() {
     }
   };
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     try {
-      auditService.exportToCSV(filtrados);
+      await auditService.exportToCSV(filtrados);
       toast.success('Bitácora exportada a CSV');
     } catch (e) {
       console.error(e);
@@ -135,9 +135,9 @@ export default function AuditoriaPage() {
     }
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     try {
-      const doc = auditService.generateAuditReportPDF(filtrados, `${moduloFiltro !== 'TODOS' ? moduloFiltro : 'Todos'} • ${severidadFiltro !== 'TODAS' ? severidadFiltro : 'Todas'}`);
+      const doc = await auditService.generateAuditReportPDF(filtrados, `${moduloFiltro !== 'TODOS' ? moduloFiltro : 'Todos'} • ${severidadFiltro !== 'TODAS' ? severidadFiltro : 'Todas'}`);
       doc.save(`SGD_Duncan_Certificado_Auditoria_${new Date().toISOString().slice(0, 10)}.pdf`);
       toast.success('Certificado Oficial de Auditoría en PDF generado');
     } catch (e) {

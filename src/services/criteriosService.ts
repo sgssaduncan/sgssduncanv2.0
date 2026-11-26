@@ -22,7 +22,14 @@ import {
 } from '../data/criteriosOficialesData';
 import { PONDERACIONES_TOTALIZACION_OFICIALES, PonderacionRegion } from '../data/ponderacionesData';
 import { auditService } from './auditService';
-import * as XLSX from 'xlsx';
+
+function safeSetLocalItem(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch (e) {
+    console.warn(`[CriteriosService] No se pudo persistir "${key}" en localStorage:`, e);
+  }
+}
 
 const STORAGE_KEYS = {
   CRITERIOS_DIST: 'sgd_criterios_distribuidoras_v2',
@@ -59,7 +66,7 @@ export const criteriosService = {
 
   saveCriteriosDistribuidoras(data: CriterioEvaluacion[], userEmail = 'admin@duncan.com.ve') {
     if (typeof window === 'undefined') return;
-    localStorage.setItem(STORAGE_KEYS.CRITERIOS_DIST, JSON.stringify(data));
+    safeSetLocalItem(STORAGE_KEYS.CRITERIOS_DIST, JSON.stringify(data));
     auditService.log({
       modulo: 'CONFIGURACION_SISTEMA',
       accion: 'ACTUALIZAR',
@@ -117,7 +124,7 @@ export const criteriosService = {
 
   saveCriteriosServicentros(data: CriterioEvaluacion[], userEmail = 'admin@duncan.com.ve') {
     if (typeof window === 'undefined') return;
-    localStorage.setItem(STORAGE_KEYS.CRITERIOS_SERV, JSON.stringify(data));
+    safeSetLocalItem(STORAGE_KEYS.CRITERIOS_SERV, JSON.stringify(data));
     auditService.log({
       modulo: 'CONFIGURACION_SISTEMA',
       accion: 'ACTUALIZAR',
@@ -175,7 +182,7 @@ export const criteriosService = {
 
   saveFrecuencias(data: FrecuenciaInspeccion[], userEmail = 'admin@duncan.com.ve') {
     if (typeof window === 'undefined') return;
-    localStorage.setItem(STORAGE_KEYS.FRECUENCIAS, JSON.stringify(data));
+    safeSetLocalItem(STORAGE_KEYS.FRECUENCIAS, JSON.stringify(data));
     auditService.log({
       modulo: 'CONFIGURACION_SISTEMA',
       accion: 'ACTUALIZAR',
@@ -233,7 +240,7 @@ export const criteriosService = {
 
   savePonderaciones(data: PonderacionRegion[], userEmail = 'admin@duncan.com.ve') {
     if (typeof window === 'undefined') return;
-    localStorage.setItem(STORAGE_KEYS.PONDERACIONES, JSON.stringify(data));
+    safeSetLocalItem(STORAGE_KEYS.PONDERACIONES, JSON.stringify(data));
     auditService.log({
       modulo: 'CONFIGURACION_SISTEMA',
       accion: 'ACTUALIZAR',
@@ -284,7 +291,7 @@ export const criteriosService = {
 
   saveFlota(data: VehiculoFlotaOficial[], userEmail = 'admin@duncan.com.ve') {
     if (typeof window === 'undefined') return;
-    localStorage.setItem(STORAGE_KEYS.FLOTA, JSON.stringify(data));
+    safeSetLocalItem(STORAGE_KEYS.FLOTA, JSON.stringify(data));
     auditService.log({
       modulo: 'TRANSPORTE_FLOTA',
       accion: 'ACTUALIZAR',
@@ -342,7 +349,7 @@ export const criteriosService = {
 
   saveListas(data: ListasMaestras, userEmail = 'admin@duncan.com.ve') {
     if (typeof window === 'undefined') return;
-    localStorage.setItem(STORAGE_KEYS.LISTAS, JSON.stringify(data));
+    safeSetLocalItem(STORAGE_KEYS.LISTAS, JSON.stringify(data));
     auditService.log({
       modulo: 'CONFIGURACION_SISTEMA',
       accion: 'ACTUALIZAR',
@@ -396,7 +403,8 @@ export const criteriosService = {
   // -------------------------------------------------------------
   // EXPORTACIÓN A EXCEL COMPLETO
   // -------------------------------------------------------------
-  exportAllCatalogsToExcel() {
+  async exportAllCatalogsToExcel() {
+    const XLSX = await import('xlsx');
     const wb = XLSX.utils.book_new();
 
     // 1. Distribuidoras

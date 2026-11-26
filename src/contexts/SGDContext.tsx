@@ -68,13 +68,13 @@ export function SGDProvider({ children }: { children: React.ReactNode }) {
   const [planAccion, setPlanAccion] = useState<PlanAccion[]>([]);
   const [stats, setStats] = useState<DashboardStats>({ totalInspecciones: 0, conformes: 0, noConformes: 0, tasaCumplimiento: 0 });
   const [planStats, setPlanStats] = useState<PlanStats>({ total: 0, pendientes: 0, enEjecucion: 0, cerradas: 0, vencidas: 0 });
-  const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>(gsApi.getCatalogos().establecimientos);
+  const [establecimientos, setEstablecimientos] = useState<Establecimiento[]>(() => gsApi.getCatalogos().establecimientos);
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>(() => gsApi.getUsuarios());
   const [currentUser, setCurrentUser] = useState<Usuario | null>(() => gsApi.getCurrentUser());
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [sheetsUrl, setSheetsUrlState] = useState(getSheetsUrl());
-  const [pendingSyncCount, setPendingSyncCount] = useState(getOfflineQueueCount());
+  const [isOnline, setIsOnline] = useState(() => (typeof navigator !== 'undefined' ? navigator.onLine : true));
+  const [sheetsUrl, setSheetsUrlState] = useState(() => getSheetsUrl());
+  const [pendingSyncCount, setPendingSyncCount] = useState(() => getOfflineQueueCount());
   const [isSyncing, setIsSyncing] = useState(false);
   const syncInProgress = useRef(false);
 
@@ -92,43 +92,62 @@ export function SGDProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshData = useCallback(async () => {
+    if (!gsApi.getCurrentUser()) return;
     try {
-      const init = await gsApi.getInitData();
-      if (init) {
+      const [initRes, inspsRes, plansRes, empsRes, usrsRes] = await Promise.allSettled([
+        gsApi.getInitData(),
+        gsApi.listInspecciones(),
+        gsApi.listPlanAccion(),
+        gsApi.listEmpleados(),
+        gsApi.listUsuarios()
+      ]);
+
+      if (initRes.status === 'fulfilled' && initRes.value) {
+        const init = initRes.value;
         if (init.stats) setStats(init.stats);
         if (init.planStats) setPlanStats(init.planStats);
-        if (init.catalogos?.establecimientos) setEstablecimientos(init.catalogos.establecimientos);
+        if (Array.isArray(init.catalogos?.establecimientos) && init.catalogos.establecimientos.length > 0) {
+          setEstablecimientos(init.catalogos.establecimientos);
+        }
       }
-      const insps = await gsApi.listInspecciones();
-      setInspecciones(insps);
-      const plans = await gsApi.listPlanAccion();
-      setPlanAccion(plans);
 
-      // Calcular estadísticas canónicas de planes de acción
-      let pPendientes = 0;
-      let pEjecucion = 0;
-      let pCerradas = 0;
-      let pVencidas = 0;
-      plans.forEach(p => {
-        const s = (p.estado || '').toLowerCase().trim();
-        const isOverdue = s !== 'cerrado' && s !== 'cerrada' && p.fechaLimite && new Date(p.fechaLimite) < new Date();
-        if (s === 'pendiente') pPendientes++;
-        else if (s === 'en ejecución' || s === 'en_ejecucion' || s === 'en ejecucion') pEjecucion++;
-        else if (s === 'cerrado' || s === 'cerrada') pCerradas++;
+      if (inspsRes.status === 'fulfilled' && Array.isArray(inspsRes.value)) {
+        setInspecciones(inspsRes.value);
+      }
 
-        if (s === 'vencido' || s === 'vencida' || isOverdue) pVencidas++;
-      });
-      setPlanStats({
-        total: plans.length,
-        pendientes: pPendientes,
-        enEjecucion: pEjecucion,
-        cerradas: pCerradas,
-        vencidas: pVencidas
-      });
-      const emps = await gsApi.listEmpleados();
-      setEmpleados(emps);
-      const usrs = await gsApi.listUsuarios();
-      setUsuarios(usrs);
+      if (plansRes.status === 'fulfilled' && Array.isArray(plansRes.value)) {
+        const plans = plansRes.value;
+        setPlanAccion(plans);
+
+        // Calcular estadísticas canónicas de planes de acción
+        let pPendientes = 0;
+        let pEjecucion = 0;
+        let pCerradas = 0;
+        let pVencidas = 0;
+        plans.forEach(p => {
+          const s = String(p?.estado || '').toLowerCase().trim();
+          const isOverdue = s !== 'cerrado' && s !== 'cerrada' && p.fechaLimite && new Date(p.fechaLimite) < new Date();
+          if (s === 'pendiente') pPendientes++;
+          else if (s === 'en ejecución' || s === 'en_ejecucion' || s === 'en ejecucion') pEjecucion++;
+          else if (s === 'cerrado' || s === 'cerrada') pCerradas++;
+
+          if (s === 'vencido' || s === 'vencida' || isOverdue) pVencidas++;
+        });
+        setPlanStats({
+          total: plans.length,
+          pendientes: pPendientes,
+          enEjecucion: pEjecucion,
+          cerradas: pCerradas,
+          vencidas: pVencidas
+        });
+      }
+
+      if (empsRes.status === 'fulfilled' && Array.isArray(empsRes.value)) {
+        setEmpleados(empsRes.value);
+      }
+      if (usrsRes.status === 'fulfilled' && Array.isArray(usrsRes.value)) {
+        setUsuarios(usrsRes.value);
+      }
       const active = gsApi.getCurrentUser();
       if (active) setCurrentUser(active);
       setPendingSyncCount(getOfflineQueueCount());
@@ -347,10 +366,11 @@ export function SGDProvider({ children }: { children: React.ReactNode }) {
         descripcion: `Inicio de sesión exitoso de ${res.user.nombre} (${res.user.rol})`,
         detalles: { email, rol: res.user.rol }
       }).catch(console.warn);
+      // Sincronizar datos en segundo plano sin bloquear el acceso inmediato en móvil
+      void refreshData();
     } else {
       auditService.logSecurity(`Fallo en autenticación para ${email}`, { email }).catch(console.warn);
     }
-    await refreshData();
     return res;
   };
 
@@ -374,8 +394,8 @@ export function SGDProvider({ children }: { children: React.ReactNode }) {
         descripcion: `Nuevo usuario registrado e iniciado sesión: ${res.user.nombre} (${res.user.email}) - Rol: ${res.user.rol}`,
         detalles: { email: res.user.email, rol: res.user.rol }
       }).catch(console.warn);
+      void refreshData();
     }
-    await refreshData();
     return res;
   };
 

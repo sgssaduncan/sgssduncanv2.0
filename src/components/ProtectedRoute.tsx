@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useSGD } from '../contexts/SGDContext';
 import type { Role } from '../types';
@@ -18,28 +18,34 @@ export default function ProtectedRoute({
   const { currentUser } = useSGD();
   const location = useLocation();
 
+  const userRole = String(currentUser?.rol || currentUser?.role || '') as Role;
+  const isSuperAdminOrOwner =
+    userRole === 'Super Admin' ||
+    userRole === 'Propietario / Super Admin' ||
+    userRole.includes('Propietario') ||
+    userRole.includes('Super Admin');
+
+  const hasPermission = Boolean(
+    currentUser &&
+    (!allowedRoles || allowedRoles.length === 0 || isSuperAdminOrOwner || allowedRoles.includes(userRole))
+  );
+
+  useEffect(() => {
+    if (currentUser && !hasPermission) {
+      toast.error('Acceso denegado: No posee los permisos requeridos para esta sección.', {
+        id: 'rbac-denied'
+      });
+    }
+  }, [currentUser, hasPermission]);
+
   // 1. Verificación de Autenticación
   if (!currentUser) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   // 2. Verificación de Control de Acceso Basado en Roles (RBAC)
-  if (allowedRoles && allowedRoles.length > 0) {
-    const userRole = (currentUser.rol || currentUser.role || '') as Role;
-    const isSuperAdminOrOwner = 
-      userRole === 'Super Admin' || 
-      userRole === 'Propietario / Super Admin' ||
-      userRole.includes('Propietario') ||
-      userRole.includes('Super Admin');
-
-    const hasPermission = isSuperAdminOrOwner || allowedRoles.includes(userRole);
-
-    if (!hasPermission) {
-      toast.error('Acceso denegado: No posee los permisos requeridos para esta sección.', {
-        id: 'rbac-denied'
-      });
-      return <Navigate to={redirectTo} replace />;
-    }
+  if (!hasPermission) {
+    return <Navigate to={redirectTo} replace />;
   }
 
   return <>{children}</>;

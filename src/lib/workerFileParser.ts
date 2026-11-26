@@ -1,12 +1,4 @@
-import * as XLSX from 'xlsx';
-import mammoth from 'mammoth';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import type { Empleado } from '../types';
-
-// En entornos cliente web, configurar worker si es necesario
-if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version || '4.0.379'}/pdf.worker.min.mjs`;
-}
 
 export interface ParsedWorkerResult {
   success: boolean;
@@ -187,7 +179,7 @@ export async function parseWorkerFile(file: File): Promise<ParsedWorkerResult> {
   const arrayBuffer = await file.arrayBuffer();
 
   if (ext === 'xlsx' || ext === 'xls' || ext === 'csv') {
-    return parseExcelFile(arrayBuffer, fileName);
+    return await parseExcelFile(arrayBuffer, fileName);
   } else if (ext === 'docx') {
     return parseWordFile(arrayBuffer, fileName);
   } else if (ext === 'pdf') {
@@ -208,8 +200,9 @@ export async function parseWorkerFile(file: File): Promise<ParsedWorkerResult> {
 // -------------------------------------------------------------
 // 1. PARSER EXCEL / CSV
 // -------------------------------------------------------------
-function parseExcelFile(buffer: ArrayBuffer, fileName: string): ParsedWorkerResult {
+async function parseExcelFile(buffer: ArrayBuffer, fileName: string): Promise<ParsedWorkerResult> {
   try {
+    const XLSX = await import('xlsx');
     const wb = XLSX.read(buffer, { type: 'array' });
     const sheetName = wb.SheetNames[0];
     const sheet = wb.Sheets[sheetName];
@@ -377,6 +370,8 @@ function parseExcelFile(buffer: ArrayBuffer, fileName: string): ParsedWorkerResu
 // -------------------------------------------------------------
 async function parseWordFile(buffer: ArrayBuffer, fileName: string): Promise<ParsedWorkerResult> {
   try {
+    const mammothMod = await import('mammoth');
+    const mammoth = (mammothMod as any).default || mammothMod;
     const htmlResult = await mammoth.convertToHtml({ arrayBuffer: buffer });
     const html = htmlResult.value;
 
@@ -482,6 +477,13 @@ async function parseWordFile(buffer: ArrayBuffer, fileName: string): Promise<Par
 // -------------------------------------------------------------
 async function parsePdfFile(buffer: ArrayBuffer, fileName: string): Promise<ParsedWorkerResult> {
   try {
+    const [pdfjsLib, workerUrlMod] = await Promise.all([
+      import('pdfjs-dist/legacy/build/pdf.mjs'),
+      import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url')
+    ]);
+    if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrlMod.default;
+    }
     const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
     const pdfDoc = await loadingTask.promise;
     const numPages = pdfDoc.numPages;

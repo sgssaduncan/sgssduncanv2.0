@@ -15,10 +15,10 @@ import {
   INITIAL_ESTABLECIMIENTOS,
   INITIAL_TIPOS_INSPECCION,
   INITIAL_USUARIOS,
-  INITIAL_EMPLEADOS,
   INITIAL_EPP_INVENTARIO,
   INITIAL_LOTO_EQUIPOS,
   INITIAL_EVALUACIONES_MEDICAS,
+  loadInitialEmpleados,
 } from '../data/seedData';
 import type { Usuario, Role, Rol, Empleado } from '../types';
 import {
@@ -102,40 +102,120 @@ const SK = {
   LOTO_BLOQUEOS:     'sgd_loto_bloqueos',
 };
 
-export function getSessionToken(): string | null {
+// ============================================================
+// ALMACENAMIENTO SEGURO CON FALLBACK EN MEMORIA (RESILIENTE EN MÓVIL)
+// ============================================================
+const memoryStorageFallback = new Map<string, string>();
+
+function getStoragePrefix(storage: Storage | undefined): string {
   try {
-    return sessionStorage.getItem(SK.SESSION_TOKEN) || localStorage.getItem(SK.SESSION_TOKEN);
-  } catch {
-    return null;
+    if (typeof sessionStorage !== 'undefined' && storage === sessionStorage) return 'ss:';
+  } catch {}
+  return 'ls:';
+}
+
+function freeRedundantLocalStorageSpace(): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    const keys = Object.keys(localStorage);
+    for (const k of keys) {
+      if (
+        k.startsWith('sgd_draft_resp_') ||
+        k.startsWith('sgd_inspection_score_') ||
+        k === 'sgd_empleados'
+      ) {
+        localStorage.removeItem(k);
+      }
+    }
+    const rawAudit = localStorage.getItem('sgd_audit_trail_v2');
+    if (rawAudit && rawAudit.length > 60000) {
+      try {
+        const parsed = JSON.parse(rawAudit);
+        if (Array.isArray(parsed)) {
+          localStorage.setItem('sgd_audit_trail_v2', JSON.stringify(parsed.slice(0, 40)));
+        }
+      } catch {
+        localStorage.removeItem('sgd_audit_trail_v2');
+      }
+    }
+  } catch {}
+}
+
+function safeGetStorage(storage: Storage | undefined, key: string): string | null {
+  const memKey = getStoragePrefix(storage) + key;
+  try {
+    if (storage) {
+      const val = storage.getItem(key);
+      if (val !== null) return val;
+    }
+  } catch {}
+  return memoryStorageFallback.get(memKey) ?? null;
+}
+
+function safeSetStorage(storage: Storage | undefined, key: string, value: string): boolean {
+  const memKey = getStoragePrefix(storage) + key;
+  memoryStorageFallback.set(memKey, value);
+  try {
+    if (storage) {
+      storage.setItem(key, value);
+      return true;
+    }
+  } catch (e) {
+    // Si la cuota de localStorage móvil se llenó, purgar respaldos redundantes y reintentar una vez
+    if (typeof localStorage !== 'undefined' && storage === localStorage) {
+      freeRedundantLocalStorageSpace();
+      try {
+        storage.setItem(key, value);
+        return true;
+      } catch {}
+    }
+    console.warn(`[Storage] No se pudo persistir "${key}" (usando respaldo en memoria):`, e);
   }
+  return false;
+}
+
+function safeRemoveStorage(storage: Storage | undefined, key: string) {
+  memoryStorageFallback.delete(getStoragePrefix(storage) + key);
+  try {
+    if (storage) storage.removeItem(key);
+  } catch {}
+}
+
+export function getSessionToken(): string | null {
+  return (
+    safeGetStorage(typeof sessionStorage !== 'undefined' ? sessionStorage : undefined, SK.SESSION_TOKEN) ||
+    safeGetStorage(typeof localStorage !== 'undefined' ? localStorage : undefined, SK.SESSION_TOKEN)
+  );
 }
 
 export function setSessionToken(token: string | null) {
-  try {
-    if (token) {
-      sessionStorage.setItem(SK.SESSION_TOKEN, token);
-      localStorage.setItem(SK.SESSION_TOKEN, token);
-    } else {
-      sessionStorage.removeItem(SK.SESSION_TOKEN);
-      localStorage.removeItem(SK.SESSION_TOKEN);
-    }
-  } catch {}
+  const ss = typeof sessionStorage !== 'undefined' ? sessionStorage : undefined;
+  const ls = typeof localStorage !== 'undefined' ? localStorage : undefined;
+  if (token) {
+    safeSetStorage(ss, SK.SESSION_TOKEN, token);
+    safeSetStorage(ls, SK.SESSION_TOKEN, token);
+  } else {
+    safeRemoveStorage(ss, SK.SESSION_TOKEN);
+    safeRemoveStorage(ls, SK.SESSION_TOKEN);
+  }
 }
 
 // ============================================================
 // CONFIGURACIÓN DE URL
 // ============================================================
 export function getSheetsUrl(): string {
-  return localStorage.getItem(SK.SHEETS_URL)
+  const ls = typeof localStorage !== 'undefined' ? localStorage : undefined;
+  return safeGetStorage(ls, SK.SHEETS_URL)
     || ((import.meta as any).env?.VITE_GOOGLE_SHEETS_URL as string)
     || 'https://script.google.com/macros/s/AKfycbxRGmBAY7Msgz3eRGz2nGGaZs_wp0inmNPanRXANtVDGr2tjRJFpsQVud6NfFXmCI4AIQ/exec';
 }
 
 export function setSheetsUrl(url: string) {
+  const ls = typeof localStorage !== 'undefined' ? localStorage : undefined;
   if (url?.trim()) {
-    localStorage.setItem(SK.SHEETS_URL, url.trim());
+    safeSetStorage(ls, SK.SHEETS_URL, url.trim());
   } else {
-    localStorage.removeItem(SK.SHEETS_URL);
+    safeRemoveStorage(ls, SK.SHEETS_URL);
   }
 }
 
@@ -144,67 +224,92 @@ export function isSheetsConfigured(): boolean {
 }
 
 // ============================================================
-// INICIALIZACIÓN LOCAL
+// INICIALIZACIÓN LOCAL (BLINDADA CONTRA QUOTA EXCEEDED EN MÓVIL)
 // ============================================================
 function initLocalStorage() {
-  const currentStoredUrl = localStorage.getItem(SK.SHEETS_URL);
-  if (!currentStoredUrl || currentStoredUrl.includes('AKfycbwwhNM5')) {
-    localStorage.setItem(SK.SHEETS_URL, 'https://script.google.com/macros/s/AKfycbxRGmBAY7Msgz3eRGz2nGGaZs_wp0inmNPanRXANtVDGr2tjRJFpsQVud6NfFXmCI4AIQ/exec');
-  }
-  if (!localStorage.getItem(SK.INSPECCIONES))     localStorage.setItem(SK.INSPECCIONES, '[]');
-  if (!localStorage.getItem(SK.PLAN_ACCION))      localStorage.setItem(SK.PLAN_ACCION, '[]');
-  if (!localStorage.getItem(SK.OFFLINE_QUEUE))    localStorage.setItem(SK.OFFLINE_QUEUE, '[]');
-  if (!localStorage.getItem(SK.AUDIT_LOG))        localStorage.setItem(SK.AUDIT_LOG, '[]');
+  if (typeof localStorage === 'undefined') return;
   try {
-    const rawEmp = localStorage.getItem(SK.EMPLEADOS);
-    const parsedEmp = rawEmp ? JSON.parse(rawEmp) : [];
-    if (!Array.isArray(parsedEmp) || parsedEmp.length < 500) {
-      localStorage.setItem(SK.EMPLEADOS, JSON.stringify(INITIAL_EMPLEADOS.map(e => ({ ...e, id: e._id }))));
+    const currentStoredUrl = safeGetStorage(localStorage, SK.SHEETS_URL);
+    if (!currentStoredUrl || currentStoredUrl.includes('AKfycbwwhNM5')) {
+      safeSetStorage(localStorage, SK.SHEETS_URL, 'https://script.google.com/macros/s/AKfycbxRGmBAY7Msgz3eRGz2nGGaZs_wp0inmNPanRXANtVDGr2tjRJFpsQVud6NfFXmCI4AIQ/exec');
+    }
+    if (!safeGetStorage(localStorage, SK.INSPECCIONES))     safeSetStorage(localStorage, SK.INSPECCIONES, '[]');
+    if (!safeGetStorage(localStorage, SK.PLAN_ACCION))      safeSetStorage(localStorage, SK.PLAN_ACCION, '[]');
+    if (!safeGetStorage(localStorage, SK.OFFLINE_QUEUE))    safeSetStorage(localStorage, SK.OFFLINE_QUEUE, '[]');
+    if (!safeGetStorage(localStorage, SK.AUDIT_LOG))        safeSetStorage(localStorage, SK.AUDIT_LOG, '[]');
+    if (!safeGetStorage(localStorage, SK.SOLICITUDES_EPP))  safeSetStorage(localStorage, SK.SOLICITUDES_EPP, '[]');
+    if (!safeGetStorage(localStorage, SK.LOTO_BLOQUEOS))    safeSetStorage(localStorage, SK.LOTO_BLOQUEOS, '[]');
+    if (!safeGetStorage(localStorage, SK.ESTABLECIMIENTOS)) safeSetStorage(localStorage, SK.ESTABLECIMIENTOS, JSON.stringify(INITIAL_ESTABLECIMIENTOS));
+
+    if (!safeGetStorage(localStorage, SK.EVALUACIONES_MED) || safeGetStorage(localStorage, SK.EVALUACIONES_MED) === '[]') {
+      safeSetStorage(localStorage, SK.EVALUACIONES_MED, JSON.stringify(INITIAL_EVALUACIONES_MEDICAS));
+    }
+    if (!safeGetStorage(localStorage, SK.INVENTARIO_EPP) || safeGetStorage(localStorage, SK.INVENTARIO_EPP) === '[]') {
+      safeSetStorage(localStorage, SK.INVENTARIO_EPP, JSON.stringify(INITIAL_EPP_INVENTARIO));
+    }
+    if (!safeGetStorage(localStorage, SK.LOTO_EQUIPOS) || safeGetStorage(localStorage, SK.LOTO_EQUIPOS) === '[]') {
+      safeSetStorage(localStorage, SK.LOTO_EQUIPOS, JSON.stringify(INITIAL_LOTO_EQUIPOS));
+    }
+
+    // No volcar ~900 KB de nómina estática en localStorage durante el arranque inicial;
+    // listEmpleados() / dbService.getEmpleados() la cargan de forma diferida cuando hace falta.
+
+    try {
+      const parsedUsers = JSON.parse(safeGetStorage(localStorage, SK.USUARIOS) || '[]');
+      const existing: Usuario[] = Array.isArray(parsedUsers) ? parsedUsers : [];
+      INITIAL_USUARIOS.forEach(admin => {
+        const idx = existing.findIndex(u => String(u?.email || '').toLowerCase() === admin.email.toLowerCase());
+        if (idx === -1) {
+          existing.push({ ...admin, activo: true });
+        } else {
+          existing[idx] = {
+            ...existing[idx],
+            nombre: admin.nombre,
+            rol: admin.rol || existing[idx].rol || 'Inspector',
+            activo: true
+          };
+          delete (existing[idx] as any).password;
+        }
+      });
+      safeSetStorage(localStorage, SK.USUARIOS, JSON.stringify(existing));
+    } catch {
+      safeSetStorage(localStorage, SK.USUARIOS, JSON.stringify(INITIAL_USUARIOS));
     }
   } catch (e) {
-    localStorage.setItem(SK.EMPLEADOS, JSON.stringify(INITIAL_EMPLEADOS.map(e => ({ ...e, id: e._id }))));
-  }
-  if (!localStorage.getItem(SK.EVALUACIONES_MED) || localStorage.getItem(SK.EVALUACIONES_MED) === '[]') {
-    localStorage.setItem(SK.EVALUACIONES_MED, JSON.stringify(INITIAL_EVALUACIONES_MEDICAS));
-  }
-  if (!localStorage.getItem(SK.INVENTARIO_EPP) || localStorage.getItem(SK.INVENTARIO_EPP) === '[]') {
-    localStorage.setItem(SK.INVENTARIO_EPP, JSON.stringify(INITIAL_EPP_INVENTARIO));
-  }
-  if (!localStorage.getItem(SK.SOLICITUDES_EPP))  localStorage.setItem(SK.SOLICITUDES_EPP, '[]');
-  if (!localStorage.getItem(SK.LOTO_EQUIPOS) || localStorage.getItem(SK.LOTO_EQUIPOS) === '[]') {
-    localStorage.setItem(SK.LOTO_EQUIPOS, JSON.stringify(INITIAL_LOTO_EQUIPOS));
-  }
-  if (!localStorage.getItem(SK.LOTO_BLOQUEOS))    localStorage.setItem(SK.LOTO_BLOQUEOS, '[]');
-  if (!localStorage.getItem(SK.ESTABLECIMIENTOS)) localStorage.setItem(SK.ESTABLECIMIENTOS, JSON.stringify(INITIAL_ESTABLECIMIENTOS));
-  try {
-    let existing: Usuario[] = JSON.parse(localStorage.getItem(SK.USUARIOS) || '[]');
-    INITIAL_USUARIOS.forEach(admin => {
-      const idx = existing.findIndex(u => u.email.toLowerCase() === admin.email.toLowerCase());
-      if (idx === -1) {
-        existing.push({ ...admin, activo: true });
-      } else {
-        existing[idx] = {
-          ...existing[idx],
-          nombre: admin.nombre,
-          rol: admin.rol || existing[idx].rol || 'Inspector',
-          activo: true
-        };
-        delete (existing[idx] as any).password;
-      }
-    });
-    localStorage.setItem(SK.USUARIOS, JSON.stringify(existing));
-  } catch {
-    localStorage.setItem(SK.USUARIOS, JSON.stringify(INITIAL_USUARIOS));
+    console.warn('[Storage] Error inicializando almacenamiento local:', e);
   }
 }
 initLocalStorage();
 
 // ============================================================
-// HELPERS HTTP CON TOKEN DE SESIÓN HMAC-SHA256
+// HELPERS HTTP CON TOKEN DE SESIÓN HMAC-SHA256 Y TIMEOUT MÓVIL
 // ============================================================
-async function fetchGAS(action: string, params: Record<string, any> = {}) {
+const NON_QUEUEABLE_ACTIONS = new Set([
+  'login',
+  'register',
+  'solicitarCodigoRecuperacion',
+  'recuperarPassword'
+]);
+
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, timeoutMs: number): Promise<Response> {
+  if (typeof AbortController === 'undefined') {
+    return await Promise.race([
+      fetch(input, init),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeoutMs))
+    ]);
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchGAS(action: string, params: Record<string, any> = {}, timeoutMs = 12000) {
   const url = getSheetsUrl();
-  if (!url) return null;
+  if (!url || (typeof navigator !== 'undefined' && navigator.onLine === false)) return null;
   try {
     const token = getSessionToken();
     const queryParams: Record<string, any> = { action, ...params };
@@ -212,7 +317,7 @@ async function fetchGAS(action: string, params: Record<string, any> = {}) {
       queryParams.token = token;
     }
     const qs = new URLSearchParams(queryParams).toString();
-    const res = await fetch(`${url}?${qs}`, { method: 'GET' });
+    const res = await fetchWithTimeout(`${url}?${qs}`, { method: 'GET' }, timeoutMs);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
     return json.status === 'success' ? json.data : null;
@@ -222,28 +327,39 @@ async function fetchGAS(action: string, params: Record<string, any> = {}) {
   }
 }
 
-export async function postGAS(action: string, payload: Record<string, any> = {}) {
+export async function postGAS(action: string, payload: Record<string, any> = {}, timeoutMs = 15000) {
   const url = getSheetsUrl();
   const token = getSessionToken();
   const bodyData = { action, ...(token ? { token } : {}), ...payload };
+  const isAuthAction = NON_QUEUEABLE_ACTIONS.has(action);
 
   if (!url) {
-    enqueueOffline(action, bodyData);
+    if (!isAuthAction) enqueueOffline(action, bodyData);
     return { status: 'local_only' };
+  }
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    if (!isAuthAction) {
+      enqueueOffline(action, bodyData);
+      return { status: 'queued_offline' };
+    }
+    return { status: 'network_error', message: 'Sin conexión a internet en este dispositivo.' };
   }
   try {
     // GAS requiere text/plain para evitar preflight CORS
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(bodyData),
-    });
+    }, timeoutMs);
     const json = await res.json();
     return json;
   } catch (err) {
-    console.warn(`[GAS] POST ${action} falló. Encolando offline.`, err);
-    enqueueOffline(action, bodyData);
-    return { status: 'queued_offline' };
+    console.warn(`[GAS] POST ${action} falló.`, err);
+    if (!isAuthAction) {
+      enqueueOffline(action, bodyData);
+      return { status: 'queued_offline' };
+    }
+    return { status: 'network_error', message: 'No se pudo conectar con el servidor (tiempo de espera agotado o red inestable).' };
   }
 }
 
@@ -252,9 +368,10 @@ export async function postGAS(action: string, payload: Record<string, any> = {})
 // ============================================================
 function enqueueOffline(action: string, payload: Record<string, any>) {
   try {
-    const q = JSON.parse(localStorage.getItem(SK.OFFLINE_QUEUE) || '[]');
-    const transactionId = (typeof crypto !== 'undefined' && crypto.randomUUID) 
-      ? crypto.randomUUID() 
+    const ls = typeof localStorage !== 'undefined' ? localStorage : undefined;
+    const q = JSON.parse(safeGetStorage(ls, SK.OFFLINE_QUEUE) || '[]');
+    const transactionId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
       : `tx_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     q.push({
       id: transactionId,
@@ -263,35 +380,44 @@ function enqueueOffline(action: string, payload: Record<string, any>) {
       payload,
       timestamp: new Date().toISOString()
     });
-    localStorage.setItem(SK.OFFLINE_QUEUE, JSON.stringify(q));
+    safeSetStorage(ls, SK.OFFLINE_QUEUE, JSON.stringify(q));
   } catch (e) {
     console.error('Error encolando offline:', e);
   }
 }
 
 export function getOfflineQueueCount(): number {
-  try { return JSON.parse(localStorage.getItem(SK.OFFLINE_QUEUE) || '[]').length; }
-  catch { return 0; }
+  try {
+    const ls = typeof localStorage !== 'undefined' ? localStorage : undefined;
+    return JSON.parse(safeGetStorage(ls, SK.OFFLINE_QUEUE) || '[]').length;
+  } catch { return 0; }
 }
 
 export async function syncOfflineQueue(): Promise<{ synced: number; remaining: number }> {
   const url = getSheetsUrl();
   if (!url || !navigator.onLine) return { synced: 0, remaining: getOfflineQueueCount() };
-  let queue = JSON.parse(localStorage.getItem(SK.OFFLINE_QUEUE) || '[]');
+  const ls = typeof localStorage !== 'undefined' ? localStorage : undefined;
+  let queue: any[] = [];
+  try {
+    queue = JSON.parse(safeGetStorage(ls, SK.OFFLINE_QUEUE) || '[]');
+  } catch {
+    queue = [];
+  }
   if (!queue.length) return { synced: 0, remaining: 0 };
   let synced = 0;
   const remaining: any[] = [];
   for (const item of queue) {
+    if (NON_QUEUEABLE_ACTIONS.has(item?.action)) continue;
     try {
-      const res = await fetch(url, {
+      const res = await fetchWithTimeout(url, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: item.action, ...item.payload }),
-      });
+      }, 12000);
       if (res.ok) synced++; else remaining.push(item);
     } catch { remaining.push(item); }
   }
-  localStorage.setItem(SK.OFFLINE_QUEUE, JSON.stringify(remaining));
+  safeSetStorage(ls, SK.OFFLINE_QUEUE, JSON.stringify(remaining));
   return { synced, remaining: remaining.length };
 }
 
@@ -299,11 +425,17 @@ export async function syncOfflineQueue(): Promise<{ synced: number; remaining: n
 // UTILIDADES LOCALES
 // ============================================================
 function getLocal<T>(key: string): T[] {
-  try { return JSON.parse(localStorage.getItem(key) || '[]'); }
-  catch { return []; }
+  try {
+    const ls = typeof localStorage !== 'undefined' ? localStorage : undefined;
+    const raw = safeGetStorage(ls, key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
 }
 function setLocal(key: string, data: any) {
-  localStorage.setItem(key, JSON.stringify(data));
+  const ls = typeof localStorage !== 'undefined' ? localStorage : undefined;
+  safeSetStorage(ls, key, JSON.stringify(data));
 }
 function genId(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
@@ -770,29 +902,18 @@ export const gsApi = {
     const savedItem = idx !== -1 ? list[idx] : list[list.length - 1];
     syncPlanesAccionForInspeccion(savedItem).catch(e => console.warn('Error auto-syncing action plans:', e));
 
-    // Respaldo redundante inmutable en localStorage para blindaje total contra desincronización
+    // Respaldo compacto en localStorage (evita saturar la cuota móvil de 5 MB)
     try {
-      const keys = [
-        targetId,
-        payload.inspeccionId,
-        payload._id,
-        payload.id,
-        payload.correlativo ? String(payload.correlativo) : null
-      ].filter(Boolean) as string[];
-
-      for (const k of keys) {
-        localStorage.setItem(`sgd_inspection_responses_${k}`, payload.responses);
-        localStorage.setItem(`sgd_draft_resp_${k}`, payload.responses);
+      const ls = typeof localStorage !== 'undefined' ? localStorage : undefined;
+      const primaryKey = targetId || String(payload.correlativo || payload.id || '');
+      if (primaryKey) {
+        safeSetStorage(ls, `sgd_inspection_responses_${primaryKey}`, payload.responses);
         if (payload.fotos) {
-          localStorage.setItem(`sgd_inspection_photos_${k}`, JSON.stringify(payload.fotos));
+          safeSetStorage(ls, `sgd_inspection_photos_${primaryKey}`, JSON.stringify(payload.fotos));
         }
         if (payload.coordenadas) {
-          localStorage.setItem(`sgd_inspection_coords_${k}`, JSON.stringify(payload.coordenadas));
+          safeSetStorage(ls, `sgd_inspection_coords_${primaryKey}`, JSON.stringify(payload.coordenadas));
         }
-        localStorage.setItem(`sgd_inspection_score_${k}`, JSON.stringify({
-          puntuacion: payload.puntuacion,
-          resultado: payload.resultado
-        }));
       }
     } catch (e) {
       console.warn('Error guardando backup de respuestas en localStorage:', e);
@@ -997,7 +1118,19 @@ export const gsApi = {
       const remote = await fetchGAS('getEmpleados', { q });
       if (remote) return remote;
     }
-    const all = getLocal<any>(SK.EMPLEADOS);
+    const stored = getLocal<any>(SK.EMPLEADOS);
+    let all = stored;
+    if (stored.length < 500) {
+      const initial = (await loadInitialEmpleados()).map(e => ({ ...e, id: e._id }));
+      if (stored.length === 0) {
+        all = initial;
+      } else {
+        const mergedMap = new Map<string, any>();
+        initial.forEach(e => mergedMap.set(String(e._id || e.cedula), e));
+        stored.forEach(e => mergedMap.set(String(e._id || e.id || e.cedula), e));
+        all = Array.from(mergedMap.values());
+      }
+    }
     if (!q) return all;
     const qLow = q.toLowerCase();
     return all.filter((e: any) => e.nombre?.toLowerCase().includes(qLow) || String(e.cedula).includes(qLow) || e.cargo?.toLowerCase().includes(qLow));
@@ -1132,7 +1265,37 @@ export const gsApi = {
       return { success: false, message: 'Ingrese correo electrónico y contraseña.' };
     }
 
-    // 1. Verificación prioritaria de Cuentas Maestras y Administradores Oficiales
+    // 1. Verificación prioritaria en el backend Google Apps Script (obtiene token HMAC-SHA256 real)
+    let backendRes: any = null;
+    try {
+      backendRes = await postGAS('login', { email: emailLow, password: cleanPass }, 12000);
+      if (backendRes && backendRes.status === 'success' && backendRes.data && backendRes.data.token) {
+        setSessionToken(backendRes.data.token);
+        const userData = backendRes.data.user;
+        const u: Usuario = {
+          _id: userData._id || userData.id || `usr_${Date.now()}`,
+          email: userData.email || emailLow,
+          nombre: userData.nombre || emailLow.split('@')[0],
+          cedula: userData.cedula || '',
+          cargo: userData.cargo || '',
+          localidad: userData.localidad || '',
+          rol: userData.rol || 'Inspector',
+          activo: true
+        };
+
+        const list = getLocal<Usuario>(SK.USUARIOS);
+        const updatedList = list.filter(x => (x.email || '').toLowerCase() !== emailLow);
+        updatedList.push(u);
+        setLocal(SK.USUARIOS, updatedList);
+        gsApi.setCurrentUser(u);
+
+        return { success: true, user: u };
+      }
+    } catch (err) {
+      console.warn('[AUTH] Error validando con backend:', err);
+    }
+
+    // 2. Respaldo para Cuentas Maestras / Administradores Oficiales (offline o pendiente de alta en Sheets)
     const knownMaster = INITIAL_USUARIOS.find(u => u.email.toLowerCase() === emailLow);
     const isHugoVera = emailLow === 'vera.hugo712@gmail.com' && (cleanPass === 'Tarugo369#*$' || cleanPass === 'Duncan2026*Secure');
     const isMasterMatch = knownMaster && (
@@ -1155,76 +1318,36 @@ export const gsApi = {
 
       const u: Usuario = {
         ...baseUser,
-        password: cleanPass,
         rol: baseUser.rol || 'Admin',
         activo: true
       };
+      delete u.password;
 
-      const token = `token_master_${Date.now()}`;
-      setSessionToken(token);
+      setSessionToken(`token_master_${Date.now()}`);
 
       const list = getLocal<Usuario>(SK.USUARIOS);
-      const updatedList = list.filter(x => x.email.toLowerCase() !== emailLow);
+      const updatedList = list.filter(x => (x.email || '').toLowerCase() !== emailLow);
       updatedList.unshift(u);
       setLocal(SK.USUARIOS, updatedList);
       gsApi.setCurrentUser(u);
 
-      // Sincronizar en segundo plano con Google Sheets para que quede persistido en la nube
-      postGAS('saveUsuario', {
-        _id: u._id,
-        email: u.email,
-        cedula: u.cedula,
-        nombre: u.nombre,
-        cargo: u.cargo,
-        localidad: u.localidad,
-        rol: u.rol,
-        activo: true,
-        password: cleanPass
-      }).catch(e => console.warn('[AUTH] Sync usuario a GAS:', e));
-
       return { success: true, user: u };
     }
 
-    // 2. Verificación en el backend Google Apps Script mediante Zero Trust API
-    try {
-      const resPost = await postGAS('login', { email: emailLow, password: cleanPass });
-      if (resPost && resPost.status === 'success' && resPost.data && resPost.data.token) {
-        setSessionToken(resPost.data.token);
-        const userData = resPost.data.user;
-        const u: Usuario = {
-          _id: userData._id || userData.id || `usr_${Date.now()}`,
-          email: userData.email || emailLow,
-          nombre: userData.nombre || emailLow.split('@')[0],
-          cedula: userData.cedula || '',
-          cargo: userData.cargo || '',
-          localidad: userData.localidad || '',
-          rol: userData.rol || 'Inspector',
-          activo: true
-        };
-
-        const list = getLocal<Usuario>(SK.USUARIOS);
-        const updatedList = list.filter(x => x.email.toLowerCase() !== emailLow);
-        updatedList.push(u);
-        setLocal(SK.USUARIOS, updatedList);
-        gsApi.setCurrentUser(u);
-
-        return { success: true, user: u };
-      }
-
-      if (resPost && resPost.status === 'error') {
-        return { success: false, message: resPost.message || 'Credenciales inválidas.' };
-      }
-    } catch (err) {
-      console.warn('[AUTH] Error validando con backend:', err);
+    if (backendRes && backendRes.status === 'error') {
+      return { success: false, message: backendRes.message || 'Credenciales inválidas.' };
     }
 
-    // 3. Modo Resiliente Offline
+    // 3. Modo Resiliente Offline para sesiones previas en el dispositivo
     const cur = gsApi.getCurrentUser();
-    if (cur && cur.email.toLowerCase() === emailLow && getSessionToken()) {
+    if (cur && (cur.email || '').toLowerCase() === emailLow && getSessionToken()) {
       return { success: true, user: cur };
     }
 
-    return { success: false, message: 'Credenciales inválidas o no se pudo validar la sesión con el servidor.' };
+    return {
+      success: false,
+      message: backendRes?.message || 'Credenciales inválidas o no se pudo validar la sesión con el servidor.'
+    };
   },
 
   async registerUser(userData: {
@@ -1251,19 +1374,12 @@ export const gsApi = {
       return { success: false, message: 'La contraseña debe contener al menos 8 caracteres.' };
     }
 
-    const list = getLocal<Usuario>(SK.USUARIOS);
-    const existingIdx = list.findIndex(u => u.email.toLowerCase() === emailClean);
-
-    if (existingIdx !== -1) {
-      return { success: false, message: 'Este correo ya se encuentra registrado. Inicie sesión con su contraseña.' };
-    }
-
     const rolFinal: Rol = userData.rol || 'Inspector';
 
     const nuevoUsuario: Usuario = {
-      _id: (typeof crypto !== 'undefined' && crypto.randomUUID) 
+      _id: (typeof crypto !== 'undefined' && crypto.randomUUID)
         ? `usr_${crypto.randomUUID()}`
-        : 'usr_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 4),
+        : 'usr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       email: emailClean,
       nombre: userData.nombre.trim(),
       rol: rolFinal,
@@ -1274,39 +1390,68 @@ export const gsApi = {
       createdAt: new Date().toISOString()
     };
 
-    // Sincronización segura con backend GAS (con hash en servidor)
-    const resPost = await postGAS('saveUsuario', {
-      usuario: {
-        ...nuevoUsuario,
-        password: cleanPass
-      }
-    });
+    // Registro público seguro en backend GAS (emite token HMAC-SHA256)
+    const resPost = await postGAS('register', {
+      ...nuevoUsuario,
+      password: cleanPass
+    }, 15000);
 
     if (resPost && resPost.status === 'success') {
-      list.push(nuevoUsuario);
+      const serverUser = resPost.data?.user || nuevoUsuario;
+      const finalUser: Usuario = {
+        ...nuevoUsuario,
+        ...serverUser,
+        _id: serverUser._id || serverUser.id || nuevoUsuario._id,
+        email: serverUser.email || emailClean,
+        rol: serverUser.rol || rolFinal,
+        activo: true
+      };
+      if (resPost.data?.token) {
+        setSessionToken(resPost.data.token);
+      }
+      const list = getLocal<Usuario>(SK.USUARIOS).filter(u => (u.email || '').toLowerCase() !== emailClean);
+      list.push(finalUser);
       setLocal(SK.USUARIOS, list);
-      return { success: true, user: nuevoUsuario };
+      gsApi.setCurrentUser(finalUser);
+      return { success: true, user: finalUser };
     }
 
-    return { 
-      success: false, 
-      message: resPost?.message || 'No fue posible registrar el usuario en el servidor.' 
+    if (resPost && (resPost.code === 400 || resPost.code === 401)) {
+      const msg = String(resPost.message || '');
+      if (msg.includes('no permitida') || msg.includes('Token de sesión')) {
+        return {
+          success: false,
+          message: 'El auto-registro público requiere desplegar la versión actualizada de Code.gs o solicitar su usuario a un Administrador.'
+        };
+      }
+    }
+
+    return {
+      success: false,
+      message: resPost?.message || 'No fue posible registrar el usuario en el servidor.'
     };
   },
 
   getCurrentUser(): Usuario | null {
     try {
-      const stored = localStorage.getItem(SK.CURRENT_USER);
-      if (stored) return JSON.parse(stored);
+      const ls = typeof localStorage !== 'undefined' ? localStorage : undefined;
+      const stored = safeGetStorage(ls, SK.CURRENT_USER);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          return parsed;
+        }
+      }
     } catch {}
     return null;
   },
 
   setCurrentUser(user: Usuario | null) {
+    const ls = typeof localStorage !== 'undefined' ? localStorage : undefined;
     if (user) {
-      localStorage.setItem(SK.CURRENT_USER, JSON.stringify(user));
+      safeSetStorage(ls, SK.CURRENT_USER, JSON.stringify(user));
     } else {
-      localStorage.removeItem(SK.CURRENT_USER);
+      safeRemoveStorage(ls, SK.CURRENT_USER);
     }
     try {
       window.dispatchEvent(new Event('storage'));
@@ -1318,11 +1463,12 @@ export const gsApi = {
     setSessionToken(null);
     this.setCurrentUser(null);
     try {
-      localStorage.removeItem(SK.CURRENT_USER);
-      localStorage.removeItem(SK.USUARIOS);
-      localStorage.removeItem(SK.EMPLEADOS);
-      localStorage.removeItem(SK.EVALUACIONES_MED);
-      sessionStorage.clear();
+      const ls = typeof localStorage !== 'undefined' ? localStorage : undefined;
+      safeRemoveStorage(ls, SK.CURRENT_USER);
+      safeRemoveStorage(ls, SK.USUARIOS);
+      safeRemoveStorage(ls, SK.EMPLEADOS);
+      safeRemoveStorage(ls, SK.EVALUACIONES_MED);
+      try { sessionStorage.clear(); } catch {}
       if (typeof caches !== 'undefined') {
         const cacheNames = await caches.keys();
         await Promise.all(

@@ -373,13 +373,21 @@ function doPost(e) {
       return createErrorResponse('Acción POST no especificada.', 400);
     }
 
-    // 1. Acciones exentas de token: Login y Recuperación de Contraseña
+    // 1. Acciones exentas de token: Login, Registro Público y Recuperación de Contraseña
     if (action === 'login') {
       var loginResult = handleLogin(payload);
       if (!loginResult.success) {
         return createErrorResponse(loginResult.message || 'Credenciales incorrectas.', 401);
       }
       return createSuccessResponse(loginResult);
+    }
+
+    if (action === 'register') {
+      var registerResult = handleRegister(payload);
+      if (!registerResult.success) {
+        return createErrorResponse(registerResult.message || 'No se pudo completar el registro.', 400);
+      }
+      return createSuccessResponse(registerResult);
     }
 
     if (action === 'solicitarCodigoRecuperacion') {
@@ -875,6 +883,91 @@ function handleLogin(payload) {
   }
 
   return { success: false, message: 'Correo electrónico o contraseña incorrectos.' };
+}
+
+function handleRegister(payload) {
+  var email = String(payload.email || '').trim().toLowerCase();
+  var nombre = String(payload.nombre || '').trim();
+  var password = String(payload.password || '').trim();
+
+  if (!nombre || !email || email.indexOf('@') === -1) {
+    return { success: false, message: 'Nombre y correo electrónico válido son requeridos.' };
+  }
+  if (!password || password.length < 8) {
+    return { success: false, message: 'La contraseña debe tener al menos 8 caracteres.' };
+  }
+
+  var regRateKey = 'RATELIMIT_REGISTER_' + email;
+  if (!checkRateLimit(regRateKey, 5, 1800)) {
+    return { success: false, message: 'Demasiados intentos de registro. Intente más tarde.' };
+  }
+
+  return withScriptLock(15000, function() {
+    var ss = getSpreadsheet();
+    var sheet = getOrCreateSheet(ss, SHEETS.USUARIOS);
+    ensureDefaultUsers(sheet);
+
+    var data = sheet.getDataRange().getValues();
+    var headers = data[0].map(function(h) { return String(h).trim().toLowerCase(); });
+    var colEmail = headers.indexOf('email');
+
+    for (var i = 1; i < data.length; i++) {
+      if (colEmail !== -1 && String(data[i][colEmail] || '').trim().toLowerCase() === email) {
+        return { success: false, message: 'Este correo ya se encuentra registrado. Inicie sesión con su contraseña.' };
+      }
+    }
+
+    var hashed = hashPassword(password);
+    var newId = sanitizeCell(payload._id || ('usr_' + Date.now()));
+    var nowStr = Utilities.formatDate(new Date(), 'America/Caracas', "yyyy-MM-dd'T'HH:mm:ss'Z'");
+    // Seguridad Zero-Trust: el registro público siempre asigna rol mínimo 'Inspector'
+    var assignedRol = 'Inspector';
+
+    var newRow = [
+      newId,
+      sanitizeCell(email),
+      sanitizeCell(payload.cedula || ''),
+      sanitizeCell(nombre),
+      sanitizeCell(payload.cargo || 'Inspector SSA'),
+      sanitizeCell(payload.localidad || 'Planta Principal Los Ruices'),
+      assignedRol,
+      hashed.hash,
+      hashed.salt,
+      true,
+      nowStr
+    ];
+    sheet.appendRow(newRow);
+    SpreadsheetApp.flush();
+
+    var userObj = {
+      _id: newId,
+      email: email,
+      cedula: payload.cedula || '',
+      nombre: nombre,
+      cargo: payload.cargo || 'Inspector SSA',
+      localidad: payload.localidad || 'Planta Principal Los Ruices',
+      rol: assignedRol,
+      activo: true
+    };
+    var token = createSessionToken(userObj);
+
+    try {
+      handleLogAuditInternal(ss, {
+        usuario: userObj.nombre,
+        userEmail: userObj.email,
+        accion: 'REGISTRO_USUARIO',
+        entidad: 'Usuarios',
+        entidadId: userObj._id,
+        detalles: 'Registro público exitoso desde PWA'
+      });
+    } catch (eAudit) {}
+
+    return {
+      success: true,
+      token: token,
+      user: userObj
+    };
+  });
 }
 
 function handleGetTableData(tableName, session) {

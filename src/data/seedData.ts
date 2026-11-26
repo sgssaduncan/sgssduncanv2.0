@@ -4,7 +4,11 @@
 // ============================================================
 
 import type { Empresa, Localidad, Establecimiento, TipoInspeccion, Empleado, Usuario } from '../types';
-import { PAYROLL_ACTIVE_WORKERS } from './seedEmpleados';
+
+export async function loadInitialEmpleados(): Promise<Empleado[]> {
+  const { PAYROLL_ACTIVE_WORKERS } = await import('./seedEmpleados');
+  return PAYROLL_ACTIVE_WORKERS;
+}
 
 export const INITIAL_EMPRESAS: Empresa[] = [
   { _id: 'emp_adca', codigo: 'ADCA', nombre: 'Acumuladores Duncan, C.A.', rif: 'J-00000350-5', direccion: 'Av. Milán, Edificio Nageben Piso 1, Los Ruices Sur, Caracas 1071' },
@@ -710,9 +714,6 @@ export const INITIAL_USUARIOS: Usuario[] = [
 
 export const INITIAL_INSPECCIONES: any[] = [];
 export const INITIAL_PLAN_ACCION: any[] = [];
-export const INITIAL_EMPLEADOS: Empleado[] = [
-  ...PAYROLL_ACTIVE_WORKERS
-];
 
 export const INITIAL_EPP_INVENTARIO: any[] = [
   { id: 'epp_01', _id: 'epp_01', codigo: 'EPP-CAS-01', nombre: 'Casco Dieléctrico Tipo I Clase E con Barbiquejo', categoria: 'Protección Cabeza', stockActual: 45, stockMinimo: 15, unidad: 'Und', stock: [{ talla: 'Ajustable', cantidad: 45 }] },

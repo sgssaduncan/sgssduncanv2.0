@@ -45,8 +45,6 @@ export default function CatalogoCriteriosModal({ isOpen, onClose, defaultTab = '
   const flota = useMemo(() => criteriosService.getFlota(), [isOpen]);
   const ponderaciones = useMemo(() => criteriosService.getPonderaciones(), [isOpen]);
 
-  if (!isOpen) return null;
-
   // Filtrado de Criterios Distribuidoras
   const filteredDist = useMemo(() => {
     return criteriosDist.filter(c => {
@@ -115,6 +113,8 @@ export default function CatalogoCriteriosModal({ isOpen, onClose, defaultTab = '
         b.mercado.toLowerCase().includes(q);
     });
   }, [search]);
+
+  if (!isOpen) return null;
 
   // Exportar vista activa a Excel
   const handleExportExcel = () => {
