@@ -5,7 +5,7 @@ import {
   Search, Lock, Check, KeyRound, ShieldAlert, Sparkles
 } from 'lucide-react';
 import { useSGD } from '../contexts/SGDContext';
-import { isOwnerOrDeveloperEmail } from '../types';
+import { isOwnerOrDeveloperEmail, canAccessNomina } from '../types';
 import type { Usuario, Rol } from '../types';
 import toast from 'react-hot-toast';
 
@@ -24,6 +24,7 @@ export default function UsuariosPage() {
   const [formCargo, setFormCargo] = useState('Inspector de Seguridad y Salud');
   const [formLocalidad, setFormLocalidad] = useState('Planta Principal Los Ruices');
   const [formRol, setFormRol] = useState<Rol>('Inspector');
+  const [formCanViewNomina, setFormCanViewNomina] = useState(false);
   const [formPassword, setFormPassword] = useState('');
   const [formActivo, setFormActivo] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
@@ -110,6 +111,7 @@ export default function UsuariosPage() {
     setFormCargo('Inspector de Seguridad y Salud');
     setFormLocalidad('Planta Principal Los Ruices');
     setFormRol('Inspector');
+    setFormCanViewNomina(false);
     setFormPassword(generateSecurePassword());
     setFormActivo(true);
     setShowPassword(true);
@@ -124,6 +126,7 @@ export default function UsuariosPage() {
     setFormCargo(u.cargo || 'Inspector de Seguridad y Salud');
     setFormLocalidad(u.localidad || 'Planta Principal Los Ruices');
     setFormRol(u.rol || 'Inspector');
+    setFormCanViewNomina(Boolean(u.canViewNomina));
     setFormPassword(''); // No exponer ni prellenar la clave
     setFormActivo(u.activo !== false);
     setShowPassword(false);
@@ -152,6 +155,7 @@ export default function UsuariosPage() {
         cargo: formCargo.trim(),
         localidad: formLocalidad.trim(),
         rol: formRol,
+        canViewNomina: formCanViewNomina,
         activo: formActivo,
       };
 
@@ -366,16 +370,27 @@ export default function UsuariosPage() {
                       </td>
 
                       <td className="py-3.5 px-4">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                          owner
-                            ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                            : u.rol === 'Admin'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-emerald-100 text-emerald-800'
-                        }`}>
-                          {owner ? <ShieldCheck className="w-3 h-3 text-amber-600" /> : <Shield className="w-3 h-3" />}
-                          {u.rol}
-                        </span>
+                        <div className="flex flex-col gap-1 items-start">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                            owner
+                              ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                              : u.rol === 'Admin'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-emerald-100 text-emerald-800'
+                          }`}>
+                            {owner ? <ShieldCheck className="w-3 h-3 text-amber-600" /> : <Shield className="w-3 h-3" />}
+                            {u.rol}
+                          </span>
+                          {canAccessNomina(u) ? (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-200" title="Autorizado para consultar nómina y datos completos de personal">
+                              <Lock className="w-2.5 h-2.5 text-teal-600" /> Nómina OK
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-slate-400 bg-slate-50 border border-slate-200/60" title="Sin acceso a nómina de personal confidencial">
+                              Sin Nómina
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       <td className="py-3.5 px-4">
@@ -494,11 +509,25 @@ export default function UsuariosPage() {
                 </label>
                 <input
                   type="text"
+                  list="cargos-duncan"
                   value={formCargo}
                   onChange={e => setFormCargo(e.target.value)}
-                  placeholder="Ej: Inspector de Seguridad y Salud"
+                  placeholder="Ej: Gerente de Distribuidora, Supervisor de Detal..."
                   className="input w-full text-sm"
                 />
+                <datalist id="cargos-duncan">
+                  <option value="Gerente de Distribuidora" />
+                  <option value="Supervisor de Detal (Servicentros)" />
+                  <option value="Coordinador Administrativo" />
+                  <option value="Coordinador de Logística" />
+                  <option value="Jefe de Almacén" />
+                  <option value="Técnico Electricista" />
+                  <option value="Vendedor de Ruta" />
+                  <option value="Auxiliar de Vendedor" />
+                  <option value="Inspector de Seguridad y Salud" />
+                  <option value="Médico Ocupacional" />
+                  <option value="Administrador de Sistema" />
+                </datalist>
               </div>
 
               <div>
@@ -586,6 +615,28 @@ export default function UsuariosPage() {
                   Usuario Activo (Permitir acceso al sistema)
                 </label>
               </div>
+
+              {/* PRIVILEGIO ESPECIAL DE NÓMINA (Concedido por Propietarios y Desarrolladores) */}
+              {isOwner(currentUser?.email, currentUser?.rol) && (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/25 rounded-xl space-y-1">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="userCanViewNomina"
+                      checked={formCanViewNomina}
+                      onChange={e => setFormCanViewNomina(e.target.checked)}
+                      className="w-4 h-4 text-amber-600 rounded border-slate-300 focus:ring-amber-500"
+                    />
+                    <label htmlFor="userCanViewNomina" className="text-xs font-bold text-slate-800 flex items-center gap-1.5 cursor-pointer">
+                      <Lock className="w-3.5 h-3.5 text-amber-600" />
+                      Privilegio Especial: Acceso a Nómina y Datos de Personal
+                    </label>
+                  </div>
+                  <p className="text-[11px] text-slate-600 pl-6 leading-tight">
+                    Autoriza a este usuario a consultar y exportar la base completa de trabajadores y datos personales confidenciales.
+                  </p>
+                </div>
+              )}
 
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
                 <button

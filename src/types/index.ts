@@ -6,6 +6,23 @@ export type Role = 'Super Admin' | 'Propietario / Super Admin' | 'Admin' | 'Insp
 export type Rol = Role;
 
 /**
+ * Cargos jerárquicos y operativos oficiales en la estructura de Distribuidora Duncan
+ */
+export type CargoJerarquico =
+  | 'Propietario / Desarrollador'
+  | 'Administrador de Sistema'
+  | 'Gerente de Distribuidora'
+  | 'Supervisor de Detal'
+  | 'Coordinador Administrativo'
+  | 'Coordinador de Logística'
+  | 'Jefe de Almacén'
+  | 'Técnico Electricista'
+  | 'Vendedor de Ruta'
+  | 'Auxiliar de Vendedor'
+  | 'Inspector de Seguridad y Salud'
+  | 'Médico Ocupacional';
+
+/**
  * Validador de cuentas de Propietarios y Administradores Principales
  * basándose en el rol asignado o cuenta corporativa autorizada.
  */
@@ -17,8 +34,31 @@ export function isOwnerOrDeveloperEmail(email?: string, rol?: string): boolean {
     e === 'sgssaduncan@gmail.com' ||
     e === 'admin@duncan.com.ve' ||
     e === 'vera.hugo712@gmail.com' ||
+    e === 'francisco.rojasp@gmail.com' ||
     e.endsWith('@duncan.com.ve')
   );
+}
+
+/**
+ * Validador estricto para acceso a Nóminas y Datos Sensibles del Personal.
+ * REGLA DE NEGOCIO CORPORATIVA:
+ * Solo tienen acceso:
+ * 1. Propietarios y Desarrolladores del sistema.
+ * 2. Administradores a los que se les conceda expresamente el privilegio `canViewNomina === true`.
+ */
+export function canAccessNomina(user?: UserProfile | null): boolean {
+  if (!user) return false;
+  // 1. Propietario o desarrollador del sistema
+  if (isOwnerOrDeveloperEmail(user.email, user.rol || user.role)) {
+    return true;
+  }
+  // 2. Administrador con privilegio explícito concedido
+  const rol = (user.rol || user.role || '');
+  const isAdmin = rol === 'Admin' || rol === 'Super Admin' || rol === 'Propietario / Super Admin';
+  if (isAdmin && user.canViewNomina === true) {
+    return true;
+  }
+  return false;
 }
 
 export interface UserProfile {
@@ -37,6 +77,10 @@ export interface UserProfile {
   cedula?: string;
   cargo?: string;
   localidad?: string;
+  sedeAsignada?: string;
+  distribuidoraAsignada?: string;
+  canViewNomina?: boolean;
+  permisosEspeciales?: string[];
   createdAt?: string;
 }
 

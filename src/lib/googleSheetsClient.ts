@@ -1204,6 +1204,9 @@ export const gsApi = {
       password: usuario.password || 'Duncan2026*',
       activo: usuario.activo !== false,
       empresaId: usuario.empresaId,
+      canViewNomina: Boolean(usuario.canViewNomina),
+      sedeAsignada: usuario.sedeAsignada || '',
+      distribuidoraAsignada: usuario.distribuidoraAsignada || '',
       createdAt: (usuario as any).createdAt || new Date().toISOString()
     };
 

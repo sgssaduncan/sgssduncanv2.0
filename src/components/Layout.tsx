@@ -37,7 +37,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { isOwnerOrDeveloperEmail } from '../types';
+import { isOwnerOrDeveloperEmail, canAccessNomina } from '../types';
 import type { Role } from '../types';
 import { menuPreferencesService, MenuPreferences } from '../services/menuPreferencesService';
 import MenuCustomizerModal from './MenuCustomizerModal';
@@ -51,6 +51,7 @@ interface NavItem {
   allowedRoles?: Role[];
   description?: string;
   color?: string;
+  requireNominaAccess?: boolean;
 }
 
 interface NavGroup {
@@ -93,7 +94,15 @@ const NAV_GROUPS: NavGroup[] = [
   {
     category: 'SALUD & PERSONAL',
     items: [
-      { to: '/trabajadores', icon: Users, label: 'Trabajadores', badge: 'RRHH', description: 'Directorio y nómina', color: 'bg-teal-500' },
+      { 
+        to: '/trabajadores', 
+        icon: Users, 
+        label: 'Trabajadores', 
+        badge: 'CONFIDENCIAL', 
+        description: 'Directorio y nómina confidencial', 
+        color: 'bg-teal-500',
+        requireNominaAccess: true
+      },
       { to: '/dotacion', icon: Package, label: 'Dotación EPP y Uniformes', description: 'Entrega de equipos de protección', color: 'bg-cyan-500' },
       { 
         to: '/medico', 
@@ -193,6 +202,11 @@ export default function Layout() {
     isOwnerOrDeveloperEmail(typeof currentUser?.email === 'string' ? currentUser.email : '');
 
   const canAccessItem = (item: NavItem) => {
+    // 1. REGLA ESTRICTA DE PRIVACIDAD: Nómina y Personal confidencial
+    // Solo Propietarios, Desarrolladores y Administradores con privilegio explícito pueden acceder
+    if (item.requireNominaAccess && !canAccessNomina(currentUser)) {
+      return false;
+    }
     if (!item.allowedRoles || item.allowedRoles.length === 0) return true;
     if (isSuperAdminOrOwner) return true;
     return item.allowedRoles.includes(userRole);
@@ -201,7 +215,7 @@ export default function Layout() {
   // Obtener todos los ítems accesibles para el usuario actual (Hooks SIEMPRE antes de cualquier return)
   const allNavItems = useMemo(() => {
     return NAV_GROUPS.flatMap(g => g.items).filter(canAccessItem);
-  }, [userRole, isSuperAdminOrOwner]);
+  }, [userRole, isSuperAdminOrOwner, currentUser]);
 
   const itemByRoute = useMemo(() => {
     const map = new Map<string, NavItem>();

@@ -32,7 +32,7 @@ import { dbService } from '../services/db';
 import { auditService } from '../services/auditService';
 import { useSGD } from '../contexts/SGDContext';
 import { useAuth } from '../hooks/useAuth';
-import type { Empleado, Empresa, Establecimiento } from '../types';
+import { canAccessNomina, type Empleado, type Empresa, type Establecimiento } from '../types';
 import { parseWorkerFile, type ParsedWorkerResult } from '../lib/workerFileParser';
 import { DUNCAN_LOGO_BW } from '../lib/logos';
 import { cn, formatDate } from '../lib/utils';
@@ -45,7 +45,10 @@ export default function TrabajadoresPage() {
   const { currentUser, empresas, establecimientos } = useSGD();
   const { isSuperAdmin } = useAuth();
   
-  // Verificación de autorizaciones
+  // Verificación estricta de acceso a Nómina y Datos Sensibles
+  const hasNominaAccess = canAccessNomina(currentUser);
+
+  // Verificación de autorizaciones operativas
   const rol = currentUser?.rol?.toUpperCase() || '';
   const canManage = isSuperAdmin || 
                     rol.includes('ADMIN') || 
@@ -98,10 +101,15 @@ export default function TrabajadoresPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    loadEmpleados();
-  }, []);
+    if (hasNominaAccess) {
+      loadEmpleados();
+    } else {
+      setLoading(false);
+    }
+  }, [hasNominaAccess]);
 
   const loadEmpleados = async () => {
+    if (!hasNominaAccess) return;
     try {
       setLoading(true);
       const data = await dbService.getEmpleados();
@@ -375,6 +383,44 @@ export default function TrabajadoresPage() {
       toast.error('Error generando PDF');
     }
   };
+
+  if (!hasNominaAccess) {
+    return (
+      <div className="card p-8 sm:p-12 text-center max-w-xl mx-auto mt-8 sm:mt-12 space-y-5 shadow-2xl border border-rose-200/80 bg-white rounded-3xl">
+        <div className="w-16 h-16 bg-rose-50 border border-rose-200 text-rose-600 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
+          <AlertTriangle className="w-8 h-8 text-rose-600" />
+        </div>
+        <div className="space-y-2">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-rose-100 text-rose-800">
+            Acceso Restringido • Confidencial
+          </span>
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+            Nómina y Datos del Personal
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+            De acuerdo con las normativas corporativas de privacidad y gobernanza de <strong>Distribuidora Duncan</strong>,
+            la nómina de personal, cédulas, datos salariales y expedientes privados están estrictamente protegidos.
+          </p>
+        </div>
+
+        <div className="bg-amber-50/90 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 text-left space-y-2">
+          <p className="font-bold flex items-center gap-2 text-amber-950">
+            <ShieldCheck className="w-4 h-4 text-amber-600 flex-shrink-0" />
+            Niveles Autorizados para Consultar este Módulo:
+          </p>
+          <ul className="list-disc pl-5 space-y-1.5 text-slate-700">
+            <li><strong>Propietarios y Desarrolladores del Sistema</strong> (Control total de nóminas).</li>
+            <li><strong>Administradores Autorizados</strong> con el privilegio especial de nómina expresamente concedido por un Propietario.</li>
+          </ul>
+        </div>
+
+        <p className="text-[11px] text-slate-400">
+          Los cargos operativos (Gerentes de Distribuidora, Supervisores de Detal, Coordinadores, Jefes de Almacén, Vendedores y Técnicos)
+          gestionan al personal de su sede a través de Dotación EPP, Transporte, LOTO y Permisos de Trabajo sin acceso a la nómina completa.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 fade-in pb-12">
