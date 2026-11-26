@@ -44,6 +44,21 @@ export default function CatalogoCriteriosModal({ isOpen, onClose, defaultTab = '
   const frecuencias = useMemo(() => criteriosService.getFrecuencias(), [isOpen]);
   const flota = useMemo(() => criteriosService.getFlota(), [isOpen]);
   const ponderaciones = useMemo(() => criteriosService.getPonderaciones(), [isOpen]);
+  const listas = useMemo(() => criteriosService.getListas(), [isOpen]);
+  const [scModalView, setScModalView] = useState<'criterios' | 'sedes'>('criterios');
+
+  const filteredServicentrosSedes = useMemo(() => {
+    if (!listas?.servicentros) return [];
+    return listas.servicentros
+      .filter(s => s.nombre !== 'Consolidado')
+      .filter(s => {
+        const q = search.toLowerCase();
+        return !q ||
+          s.nombre.toLowerCase().includes(q) ||
+          s.localidad.toLowerCase().includes(q) ||
+          s.abrev.toLowerCase().includes(q);
+      });
+  }, [listas?.servicentros, search]);
 
   // Filtrado de Criterios Distribuidoras
   const filteredDist = useMemo(() => {
@@ -329,52 +344,112 @@ export default function CatalogoCriteriosModal({ isOpen, onClose, defaultTab = '
           {/* TAB 2: SERVICENTROS */}
           {activeTab === 'servicentros' && (
             <div className="space-y-3">
-              <div className="flex items-center justify-between text-xs text-slate-400 pb-1">
-                <span>Mostrando {filteredServ.length} de {criteriosServ.length} criterios</span>
-                <span>Normativa: LOPCYMAT • INPSASEL • COVENIN • RCHST</span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1 border-b border-slate-800">
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setScModalView('criterios')}
+                    className={`px-3 py-1 rounded-xl text-xs font-black transition-all ${
+                      scModalView === 'criterios'
+                        ? 'bg-amber-400 text-slate-950 shadow-sm'
+                        : 'bg-slate-900 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Criterios SSA ({filteredServ.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScModalView('sedes')}
+                    className={`px-3 py-1 rounded-xl text-xs font-black transition-all ${
+                      scModalView === 'sedes'
+                        ? 'bg-amber-400 text-slate-950 shadow-sm'
+                        : 'bg-slate-900 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Directorio de Sedes ({filteredServicentrosSedes.length})
+                  </button>
+                </div>
+                <span className="text-[11px] text-slate-400">
+                  {scModalView === 'criterios'
+                    ? 'Normativa: LOPCYMAT • INPSASEL • COVENIN'
+                    : '47 Sedes Nacionales • Inversiones 1286, C.A.'}
+                </span>
               </div>
-              <div className="grid grid-cols-1 gap-3">
-                {filteredServ.map((c, i) => (
-                  <div key={i} className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-2 hover:border-slate-700 transition-all">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="bg-slate-900 text-amber-400 border border-amber-400/30 px-2 py-0.5 rounded font-mono font-black text-xs">
-                          {c.num}
-                        </span>
-                        <span className={`text-[10px] font-black px-2 py-0.5 rounded border uppercase ${
-                          c.grupoPilar === 'INFRA' ? 'bg-amber-950 text-amber-300 border-amber-500/40' :
-                          c.grupoPilar === 'LEGAL' ? 'bg-blue-950 text-blue-300 border-blue-500/40' :
-                          'bg-emerald-950 text-emerald-300 border-emerald-500/40'
-                        }`}>
-                          Pilar: {c.grupoPilar}
-                        </span>
-                        <span className="text-[10px] bg-slate-900 text-slate-300 px-2 py-0.5 rounded border border-slate-800 font-bold">
-                          Área: {c.areaResponsable}
-                        </span>
-                        <span className="text-[10px] text-slate-500 font-medium">
-                          {c.aspecto}
+
+              {scModalView === 'sedes' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {filteredServicentrosSedes.length === 0 ? (
+                    <div className="col-span-full py-8 text-center text-slate-500 text-xs font-bold">
+                      No se encontraron servicentros con el término de búsqueda
+                    </div>
+                  ) : (
+                    filteredServicentrosSedes.map((sc, i) => (
+                      <div key={i} className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-2 hover:border-amber-400/50 transition-all">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-slate-900 text-amber-400 border border-amber-400/20">
+                            {sc.localidad}
+                          </span>
+                          <span className="font-mono text-[10px] text-slate-400 font-bold px-1.5 py-0.5 bg-slate-900 rounded">
+                            {sc.abrev || 'S/C'}
+                          </span>
+                        </div>
+                        <h4 className="text-sm font-bold text-white">
+                          Servicentro {sc.nombre}
+                        </h4>
+                        <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-900">
+                          <span>Inversiones 1286, C.A.</span>
+                          <span className="text-emerald-400 font-bold text-[10px]">● Operativo</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {scModalView === 'criterios' && (
+                <div className="grid grid-cols-1 gap-3">
+                  {filteredServ.map((c, i) => (
+                    <div key={i} className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-2 hover:border-slate-700 transition-all">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="bg-slate-900 text-amber-400 border border-amber-400/30 px-2 py-0.5 rounded font-mono font-black text-xs">
+                            {c.num}
+                          </span>
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded border uppercase ${
+                            c.grupoPilar === 'INFRA' ? 'bg-amber-950 text-amber-300 border-amber-500/40' :
+                            c.grupoPilar === 'LEGAL' ? 'bg-blue-950 text-blue-300 border-blue-500/40' :
+                            'bg-emerald-950 text-emerald-300 border-emerald-500/40'
+                          }`}>
+                            Pilar: {c.grupoPilar}
+                          </span>
+                          <span className="text-[10px] bg-slate-900 text-slate-300 px-2 py-0.5 rounded border border-slate-800 font-bold">
+                            Área: {c.areaResponsable}
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-medium">
+                            {c.aspecto}
+                          </span>
+                        </div>
+                        <span className="text-[10px] bg-slate-900 text-slate-400 px-2 py-0.5 rounded border border-slate-800 shrink-0 font-mono">
+                          Ítem #{c.item}
                         </span>
                       </div>
-                      <span className="text-[10px] bg-slate-900 text-slate-400 px-2 py-0.5 rounded border border-slate-800 shrink-0 font-mono">
-                        Ítem #{c.item}
-                      </span>
+
+                      <h4 className="text-sm font-bold text-white">
+                        {c.preguntaResumida}
+                      </h4>
+
+                      <p className="text-xs text-slate-300 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/80 italic">
+                        "{c.pregunta}"
+                      </p>
+
+                      <div className="flex items-center gap-2 text-[11px] text-slate-400 pt-1 border-t border-slate-900">
+                        <Scale size={13} className="text-amber-400 shrink-0" />
+                        <span className="font-medium">Base Legal / Técnica: <strong className="text-slate-200">{c.aspectoLegal}</strong></span>
+                      </div>
                     </div>
-
-                    <h4 className="text-sm font-bold text-white">
-                      {c.preguntaResumida}
-                    </h4>
-
-                    <p className="text-xs text-slate-300 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/80 italic">
-                      "{c.pregunta}"
-                    </p>
-
-                    <div className="flex items-center gap-2 text-[11px] text-slate-400 pt-1 border-t border-slate-900">
-                      <Scale size={13} className="text-amber-400 shrink-0" />
-                      <span className="font-medium">Base Legal / Técnica: <strong className="text-slate-200">{c.aspectoLegal}</strong></span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

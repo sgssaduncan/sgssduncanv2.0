@@ -481,6 +481,22 @@ export const criteriosService = {
     const wsFlota = XLSX.utils.json_to_sheet(flotaData);
     XLSX.utils.book_append_sheet(wb, wsFlota, "Flota Nacional");
 
+    // 6. Sedes Servicentros Oficiales
+    const listas = this.getListas();
+    if (listas && Array.isArray(listas.servicentros)) {
+      const scData = listas.servicentros
+        .filter(s => s.nombre !== 'Consolidado')
+        .map((s, idx) => ({
+          "N°": idx + 1,
+          "Región / Localidad": s.localidad,
+          "Nombre Servicentro": s.nombre,
+          "Código / Abrev": s.abrev,
+          "Empresa Operadora": "Inversiones 1286, C.A. (INV1286)"
+        }));
+      const wsSC = XLSX.utils.json_to_sheet(scData);
+      XLSX.utils.book_append_sheet(wb, wsSC, "Sedes Servicentros (47)");
+    }
+
     const fileName = `SGD_DUNCAN_CRITERIOS_Y_FRECUENCIAS_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(wb, fileName);
   }
