@@ -4859,48 +4859,48 @@ export const LISTAS_MAESTRAS_SGD: ListasMaestras = {
   ],
   "distribuidoras": [
     {
-      "nombre": "DD BARCELONA",
-      "tblNombre": "DDBarcelona"
+      "nombre": "BARCELONA",
+      "tblNombre": "Barcelona"
     },
     {
-      "nombre": "DD BARQUISIMETO",
-      "tblNombre": "DDBarquisimeto"
+      "nombre": "BARQUISIMETO",
+      "tblNombre": "Barquisimeto"
     },
     {
-      "nombre": "DD CARACAS",
-      "tblNombre": "DDCaracas"
+      "nombre": "CARACAS",
+      "tblNombre": "Caracas"
     },
     {
-      "nombre": "DD EL VIGIA",
-      "tblNombre": "DDElVigia"
+      "nombre": "EL VIGIA",
+      "tblNombre": "ElVigia"
     },
     {
-      "nombre": "DD MARACAIBO",
-      "tblNombre": "DDMaracaibo"
+      "nombre": "MARACAIBO",
+      "tblNombre": "Maracaibo"
     },
     {
-      "nombre": "DD MARACAY",
-      "tblNombre": "DDMaracay"
+      "nombre": "MARACAY",
+      "tblNombre": "Maracay"
     },
     {
-      "nombre": "DD PORLAMAR",
-      "tblNombre": "DDPorlamar"
+      "nombre": "PORLAMAR",
+      "tblNombre": "Porlamar"
     },
     {
-      "nombre": "DD PUERTO ORDAZ",
-      "tblNombre": "DDPuertoOrdaz"
+      "nombre": "PUERTO ORDAZ",
+      "tblNombre": "PuertoOrdaz"
     },
     {
-      "nombre": "DD PUNTO FIJO",
-      "tblNombre": "DDPuntoFijo"
+      "nombre": "PUNTO FIJO",
+      "tblNombre": "PuntoFijo"
     },
     {
-      "nombre": "DD SAN CRISTOBAL",
-      "tblNombre": "DDSanCristobal"
+      "nombre": "SAN CRISTOBAL",
+      "tblNombre": "SanCristobal"
     },
     {
-      "nombre": "DD VALENCIA",
-      "tblNombre": "DDValencia"
+      "nombre": "VALENCIA",
+      "tblNombre": "Valencia"
     }
   ],
   "servicentros": [

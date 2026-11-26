@@ -334,17 +334,34 @@ export const criteriosService = {
   // 6. LISTAS MAESTRAS
   // -------------------------------------------------------------
   getListas(): ListasMaestras {
-    if (typeof window === 'undefined') return LISTAS_MAESTRAS_SGD;
-    try {
-      const stored = localStorage.getItem(STORAGE_KEYS.LISTAS);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed && typeof parsed === 'object') return parsed;
+    let result: ListasMaestras = LISTAS_MAESTRAS_SGD;
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEYS.LISTAS);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && typeof parsed === 'object') {
+            result = parsed;
+          }
+        }
+      } catch (e) {
+        console.warn('Error reading stored listas maestras:', e);
       }
-    } catch (e) {
-      console.warn('Error reading stored listas maestras:', e);
     }
-    return LISTAS_MAESTRAS_SGD;
+
+    // Normalizar y asegurar que las distribuidoras no tengan el prefijo "DD "
+    if (result && Array.isArray(result.distribuidoras)) {
+      result = {
+        ...result,
+        distribuidoras: result.distribuidoras.map(d => ({
+          ...d,
+          nombre: typeof d.nombre === 'string' ? d.nombre.replace(/^DD\s+/i, '').trim() : d.nombre,
+          tblNombre: typeof d.tblNombre === 'string' ? d.tblNombre.replace(/^DD/i, '').trim() : d.tblNombre
+        }))
+      };
+    }
+
+    return result;
   },
 
   saveListas(data: ListasMaestras, userEmail = 'admin@duncan.com.ve') {
